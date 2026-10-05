@@ -6,7 +6,7 @@ These rules prevent the successor effort from turning uncertain research into im
 
 1. Maintainer's current goal and explicit decisions.
 2. New successor architecture decisions that survive review and are recorded during this effort.
-3. `Temporal-Forge-Player/docs/closure/EVALUATION_STANDARD.md`.
+3. `Temporal-Forge-ANVIL/docs/closure/EVALUATION_STANDARD.md`.
 4. Reproducible current repository behavior when code is intentionally reused.
 5. Valid measurements/artifacts produced by the new effort.
 6. `RE-of-FSR-4.1.0-Upscaling/VALIDATION_STATUS.md` and `CURRENT_STATUS.md`.

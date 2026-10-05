@@ -1,6 +1,6 @@
 /goal
 
-Build the active successor Temporal Forge / ANVIL reconstruction architecture in the existing `Rolaand-Jayz/Temporal-Forge-Player` repository, using a maximally parallel GLM 5.3 Flash worker swarm, until the repository is **BUILD_READY_FOR_RESEARCH** under the supplied contract.
+Build the active successor Temporal Forge / ANVIL reconstruction architecture in the existing `Rolaand-Jayz/Temporal-Forge-ANVIL` repository, using a maximally parallel GLM 5.3 Flash worker swarm, until the repository is **BUILD_READY_FOR_RESEARCH** under the supplied contract.
 
 This is an implementation and testability goal. It is NOT the final reconstruction-quality research campaign.
 
@@ -38,11 +38,11 @@ All campaign work must live under:
 
 Primary mutable working repository:
 
-`/mnt/workdrive/Temporal-Forge-Player`
+`/mnt/workdrive/Temporal-Forge-ANVIL`
 
 Clone/update from:
 
-`https://github.com/Rolaand-Jayz/Temporal-Forge-Player`
+`https://github.com/Rolaand-Jayz/Temporal-Forge-ANVIL`
 
 Evidence-only FSR reverse-engineering repository:
 
@@ -56,13 +56,13 @@ Do not use `$HOME`, `/tmp`, or a default ZCode workspace as the project clone.
 
 Do not modify the RE repository unless the maintainer separately authorizes it.
 
-Create a dedicated successor branch in Temporal-Forge-Player. Do not rewrite historical `main`.
+Create a dedicated successor branch in Temporal-Forge-ANVIL. Do not rewrite historical `main`.
 
 ==================================================
 MAINTAINER AUTHORIZATION / REPOSITORY STATUS
 ==================================================
 
-The current Temporal-Forge-Player repository correctly says the FSR-centered research line is closed.
+The current Temporal-Forge-ANVIL repository correctly says the FSR-centered research line is closed.
 
 This /goal is explicit maintainer authorization to perform NEW successor behavioral work.
 
@@ -110,9 +110,9 @@ CRITICAL EVIDENCE GUARDRAILS
 ==================================================
 
 Read:
-- `/mnt/workdrive/Temporal-Forge-Player/docs/closure/EVALUATION_STANDARD.md`
-- `/mnt/workdrive/Temporal-Forge-Player/docs/closure/FSR41_FINAL_ADJUDICATION_20260915.md`
-- `/mnt/workdrive/Temporal-Forge-Player/docs/closure/LIMITATIONS_AND_OPEN_QUESTIONS.md`
+- `/mnt/workdrive/Temporal-Forge-ANVIL/docs/closure/EVALUATION_STANDARD.md`
+- `/mnt/workdrive/Temporal-Forge-ANVIL/docs/closure/FSR41_FINAL_ADJUDICATION_20260915.md`
+- `/mnt/workdrive/Temporal-Forge-ANVIL/docs/closure/LIMITATIONS_AND_OPEN_QUESTIONS.md`
 - `/mnt/workdrive/RE-of-FSR-4.1.0-Upscaling/VALIDATION_STATUS.md`
 - `/mnt/workdrive/RE-of-FSR-4.1.0-Upscaling/CURRENT_STATUS.md`
 - this execution pack's `EVIDENCE_GUARDRAILS.md`

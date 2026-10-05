@@ -1,7 +1,8 @@
 # ZCode execution packs
 
 Verbatim ingest of external ZCode execution packs relevant to this repository.
-These are preserved artifacts with checksums; see each pack's own `MANIFEST.json`.
+See each pack's own `MANIFEST.json` for per-file checksums; the ingest record
+below preserves the provenance of the original archive.
 
 ## Packs
 
@@ -17,11 +18,15 @@ These are preserved artifacts with checksums; see each pack's own `MANIFEST.json
   content is not activated by placement here. Per `AGENTS.md`, behavioral work
   requires an explicit maintainer directive given directly to a working session.
 
-## Unresolved mapping note
+## Mapping decision — 2026-10-05
 
-The pack's `GOAL.txt` and `BOOTSTRAP.sh` name `/mnt/workdrive/Temporal-Forge-Player`
-as the primary mutable working repository. This repository is
-`/mnt/workdrive/Temporal-Forge-ANVIL` — a clone of the closed Player history with
-remotes `origin` (Temporal-Forge-Player) and `origin-anvil` (Temporal-Forge-ANVIL).
-Whether the pack's program targets the Player clone in place or this ANVIL clone
-is a maintainer decision that has not yet been recorded.
+Resolved by direct maintainer instruction in a working session:
+
+- This repository (`/mnt/workdrive/Temporal-Forge-ANVIL`, remote
+  `origin-anvil` = `https://github.com/Rolaand-Jayz/Temporal-Forge-ANVIL`)
+  is the program's primary mutable working repository and push target.
+- The pack's working-clone and clone-source references were remapped from
+  `Temporal-Forge-Player` to `Temporal-Forge-ANVIL` accordingly, and
+  `MANIFEST.json` was refreshed to checksum the remapped files.
+- The original archive above remains the provenance record of the pre-remap
+  pack text; the historical Player repository is no longer the working target.

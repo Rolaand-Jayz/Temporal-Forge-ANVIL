@@ -1,8 +1,9 @@
 # Temporal Forge current state
 
-**Status:** CURRENT — **FSR ERA CLOSED**  
-**As of:** 2026-09-15  
-**Closure base:** `main` @ `285a5788f89787bce0ca26f8e8e8ca312890723f`
+**Status:** CURRENT — **FSR ERA CLOSED — ANVIL SUCCESSOR PROGRAM AUTHORIZED**  
+**As of:** 2026-10-05  
+**Closure base:** `main` @ `285a5788f89787bce0ca26f8e8e8ca312890723f`  
+**Successor authorization:** maintainer directive, 2026-10-05 (see "Successor program state" below)
 
 ## Project state
 
@@ -44,7 +45,14 @@ The central closure finding is not that temporal inputs are irrelevant. They mea
 
 FSR 4.1 adaptation is no longer the architectural center of Temporal Forge.
 
-Future Temporal Forge work should begin from the broader objective of recovering genuine source-supported detail from temporally distributed video observations. The successor architecture is intentionally unresolved here and must not inherit FSR-specific assumptions by default.
+Future Temporal Forge work should begin from the broader objective of recovering genuine source-supported detail from temporally distributed video observations. It must not inherit FSR-specific assumptions by default. On 2026-10-05 the maintainer authorized the concrete successor build program recorded under [`../../zcode_packs/`](../../zcode_packs/README.md); see "Successor program state" below.
+
+## Successor program state (2026-10-05)
+
+- The maintainer has authorized the successor "Temporal Forge / ANVIL" build program via the execution pack ingested and adapted under [`../../zcode_packs/`](../../zcode_packs/README.md).
+- This repository (`/mnt/workdrive/Temporal-Forge-ANVIL`, remote `origin-anvil`) is the designated mutable working repository and push target; historical `main` must not be rewritten — successor work proceeds on a dedicated branch per the pack.
+- As of this entry the program has **not** been executed: no successor branch exists, no `BUILD_READY_FOR_RESEARCH` claim has been made, and no successor quality campaign has run.
+- The FSR-era prohibitions in this document and in `AGENTS.md` remain in force for all historical material.
 
 ## Repository authority
 
@@ -53,4 +61,4 @@ Future Temporal Forge work should begin from the broader objective of recovering
 - Archived plans and progress logs are historical evidence, even where their original text contains imperative language.
 - No archived document can reactivate work without an explicit maintainer decision.
 
-This repository is now evidence, not an active architectural mandate.
+The FSR-era record in this repository is evidence, not an active architectural mandate. Authority for successor behavioral work is the maintainer's explicit directive plus the pack's contracts and evidence guardrails.

@@ -1,8 +1,10 @@
-# Temporal Forge Player
+# Temporal Forge / ANVIL
 
-> **Closed FSR-era research project · Flagship portfolio work**
+> **FSR-era research closed 2026-09-15 · ANVIL successor program authorized 2026-10-05**
 
-**FSR-centered research closed: 2026-09-15.** This repository is preserved as the engineering and evidence record of Temporal Forge's attempt to adapt **AMD FSR 4.1 temporal reconstruction/upscaling to ordinary decoded video**. Future Temporal Forge work is intentionally moving to a custom temporal video-reconstruction architecture rather than continuing to treat FSR as the architectural center.
+**Successor program (active):** the maintainer has authorized the "Temporal Forge / ANVIL" successor build program; this repository is its designated working repository and push target. The program pack, contracts, and mapping decision live under [`zcode_packs/README.md`](zcode_packs/README.md). As of authorization, successor work has not yet started (no successor branch; historical `main` is not rewritten).
+
+**Preserved FSR-era record (closed):** this tree also preserves the engineering and evidence record of Temporal Forge's attempt to adapt **AMD FSR 4.1 temporal reconstruction/upscaling to ordinary decoded video**. The closure does **not** claim that FSR 4.1 can never work for video — it records a narrower evidence-based decision: the accumulated results no longer justify keeping FSR-specific expected-input reconstruction as Temporal Forge's primary research architecture.
 
 Read the closure first:
 
@@ -10,8 +12,7 @@ Read the closure first:
 - [`docs/closure/CLAIM_EVIDENCE_LEDGER.md`](docs/closure/CLAIM_EVIDENCE_LEDGER.md)
 - [`docs/closure/LIMITATIONS_AND_OPEN_QUESTIONS.md`](docs/closure/LIMITATIONS_AND_OPEN_QUESTIONS.md)
 - [`docs/closure/EVALUATION_STANDARD.md`](docs/closure/EVALUATION_STANDARD.md)
-
-The closure does **not** claim that FSR 4.1 can never work for video. It records a narrower evidence-based decision: the accumulated results no longer justify keeping FSR-specific expected-input reconstruction as Temporal Forge's primary research architecture.
+- [`zcode_packs/README.md`](zcode_packs/README.md) — authorized successor program pack
 
 ## Historical research target
 
@@ -113,7 +114,7 @@ Start with [`docs/README.md`](docs/README.md). The key historical/closure entry 
 - [`benchmarks/video_corpus/RESULTS.md`](benchmarks/video_corpus/RESULTS.md) — real-world corpus findings
 - [`PROVENANCE.md`](PROVENANCE.md) — artifact provenance and unresolved-rights records
 
-Historical plans and progress logs are archived. There is no active FSR campaign in this repository.
+Historical plans and progress logs are archived. There is no active FSR campaign in this repository; the authorized successor program is recorded under [`zcode_packs/README.md`](zcode_packs/README.md).
 
 ## Requirements
 
@@ -160,4 +161,4 @@ The tracked native INT8 **FSR 4.1 RE** pack data includes reverse-engineering-de
 
 ## Research status
 
-**Closed FSR-centered research line.** The broader Temporal Forge objective continues outside this architecture: determine how to recover genuine source-supported spatial detail from information distributed across multiple video frames without assuming FSR, optical flow, machine learning, or any fixed temporal architecture in advance.
+**FSR-centered research line: closed.** The successor **Temporal Forge / ANVIL** program is now the active line, authorized 2026-10-05 and headquartered in this repository (successor work proceeds on a dedicated branch; historical `main` is not rewritten). The broader objective continues as before: determine how to recover genuine source-supported spatial detail from information distributed across multiple video frames without assuming FSR, optical flow, machine learning, or any fixed temporal architecture in advance.
