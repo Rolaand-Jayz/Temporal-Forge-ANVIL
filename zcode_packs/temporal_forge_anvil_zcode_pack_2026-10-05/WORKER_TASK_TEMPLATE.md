@@ -12,7 +12,7 @@ GLM 5.3 Flash only. Do not substitute another model.
 <dependency/gate this resolves>
 
 ## Working directory
-`/mnt/workdrive/Temporal-Forge-Player`
+`/mnt/workdrive/Temporal-Forge-ANVIL`
 
 ## Read first
 <exact files/interfaces/evidence documents>

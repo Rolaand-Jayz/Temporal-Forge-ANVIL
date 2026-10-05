@@ -3,7 +3,7 @@
 **Target executor:** ZCode with GLM 5.3 Flash  
 **Worker model requirement:** Every orchestrator/worker/subworker used for this goal must be GLM 5.3 Flash. Do not silently substitute another model.  
 **Working root:** `/mnt/workdrive`  
-**Primary working clone:** `/mnt/workdrive/Temporal-Forge-Player`  
+**Primary working clone:** `/mnt/workdrive/Temporal-Forge-ANVIL`  
 **Evidence-only RE clone (recommended):** `/mnt/workdrive/RE-of-FSR-4.1.0-Upscaling`
 
 ## Purpose
@@ -25,7 +25,7 @@ The broad reconstruction-quality campaign, architecture promotion, performance q
 
 ## Repository authority
 
-The current `Temporal-Forge-Player` repository is a **closed historical FSR-centered research line**. The maintainer is explicitly authorizing new successor work for this goal.
+The current `Temporal-Forge-ANVIL` repository is a **closed historical FSR-centered research line**. The maintainer is explicitly authorizing new successor work for this goal.
 
 Do not reinterpret that authorization as permission to rewrite the historical record. Preserve the closure evidence and old campaigns as evidence. Build the successor as a new active architecture, reusing old code only when independently justified.
 

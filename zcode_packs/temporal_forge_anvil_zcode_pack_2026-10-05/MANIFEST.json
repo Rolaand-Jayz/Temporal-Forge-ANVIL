@@ -1,34 +1,34 @@
 {
   "BOOTSTRAP.sh": {
-    "sha256": "cfbc605c7cdc0fc784f893a57a3da4a38710dab36a48b2272f24715083821c98",
-    "bytes": 985
+    "sha256": "b749c1e128d35f4c52e05b6ec3969833cb3ae77186c6b4e61d858422cca28c90",
+    "bytes": 982
   },
   "BUILD_READY_CONTRACT.md": {
     "sha256": "39ceb9dc5ea941bd0c9bf88132bddc2e3e27c2c6a5d05d4ea4cae7915d31609f",
     "bytes": 3664
   },
   "EVIDENCE_GUARDRAILS.md": {
-    "sha256": "e61a960ba96f57f8119bb7efb2f64c9b08024f753c10498212cc5f36c82c86c8",
-    "bytes": 4357
+    "sha256": "d63ffc276c945c96d254414b8e3cd930e2214d59ad2427161d4922129a903187",
+    "bytes": 4356
   },
   "GOAL.txt": {
-    "sha256": "eb34fbfcebd044f0108c2df510319131531888beb73b3292f380a9da27d64bc5",
-    "bytes": 12578
+    "sha256": "e1bedb2f2cbb4e50c43922924b325e5225206e632c6f9f0bcde8dac55fb9be14",
+    "bytes": 12570
   },
   "LATER_TEST_CAMPAIGN_CONTRACT.md": {
     "sha256": "30141d1594b87dcb24c3521045aa14fea1f2ab5e5c2c9ece0066da24057d51b6",
     "bytes": 2598
   },
   "ORCHESTRATION_PLAN.md": {
-    "sha256": "ed3b9388c30bc825f1d134b14b4a6390fa419375e5451258afea49b391bd70d7",
-    "bytes": 10871
+    "sha256": "8830f80a10809ed72cfee4f19cde68b220d0c38ab079e3c856c3eb723fa7a0b0",
+    "bytes": 10870
   },
   "README_FIRST.md": {
-    "sha256": "bb2287a970897d589ecf99f668ff768db1b31b74a471a3b26a7dab15c7c2417d",
-    "bytes": 2657
+    "sha256": "3e7e8080c6ed8827485af346fce400aa68764b68d1bf84ad3f67f807bbbc93f1",
+    "bytes": 2655
   },
   "WORKER_TASK_TEMPLATE.md": {
-    "sha256": "888fbb274f39b384bd159bcb305e5f18d0ca61df492b09ed75004c1042a02c8f",
-    "bytes": 1296
+    "sha256": "de04b895edefb5885979461dc542304b2145fde8579f2477fdc3216d35a46706",
+    "bytes": 1295
   }
 }

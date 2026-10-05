@@ -2,14 +2,14 @@
 set -euo pipefail
 
 ROOT=/mnt/workdrive
-FORGE="$ROOT/Temporal-Forge-Player"
+FORGE="$ROOT/Temporal-Forge-ANVIL"
 RE="$ROOT/RE-of-FSR-4.1.0-Upscaling"
 
 mkdir -p "$ROOT"
 cd "$ROOT"
 
 if [[ ! -d "$FORGE/.git" ]]; then
-  git clone https://github.com/Rolaand-Jayz/Temporal-Forge-Player.git "$FORGE"
+  git clone https://github.com/Rolaand-Jayz/Temporal-Forge-ANVIL.git "$FORGE"
 else
   git -C "$FORGE" remote -v
   git -C "$FORGE" fetch --all --prune
@@ -35,7 +35,7 @@ git -C "$RE" rev-parse HEAD
 cat <<'EOF'
 
 IMPORTANT:
-- Temporal-Forge-Player is the mutable working repository for this goal.
+- Temporal-Forge-ANVIL is the mutable working repository for this goal.
 - RE-of-FSR-4.1.0-Upscaling is evidence-only unless the maintainer separately authorizes edits.
 - Work only under /mnt/workdrive for this campaign.
 EOF

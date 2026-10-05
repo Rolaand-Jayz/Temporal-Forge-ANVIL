@@ -2,11 +2,13 @@
 
 ## Repository status
 
-**CLOSED HISTORICAL RESEARCH LINE — 2026-09-15**
+**FSR ERA CLOSED — SUCCESSOR PROGRAM AUTHORIZED — 2026-10-05**
 
-This repository preserves the FSR-centered Temporal Forge Player research era. It is no longer the active architecture for future Temporal Forge development.
+This repository preserves the FSR-centered Temporal Forge Player research era as a closed historical line. Its closure evidence and the prohibitions on reinterpreting that evidence remain in force.
 
-There is **no active quality campaign** and no standing instruction to continue FSR 4.1 optimization, expected-input reconstruction, motion/jitter tuning, or campaign capture.
+On 2026-10-05 the maintainer authorized the successor "Temporal Forge / ANVIL" build program via the execution pack under [`zcode_packs/`](zcode_packs/README.md). This repository (`/mnt/workdrive/Temporal-Forge-ANVIL`, remote `origin-anvil`) is the designated mutable working repository and push target for that program. Historical `main` must not be rewritten; successor work proceeds on a dedicated branch per the pack.
+
+The FSR-centered campaign is not reopened by this authorization. There is still **no standing instruction** to continue FSR 4.1 optimization, expected-input reconstruction, motion/jitter tuning, or campaign capture.
 
 Start with:
 
@@ -14,6 +16,7 @@ Start with:
 - [`docs/closure/README.md`](docs/closure/README.md)
 - [`docs/closure/FSR41_FINAL_ADJUDICATION_20260915.md`](docs/closure/FSR41_FINAL_ADJUDICATION_20260915.md)
 - [`docs/closure/EVALUATION_STANDARD.md`](docs/closure/EVALUATION_STANDARD.md)
+- [`zcode_packs/README.md`](zcode_packs/README.md) — successor program pack and mapping decision
 
 ## Authority rule
 
@@ -33,7 +36,7 @@ Without an explicit maintainer request to change behavior:
 - do not change shaders, reconstruction behavior, model assets, weights, or backend policy;
 - do not reinterpret invalidated evidence as valid;
 - do not promote a historical candidate to current/default status;
-- do not treat this repository as the template for a successor Temporal Forge architecture.
+- do not treat the FSR-era architecture as the template for the successor program.
 
 Behavioral code changes require an explicit maintainer request.
 
@@ -51,6 +54,6 @@ The closure set supersedes stale imperative language in older active-era documen
 
 ## Successor boundary
 
-Future Temporal Forge development should begin from the video-reconstruction objective and independently choose its architecture. Reuse from this repository is permitted when evidence supports it, but FSR-specific motion, jitter, history, scaling, graph, and composition assumptions are not inherited by default.
+The successor architecture decision is recorded in the authorized execution pack ([`zcode_packs/README.md`](zcode_packs/README.md)) and proceeds under its contracts and evidence guardrails. Reuse from this repository is permitted when evidence supports it, but FSR-specific motion, jitter, history, scaling, graph, and composition assumptions are not inherited by default.
 
-The old repository is a source of evidence, not a solution template.
+The FSR-era record is a source of evidence, not a solution template.

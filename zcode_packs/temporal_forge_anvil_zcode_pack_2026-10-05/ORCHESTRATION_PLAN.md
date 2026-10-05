@@ -38,7 +38,7 @@ Do not merge a worker's claims merely because it reports success. Inspect its di
 Run `BOOTSTRAP.sh`.
 
 Primary working tree:
-`/mnt/workdrive/Temporal-Forge-Player`
+`/mnt/workdrive/Temporal-Forge-ANVIL`
 
 Evidence-only tree:
 `/mnt/workdrive/RE-of-FSR-4.1.0-Upscaling`
