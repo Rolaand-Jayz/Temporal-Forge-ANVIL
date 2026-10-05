@@ -1,0 +1,347 @@
+/goal
+
+Build the active successor Temporal Forge / ANVIL reconstruction architecture in the existing `Rolaand-Jayz/Temporal-Forge-Player` repository, using a maximally parallel GLM 5.3 Flash worker swarm, until the repository is **BUILD_READY_FOR_RESEARCH** under the supplied contract.
+
+This is an implementation and testability goal. It is NOT the final reconstruction-quality research campaign.
+
+==================================================
+MODEL / ORCHESTRATION REQUIREMENT
+==================================================
+
+You are running in ZCode as GLM 5.3 Flash.
+
+Use as many concurrent workers as ZCode allows whenever independent ready work exists.
+
+EVERY worker and subworker must be GLM 5.3 Flash. Do not silently substitute another model.
+
+Your primary job is orchestration:
+- decompose work;
+- maintain the dependency graph;
+- keep worker write sets disjoint;
+- launch independent tasks in parallel;
+- inspect and integrate worker output;
+- resolve cross-cutting decisions;
+- keep all available worker capacity productive;
+- continue until the completion contract is actually satisfied.
+
+Do not delegate and then idle. Work the critical path locally while workers run. As worker slots free, immediately assign the next dependency-ready task.
+
+Worker reports are not proof. Review diffs, tests, assumptions, and integration before accepting their work.
+
+==================================================
+WORKING LOCATION / REPOSITORIES
+==================================================
+
+All campaign work must live under:
+
+`/mnt/workdrive`
+
+Primary mutable working repository:
+
+`/mnt/workdrive/Temporal-Forge-Player`
+
+Clone/update from:
+
+`https://github.com/Rolaand-Jayz/Temporal-Forge-Player`
+
+Evidence-only FSR reverse-engineering repository:
+
+`/mnt/workdrive/RE-of-FSR-4.1.0-Upscaling`
+
+Clone/update from:
+
+`https://github.com/Rolaand-Jayz/RE-of-FSR-4.1.0-Upscaling`
+
+Do not use `$HOME`, `/tmp`, or a default ZCode workspace as the project clone.
+
+Do not modify the RE repository unless the maintainer separately authorizes it.
+
+Create a dedicated successor branch in Temporal-Forge-Player. Do not rewrite historical `main`.
+
+==================================================
+MAINTAINER AUTHORIZATION / REPOSITORY STATUS
+==================================================
+
+The current Temporal-Forge-Player repository correctly says the FSR-centered research line is closed.
+
+This /goal is explicit maintainer authorization to perform NEW successor behavioral work.
+
+Do NOT "reopen" the old FSR campaign.
+
+Preserve:
+- closure documents;
+- negative evidence;
+- invalidated evidence;
+- historical benchmark artifacts;
+- provenance boundaries;
+- old causal history.
+
+The old repository is evidence and reusable infrastructure where justified. It is not the successor architecture template.
+
+==================================================
+PRIMARY OBJECTIVE
+==================================================
+
+Build the successor architecture correctly enough that a separate later campaign can rigorously determine whether it works.
+
+The successor problem is:
+
+Recover genuine source-supported spatial information distributed across multiple ordinary video frames, using temporal correspondence, visibility/confidence, sampling geometry, and multi-frame reconstruction, without assuming FSR, optical flow, ML, causal-only history, or any other inherited mechanism is mandatory.
+
+A useful high-level hypothesis is:
+
+decoded/compressed observations
++ truthful codec side information when available
++ neighboring past/future frames
+→ coarse correspondence priors
+→ residual correspondence refinement
+→ visibility/confidence
+→ sample-geometry / phase representation
+→ temporal reconstruction/fusion
+→ replaceable output/upscale backend
+→ output
+
+Treat this as a hypothesis to make testable, not dogma.
+
+FSR may exist as an optional comparison/backend adapter. It must not be required by the successor core.
+
+==================================================
+CRITICAL EVIDENCE GUARDRAILS
+==================================================
+
+Read:
+- `/mnt/workdrive/Temporal-Forge-Player/docs/closure/EVALUATION_STANDARD.md`
+- `/mnt/workdrive/Temporal-Forge-Player/docs/closure/FSR41_FINAL_ADJUDICATION_20260915.md`
+- `/mnt/workdrive/Temporal-Forge-Player/docs/closure/LIMITATIONS_AND_OPEN_QUESTIONS.md`
+- `/mnt/workdrive/RE-of-FSR-4.1.0-Upscaling/VALIDATION_STATUS.md`
+- `/mnt/workdrive/RE-of-FSR-4.1.0-Upscaling/CURRENT_STATUS.md`
+- this execution pack's `EVIDENCE_GUARDRAILS.md`
+
+The FSR RE repository has a hard claim ceiling. Runtime descriptor bindings, runtime CBV values, runtime pass order, runtime tensor-offset use, and functional equivalence are NOT established merely by static analysis.
+
+Do not assume:
+- static `motion/reprojection` labels prove exact runtime semantics;
+- lack of an identified depth SRV proves depth is semantically unnecessary;
+- `fract(mean MV)` is jitter/sample phase;
+- smoothing block MVs yields valid dense motion;
+- artificial LR subpixel shifts create new information;
+- occlusion/confidence equals FSR Reactive Mask;
+- FFmpeg `mestimate` equals encoded codec MV extraction;
+- hardware decode exposes codec MVs without proving the actual API/driver path;
+- public FSR performance tables measure this RE Vulkan backend.
+
+Consequential claims must be labeled:
+MEASURED FACT / OBSERVATION / INFERENCE / HYPOTHESIS / UNRESOLVED / PROJECT DECISION.
+
+==================================================
+EXECUTION PLAN
+==================================================
+
+Read and execute the supplied `ORCHESTRATION_PLAN.md`.
+
+Use every available Flash worker slot during independent phases.
+
+At minimum, the first parallel audit wave must cover:
+1. repository topology/reuse;
+2. closure/negative evidence;
+3. media/decode;
+4. H.264/HEVC/AV1 side-information extraction;
+5. Vulkan/runtime;
+6. benchmark/test harness;
+7. color/HDR;
+8. temporal window/scheduling;
+9. FSR isolation;
+10. testability/observability;
+11. clean build/CI;
+12. independent successor architecture proposal.
+
+Split further if more worker capacity is available.
+
+Reconcile those findings before large cross-cutting implementation.
+
+==================================================
+BUILD ORDER
+==================================================
+
+The maintainer explicitly wants the system BUILT PROPERLY FOR NEW TESTING BEFORE the rigorous Forge-style quality campaign begins.
+
+Therefore:
+
+1. Bootstrap and establish repository/environment truth.
+2. Audit in parallel.
+3. Reconcile the successor architecture.
+4. Build the testability/observability substrate.
+5. Build the minimal complete successor candidate.
+6. Harden integration and engineering correctness.
+7. Qualify BUILD_READY_FOR_RESEARCH.
+8. STOP before the broad quality/research campaign.
+
+Normal engineering tests throughout implementation are mandatory. Deferring the final research campaign does NOT mean skipping unit tests, integration tests, validation layers, smoke tests, deterministic replay checks, or correctness checks.
+
+==================================================
+REQUIRED SUCCESSOR CAPABILITIES
+==================================================
+
+The completed build must provide, at minimum:
+
+A. A successor execution path that works without FSR/private assets.
+
+B. A provenance-rich observation model:
+- exact frame index/timestamp;
+- image/planes;
+- color metadata;
+- codec/frame metadata;
+- codec side information with reference identity when available;
+- past/future relationship;
+- validity state.
+
+C. A configurable temporal window supporting past and future observations.
+
+D. Replaceable/bypassable stages for:
+- side-info normalization;
+- coarse correspondence;
+- refinement;
+- visibility/confidence;
+- sample geometry/phase;
+- temporal reconstruction;
+- output backend.
+
+E. A deterministic headless/offline runner.
+
+F. Run manifests containing code/build/input/config/environment identity.
+
+G. Intermediate capture of consequential stage outputs.
+
+H. Oracle injection for:
+- correspondence;
+- visibility;
+- sample geometry/phase;
+- HR ground truth in synthetic fixtures.
+
+I. Truthful codec adapters:
+- H.264;
+- HEVC;
+- AV1;
+with explicit unsupported/ambiguous states and fallback.
+
+J. At least one simple deterministic residual-refinement path.
+
+K. Backend-neutral confidence/visibility.
+
+L. A sample-geometry representation that permits known, estimated, and unknown states without inventing jitter.
+
+M. A deterministic temporal reconstruction baseline that:
+- preserves single-frame control;
+- allows per-neighbor ablation;
+- works without FSR;
+- does not count artificial resampling as new information.
+
+N. Optional backend abstraction capable of later comparing FSR/spatial/learned alternatives without redesigning the temporal core.
+
+==================================================
+CODEC RULES
+==================================================
+
+Encoded codec motion vectors are side information, not truth.
+
+For each supported codec, preserve as much as the API actually exposes:
+- block/partition geometry;
+- precision and units;
+- reference identity/direction;
+- temporal distance;
+- frame type;
+- skip/intra status;
+- compound/bi-pred semantics where available.
+
+Never fabricate missing fields.
+
+Never run a new estimator and label its output "codec MVs."
+
+Never assume VA-API/VCN MV export exists until proven on the actual stack.
+
+Keep raw side information available for later research even if a densified/refined representation is also produced.
+
+==================================================
+TESTABILITY BEFORE QUALITY TESTING
+==================================================
+
+The architecture is not ready merely because it renders video.
+
+Before later research begins, the harness must be able to isolate failures:
+
+- oracle flow + estimated confidence;
+- estimated flow + oracle confidence;
+- oracle sampling geometry;
+- estimated sampling geometry;
+- single-frame control;
+- selected-neighbor ablation;
+- codec prior on/off;
+- refinement on/off;
+- future frames on/off;
+- backend comparisons;
+- exact replay of a prior run.
+
+Artifacts and manifests must make those arms auditable.
+
+==================================================
+WHAT NOT TO DO YET
+==================================================
+
+Do NOT:
+- run a broad image-quality campaign and declare ANVIL good/bad;
+- tune to a few attractive clips;
+- train a large model;
+- commit to a neural refiner because a paper used one;
+- optimize for FSR;
+- force a jitter sequence onto ordinary video;
+- manufacture depth merely to imitate a game engine;
+- chase 60 FPS before architecture correctness/testability;
+- claim real subpixel recovery from visual sharpness alone;
+- redesign unrelated UI/product features;
+- erase or rewrite FSR-era history.
+
+==================================================
+BUILD_READY_FOR_RESEARCH COMPLETION GATE
+==================================================
+
+Read and satisfy `BUILD_READY_CONTRACT.md`.
+
+You may declare completion only when:
+
+`BUILD_READY_FOR_RESEARCH = TRUE`
+
+and every mandatory contract item is verified or explicitly adjudicated not applicable with evidence.
+
+"Compiles", "demo works", "tests mostly pass", "looks better", or "workers finished" are not completion.
+
+==================================================
+FINAL DELIVERABLE
+==================================================
+
+When and only when BUILD_READY_FOR_RESEARCH is true, produce a concise final handoff containing:
+
+1. exact repository path;
+2. branch and final commit SHA;
+3. clean/dirty status;
+4. build and test results;
+5. architecture/module map;
+6. which old Forge infrastructure was reused and why;
+7. which FSR-era assumptions were explicitly not inherited;
+8. codec support matrix with proven limitations;
+9. instrumentation/oracle/capture inventory;
+10. deterministic offline-run example;
+11. known unresolved engineering risks;
+12. exact hypotheses now ready for the later rigorous campaign;
+13. recommended experiment order for that later campaign;
+14. explicit statement:
+   `BUILD_READY_FOR_RESEARCH = TRUE`
+
+Do not start the later broad research campaign unless the maintainer gives a new goal.
+
+Continue autonomously through the full plan until this completion gate is genuinely satisfied or a hard blocker exists that cannot be resolved from repository evidence, available tools, implementation, or controlled engineering verification.
+
+If a hard blocker occurs, do not hand-wave around it. Return:
+- exact blocker;
+- evidence;
+- work completed;
+- smallest maintainer decision or missing external dependency required.
