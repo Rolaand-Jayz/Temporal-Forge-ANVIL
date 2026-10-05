@@ -68,3 +68,7 @@ __pycache__/
 
 #Ignore vscode AI rules
 .github/instructions/codacy.instructions.md
+
+# Local ZCode agent state (workflow drafts, run journals) — session-local tool
+# state in the same category as .vscode/ and .remember/, not for version control.
+.zcode/
