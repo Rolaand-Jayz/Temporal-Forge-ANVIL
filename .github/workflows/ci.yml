@@ -73,7 +73,7 @@ jobs:
       - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pytest ffmpeg pkg-config libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
+          sudo apt-get install -y python3-pytest ffmpeg pkg-config libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libva-dev libdrm-dev
 
       # The ANVIL targets need only FFmpeg. The historical player requires
       # Qt6 >= 6.6, which ubuntu-24.04 apt does not provide, so the full
