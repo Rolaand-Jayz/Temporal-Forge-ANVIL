@@ -280,3 +280,90 @@ tforge_add_test(vulkan_capability_plan_tests
             ../src/render/VulkanContext.cpp
             ../src/util/Log.cpp)
 target_link_libraries(vulkan_capability_plan_tests PRIVATE Vulkan::Vulkan)
+
+# --- ANVIL successor tests (Qt-free, FFmpeg-only) ---
+pkg_check_modules(FFMPEG_ANVIL IMPORTED_TARGET libavformat libavcodec libavutil libswscale)
+
+function(anvil_add_test name)
+    cmake_parse_arguments(ARG "" "" "SOURCES" ${ARGN})
+    add_executable(${name} ${ARG_SOURCES})
+    target_include_directories(${name} PRIVATE "${CMAKE_SOURCE_DIR}/src")
+    target_compile_features(${name} PRIVATE cxx_std_23)
+    target_compile_definitions(${name} PRIVATE
+        ANVIL_BUILD_TYPE="${CMAKE_BUILD_TYPE}"
+        ANVIL_COMPILER_ID="${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+    if(FFMPEG_ANVIL_FOUND)
+        target_link_libraries(${name} PRIVATE PkgConfig::FFMPEG_ANVIL)
+    endif()
+    add_test(NAME ${name} COMMAND ${name})
+endfunction()
+
+anvil_add_test(anvil_core_tests
+    SOURCES anvil_core_tests.cpp
+            ../src/anvil/Core.cpp
+            ../src/anvil/JsonWriter.cpp
+            ../src/anvil/ColorMeta.cpp
+            ../src/anvil/Manifest.cpp
+            ../src/anvil/Reconstruct.cpp
+            ../src/anvil/Sha256.cpp)
+if(NOT FFMPEG_ANVIL_FOUND)
+    set_tests_properties(anvil_core_tests PROPERTIES DISABLED ON)
+endif()
+
+anvil_add_test(anvil_codec_tests
+    SOURCES anvil_codec_tests.cpp
+            ../src/anvil/CodecProbe.cpp)
+if(NOT FFMPEG_ANVIL_FOUND)
+    set_tests_properties(anvil_codec_tests PROPERTIES DISABLED ON)
+endif()
+
+# anvil_runner_tests: end-to-end CLI on a synthetic deterministic clip.
+if(FFMPEG_ANVIL_FOUND AND FFMPEG_BIN)
+    add_executable(anvil_runner_tests anvil_runner_tests.cpp)
+    target_include_directories(anvil_runner_tests PRIVATE "${CMAKE_SOURCE_DIR}/src")
+    target_compile_features(anvil_runner_tests PRIVATE cxx_std_23)
+    target_link_libraries(anvil_runner_tests PRIVATE anvil_lib)
+    add_dependencies(anvil_runner_tests anvil_runner)
+    set(ANVIL_CLIP "${CMAKE_CURRENT_BINARY_DIR}/anvil_fixture.mp4")
+    set(ANVIL_CLIP_HDR "${CMAKE_CURRENT_BINARY_DIR}/anvil_fixture_hdr.mp4")
+    set(ANVIL_CLIP_NOMETA "${CMAKE_CURRENT_BINARY_DIR}/anvil_fixture_nometa.mp4")
+    add_custom_command(
+        OUTPUT ${ANVIL_CLIP}
+        COMMAND ${FFMPEG_BIN} -y -loglevel error
+            -f lavfi -i "testsrc2=size=64x64:rate=10:duration=1"
+            -c:v libx264 -pix_fmt yuv420p
+            -x264-params "keyint=10:bframes=0:colorprim=bt709:transfer=bt709:colorrange=tv:colormatrix=bt709"
+            ${ANVIL_CLIP}
+        DEPENDS ""
+        COMMENT "Generating anvil_fixture.mp4 (SDR, full color metadata)"
+        VERBATIM)
+    add_custom_command(
+        OUTPUT ${ANVIL_CLIP_HDR}
+        COMMAND ${FFMPEG_BIN} -y -loglevel error
+            -f lavfi -i "testsrc2=size=64x64:rate=10:duration=1"
+            -c:v libx264 -pix_fmt yuv420p10le
+            -x264-params "keyint=10:bframes=0:colorprim=bt2020:transfer=smpte2084:colorrange=tv:colormatrix=bt2020nc"
+            ${ANVIL_CLIP_HDR}
+        DEPENDS ""
+        COMMENT "Generating anvil_fixture_hdr.mp4 (PQ transfer, no conversion)"
+        VERBATIM)
+    add_custom_command(
+        OUTPUT ${ANVIL_CLIP_NOMETA}
+        COMMAND ${FFMPEG_BIN} -y -loglevel error
+            -f lavfi -i "testsrc2=size=64x64:rate=10:duration=1"
+            -c:v libx264 -pix_fmt yuv420p -x264-params "keyint=10:bframes=0"
+            ${ANVIL_CLIP_NOMETA}
+        DEPENDS ""
+        COMMENT "Generating anvil_fixture_nometa.mp4 (unspecified color metadata)"
+        VERBATIM)
+    add_custom_target(anvil_fixture DEPENDS ${ANVIL_CLIP} ${ANVIL_CLIP_HDR}
+        ${ANVIL_CLIP_NOMETA})
+    add_dependencies(anvil_runner_tests anvil_fixture)
+    add_test(NAME anvil_runner_tests COMMAND anvil_runner_tests
+        $<TARGET_FILE:anvil_runner> "${ANVIL_CLIP}" "${ANVIL_CLIP_HDR}"
+        "${ANVIL_CLIP_NOMETA}")
+    set_tests_properties(anvil_runner_tests PROPERTIES
+        SKIP_RETURN_CODE 77)
+elseif(NOT FFMPEG_BIN)
+    message(STATUS "ANVIL: ffmpeg binary not found; anvil_runner_tests disabled")
+endif()
