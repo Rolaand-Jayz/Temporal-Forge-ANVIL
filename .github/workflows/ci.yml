@@ -73,12 +73,25 @@ jobs:
       - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pytest ffmpeg ninja-build pkg-config libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libswresample-dev cmake g++ libvulkan-dev glslang-tools qt6-base-dev qt6-declarative-dev qt6-shadertools-dev
+          sudo apt-get install -y python3-pytest ffmpeg pkg-config libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
 
+      # The ANVIL targets need only FFmpeg. The historical player requires
+      # Qt6 >= 6.6, which ubuntu-24.04 apt does not provide, so the full
+      # CMake configure cannot run here (the Arch build job covers that
+      # path, including the ANVIL CTest targets). Compile the runner
+      # directly from the same sources instead.
       - name: Build anvil_runner (ANVIL contract binary)
         run: |
-          cmake -S . -B build-py -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build build-py --parallel 2 --target anvil_runner
+          mkdir -p build-py
+          g++ -std=c++23 -O2 -Isrc \
+            -DANVIL_BUILD_TYPE="\"g++-direct\"" \
+            -DANVIL_COMPILER_ID="\"g++ $(g++ -dumpversion)\"" \
+            tools/anvil/main.cpp \
+            src/anvil/*.cpp \
+            src/media/Demuxer.cpp src/media/VideoDecoder.cpp src/util/Log.cpp \
+            $(pkg-config --cflags --libs libavformat libavcodec libavutil libswscale) \
+            -pthread -o build-py/anvil_runner
+          ./build-py/anvil_runner --help > /dev/null
 
       - name: Run PR #7 contract suite + ANVIL contract suite
         run: |
