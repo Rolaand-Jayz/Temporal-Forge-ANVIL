@@ -124,6 +124,19 @@ static void testAccumulateSingleFrameIsIdentity() {
     CHECK(res.totalSamples == 0);
 }
 
+static void testAccumulateIncludesTargetSample() {
+    Observation target = makeObs(0, 32, 32, 100);
+    target.color.bitDepth = 8;
+    Observation obs = makeObs(1, 32, 32, 200);
+    obs.color.bitDepth = 8;
+    FlowField zero(static_cast<size_t>(32 * 32 * 2), 0.0f);
+    std::vector<Visibility> valid(static_cast<size_t>(32 * 32), Visibility::Valid);
+    auto res = accumulate(target, {obs}, {zero}, {valid});
+    CHECK(res.frame.plane[0][0] == 150);
+    CHECK(res.validSamples == uint64_t(32 * 32));
+    CHECK(res.totalSamples == uint64_t(32 * 32));
+}
+
 static void testAccumulateAverageWithOracleFlow() {
     // Two-frame window, oracle flow: obs is target shifted +4 px; mv +4.
     Observation target = makeObs(0, 64, 64, 100);
@@ -199,6 +212,7 @@ int main() {
     testManifestRoundTripNames();
     testEstimatorIsLabeledAndCorrect();
     testAccumulateSingleFrameIsIdentity();
+    testAccumulateIncludesTargetSample();
     testAccumulateAverageWithOracleFlow();
     testAmbiguousBlocksNeverEnterFlow();
     testProvenanceDetection();

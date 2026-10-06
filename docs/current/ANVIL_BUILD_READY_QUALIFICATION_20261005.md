@@ -38,7 +38,7 @@ adversarial campaign.
 | Oracle correspondence replaces estimates | PASS | `--correspondence oracle`; manifest records `oracle_used` events and `correspondence_source == "oracle"`. |
 | Oracle visibility replaces estimates | PASS | `--visibility oracle` (PGM masks; 0/128/255 states). |
 | Oracle sample geometry/phase replaces estimates | PASS | `--geometry oracle` (`geometry_1.txt`; `geometry_state == "known"`). |
-| HR ground truth attachable to synthetic fixtures | PASS | Explicit mechanism: repeatable `--ground-truth FRAME=PATH` (`src/anvil/GroundTruth.hpp/.cpp`). Each attachment is validated against the decoded target frame (P5/P6 PNM header, dimension match) and recorded in manifest `ground_truth[]` with frame association, SHA-256, size, width/height, maxval, format, and the fixed usage note "reference evidence only; excluded from candidate reconstruction"; `frames[].has_ground_truth` marks the association. Evidence: `test_ground_truth_attachment_and_provenance` (SHA-256 verified against an independent `hashlib` digest), `anvil_runner_tests` scenario 7d. Contamination guard: pixel data is never loaded into the pipeline; `test_ground_truth_never_contaminates_reconstruction` and runner-test scenario 7d prove byte-identical reconstruction with and without GT attached. Clean rejection (exit 1, named reason): missing, malformed, dimension mismatch, out-of-range frame, duplicate mapping — all tested. **Corrected 2026-10-06:** the earlier PASS row cited only synthetic-pattern knowledge and hypothetical later-campaign use, which is not attachment; that evidence was rejected and replaced by the mechanism above. |
+| HR ground truth attachable to synthetic fixtures | PASS | Repeatable `--ground-truth FRAME=PATH` accepts same-resolution reference truth or genuinely higher-resolution truth. References smaller than the LR observation in either axis are rejected. Manifest `ground_truth[]` records frame association, SHA-256, size, truth dimensions/maxval/bytes-per-sample, observation dimensions, scale_x/scale_y, resolution relation, format, and the fixed reference-only usage note; `frames[].has_ground_truth` marks association. Evidence: `test_ground_truth_attachment_and_provenance` (SHA-256 verified against an independent `hashlib` digest), `anvil_runner_tests` scenario 7d. Contamination guard: pixel data is never loaded into the pipeline; `test_ground_truth_never_contaminates_reconstruction` and runner-test scenario 7d prove byte-identical reconstruction with and without GT attached. Clean rejection (exit 1, named reason): missing, malformed, dimension mismatch, out-of-range frame, duplicate mapping — all tested. **Corrected 2026-10-06:** the earlier PASS row cited only synthetic-pattern knowledge and hypothetical later-campaign use, which is not attachment; that evidence was rejected and replaced by the mechanism above. |
 | Stochastic components seeded or disabled | PASS | N/A-strength PASS: no stochastic component exists (`config.deterministic_no_random_components: true` asserted in tests); `--seed` recorded for future use. |
 | Scene cut/reset observable and controllable | PASS | `--cut-frames` (forced, `window_reset` events) + `--auto-scene-cut` (deterministic luma SAD threshold, `scene_cut` events); `test_scene_cut_observable_and_controllable`. |
 
@@ -72,7 +72,7 @@ Codec support/limitation matrix (this host — re-probed per run):
 |---|---|---|
 | Range/primaries/transfer/matrix/chroma siting tracked | PASS | `ColorMeta` mirrors AVFrame fields incl. UNSPECIFIED + HDR side-data presence; manifest per-frame color fields; fixtures with full/partial/absent metadata. |
 | Working-space conversion explicit | PASS | `conversionFullySpecified()` gate; explicit `sws_setColorspaceDetails` with coefficient tables matched to recorded matrix/range; conversion description recorded per frame (`matrix=bt709 range=limited` asserted in python test). |
-| SDR/HDR do not silently share wrong transfer | PASS | PQ/HLG inputs: "no transfer conversion performed; planes preserved" (asserted), PGM planes output only; no tone mapping claimed. |
+| SDR/HDR do not silently share wrong transfer | PASS | PQ/HLG inputs receive no implicit transfer conversion or tone mapping. Planar 4:2:0 temporal reconstruction is component-depth aware for 8/10/12/16-bit samples; PGM output records the actual numerical maxval and emits all Y/U/V planes. `test_hdr_10bit_temporal_reconstruction_is_sample_depth_safe` independently decodes yuv420p10le source frames and checks the temporal Y/U/V result sample-for-sample. |
 | Metrics/captures know their space | PASS | Every dump/output is accompanied by manifest frame records carrying the working-space decision; PGM/PPM outputs only produced for a stated conversion state. |
 
 ## Mandatory engineering verification
@@ -81,7 +81,7 @@ Codec support/limitation matrix (this host — re-probed per run):
 |---|---|---|
 | Clean configure/build on intended environment | PASS | Fresh configure+build on host (gcc 16.2.1, cmake 4.4.4, ninja, FFmpeg n9.0.2) 2026-10-05; clean-clone from GitHub URL 2026-10-06 (see below). |
 | Existing applicable tests pass | PASS | CTest 26/26 (up from baseline 23; the 3 new ANVIL targets included); the 4 previously disabled FSR-era GPU tests remain disabled by design. |
-| New unit/integration tests pass | PASS | `anvil_core_tests`, `anvil_codec_tests`, `anvil_runner_tests` (C++), `tests/test_anvil_contract.py` (11 tests). |
+| New unit/integration tests pass | PASS | `anvil_core_tests`, `anvil_codec_tests`, `anvil_runner_tests` (C++), `tests/test_anvil_contract.py` (16 tests). |
 | Vulkan validation on exercised successor paths | N/A | **Justification:** the build-ready successor path exercises no Vulkan code — `anvil_lib`/`anvil_runner` do not link or call Vulkan, and no existing Vulkan path was modified (diff scope: `src/anvil/`, `tools/anvil/`, tests, CMake, CI). The historical player's Vulkan paths are unchanged and its tests remain green. Any future Vulkan successor backend re-opens this item with validation-layer evidence. |
 | No known resource lifetime/synchronization defect | PASS | CPU-only pipeline; ownership reviewed: AVPacket freed in probe (`CodecProbe.cpp`), decoder flush on EOF (delayed-frame drain), decoder/demuxer RAII via reused classes, no cross-thread sharing. |
 | Graceful fallback/error tested | PASS | Missing input → exit 1 with message; missing oracle → explicit error; absent encoders → capability notes; unknown color metadata → recorded unknown state. |
@@ -106,8 +106,8 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release   # clean configure
 cmake --build build --parallel
 ctest --test-dir build                 # 100% tests passed, 26 tests
 ANVIL_RUNNER=build/anvil_runner python3 -m pytest -q tests/test_anvil_contract.py
-                                       # 15 passed (adds ground-truth and
-                                       # comprehensive-capture coverage)
+                                       # 16 passed (ground-truth, comprehensive-capture,
+                                       # and 10-bit temporal numeric coverage)
 python3 -m pytest -q <historical suite files>   # 68 passed, 39 subtests
 # Clean-clone from GitHub at 7c755712: build OK, 26/26 CTest, 15/15 ANVIL
 # pytest, 68 historical pytest.

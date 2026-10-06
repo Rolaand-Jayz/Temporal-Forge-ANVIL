@@ -159,6 +159,9 @@ int main(int argc, char** argv) {
     std::string m7b = slurp(tmp / "hdr" / "manifest.json");
     CHECK(m7b.find("no transfer conversion performed") != std::string::npos);
     CHECK(fileExists(tmp / "hdr" / "frame_0_y.pgm"));
+    CHECK(fileExists(tmp / "hdr" / "frame_0_u.pgm"));
+    CHECK(fileExists(tmp / "hdr" / "frame_0_v.pgm"));
+    CHECK(slurp(tmp / "hdr" / "frame_0_y.pgm").find("1023\n") != std::string::npos);
     CHECK(!fileExists(tmp / "hdr" / "frame_0.ppm"));
 
     // 7c. unspecified color metadata: recorded as unknown, planes preserved
@@ -175,8 +178,8 @@ int main(int argc, char** argv) {
     const std::string gtPath = (tmp / "gt" / "gt_64.pgm").string();
     {
         std::ofstream f(gtPath, std::ios::binary);
-        f << "P5\n64 64\n255\n";
-        for (int i = 0; i < 64 * 64; ++i) f.put(static_cast<char>((i * 7) & 0xFF));
+        f << "P5\n128 128\n255\n";
+        for (int i = 0; i < 128 * 128; ++i) f.put(static_cast<char>((i * 7) & 0xFF));
     }
     const int rcgt = runRunner(runner,
         {"--input", fixture, "--output-dir", tmp / "gt_out", "--start-frame", "1",
@@ -190,8 +193,9 @@ int main(int argc, char** argv) {
           || mgt.find("\"has_ground_truth\": true") != std::string::npos);
     CHECK(mgt.find("\"format\":\"pgm\"") != std::string::npos
           || mgt.find("\"format\": \"pgm\"") != std::string::npos);
-    CHECK(mgt.find("\"width\":64") != std::string::npos
-          || mgt.find("\"width\": 64") != std::string::npos);
+    CHECK(mgt.find("\"width\":128") != std::string::npos
+          || mgt.find("\"width\": 128") != std::string::npos);
+    CHECK(mgt.find("higher_resolution") != std::string::npos);
     CHECK(mgt.find("sha256") != std::string::npos);
 
     // no contamination: identical reconstruction with and without GT

@@ -84,9 +84,11 @@ anvil_runner --input FILE --output-dir DIR
 ```
 
 `--ground-truth` attaches HR reference truth to a target frame (repeatable).
-It is validated (PNM header, dimensions vs the decoded target) and recorded
-with provenance in the manifest, but its pixels are never read into
-reconstruction — attaching it cannot change output frames (proven by test).
+It is validated as P5/P6 reference truth and recorded with provenance in the
+manifest, but its pixels are never read into reconstruction. Ground truth may
+match observation resolution or be genuinely higher resolution; observation
+dimensions and scale_x/scale_y are recorded so controlled HR→LR fixtures are
+not forced into a false same-resolution contract.
 
 With `--dump-stages all`, the captured artifact set per target frame is:
 `decode_f<N>_y.pgm` (source planes), `decode_f<N>_mvs.txt` (raw codec MV
@@ -100,6 +102,12 @@ Per-pixel confidence capture is N/A (a fixed scalar exists; no per-pixel
 estimator is implemented); there is no distinct backend-input stage. All
 inventory paths are recorded relative to their base directory for
 deterministic replay.
+
+Planar 4:2:0 temporal reconstruction is sample-depth aware: 8-bit uses one
+byte/sample while 10/12/16-bit little-endian inputs use complete two-byte
+samples. Y/U/V are all reconstructed and emitted. High-bit-depth PGM captures
+use the source numerical maxval (for example 1023 for 10-bit) and PNM's
+required big-endian raster encoding.
 
 Example (deterministic offline run):
 
@@ -134,4 +142,4 @@ suites. The ANVIL targets themselves need only FFmpeg.
 - `tests/anvil_codec_tests.cpp` — measured codec capability truthfulness
 - `tests/anvil_runner_tests.cpp` — end-to-end CLI on generated fixtures
   (SDR full-metadata, PQ-HDR, unspecified-metadata)
-- `tests/test_anvil_contract.py` — 15 python contract tests over the CLI
+- `tests/test_anvil_contract.py` — 16 python contract tests over the CLI
