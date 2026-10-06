@@ -9,6 +9,7 @@
 #include "anvil/JsonWriter.hpp"
 #include "anvil/Manifest.hpp"
 #include "anvil/Reconstruct.hpp"
+#include "anvil/Sha256.hpp"
 
 using namespace anvil;
 
@@ -174,6 +175,23 @@ static void testProvenanceDetection() {
     if (dirty) CHECK(*dirty == "true" || *dirty == "false");
 }
 
+static void testSha256KnownAnswers() {
+    // FIPS 180-4 vectors — provenance hashes must be real SHA-256.
+    CHECK(sha256Hex(nullptr, 0)
+          == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+    const std::string abc = "abc";
+    CHECK(sha256Hex(reinterpret_cast<const uint8_t*>(abc.data()), abc.size())
+          == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+    const std::string twoBlocks =
+        "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
+    CHECK(sha256Hex(reinterpret_cast<const uint8_t*>(twoBlocks.data()),
+                    twoBlocks.size())
+          == "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1");
+    const std::string x1000(1000, 'x'); // multi-chunk file path coverage
+    CHECK(sha256Hex(reinterpret_cast<const uint8_t*>(x1000.data()), x1000.size())
+          == "44f8354494a5ba03ba1792a8d3e9c534c47a9181980fde7a3f44b06ef2ae7c7f");
+}
+
 int main() {
     testWindowConfig();
     testConfidenceAndGeometry();
@@ -184,6 +202,7 @@ int main() {
     testAccumulateAverageWithOracleFlow();
     testAmbiguousBlocksNeverEnterFlow();
     testProvenanceDetection();
+    testSha256KnownAnswers();
     if (failures) {
         std::printf("%d check(s) FAILED\n", failures);
         return 1;
