@@ -27,8 +27,8 @@ inline uint32_t rotr(uint32_t x, int n) { return (x >> n) | (x << (32 - n)); }
 void transform(uint32_t h[8], const uint8_t block[64]) {
     uint32_t w[64];
     for (int i = 0; i < 16; ++i) {
-        w[i] = (uint32_t(block[i]) << 24) | (uint32_t(block[i + 1]) << 16)
-             | (uint32_t(block[i + 2]) << 8) | uint32_t(block[i + 3]);
+        w[i] = (uint32_t(block[4 * i]) << 24) | (uint32_t(block[4 * i + 1]) << 16)
+             | (uint32_t(block[4 * i + 2]) << 8) | uint32_t(block[4 * i + 3]);
     }
     for (int i = 16; i < 64; ++i) {
         const uint32_t s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >> 3);
