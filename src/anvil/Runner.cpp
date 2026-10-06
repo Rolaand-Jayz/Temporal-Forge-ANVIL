@@ -203,7 +203,7 @@ RunResult runPipeline(const RunConfig& config) {
     m.config.dumpDir = config.dumpDir;
     m.config.dumpStages = config.dumpStages;
     m.config.seed = config.seed;
-    m.config.outputFormat = "ppm_or_pgm_planes";
+    m.config.outputFormat = "ppm_or_depth_preserving_pgm_planes";
     m.provenance.gitSha = detectGitSha();
     m.provenance.gitDirty = detectGitDirty();
     m.provenance.ffmpegVersion = av_version_info();
@@ -355,7 +355,7 @@ RunResult runPipeline(const RunConfig& config) {
         if (!dumpBase.empty() && stageDumpable(config.dumpStages, StageId::Decode)) {
             const fs::path yP = dumpPath(StageId::Decode, t, "y.pgm");
             if (writePgm(yP.string(), width, height, target.plane[0].data(),
-                         target.linesize[0]))
+                         target.linesize[0], target.color.bitDepth))
                 recordDump(yP);
             std::string mvs = "frame " + std::to_string(t) + "\n";
             if (target.codecMotionVectors.empty()) {
@@ -452,8 +452,19 @@ RunResult runPipeline(const RunConfig& config) {
                 uint64_t sad = 0;
                 for (int y = 0; y < height; ++y)
                     for (int x = 0; x < width; ++x)
-                        sad += std::abs(int(target.plane[0][size_t(y) * target.linesize[0] + x])
-                                        - int(prev.plane[0][size_t(y) * prev.linesize[0] + x]));
+                        {
+                            const int bt=target.color.bitDepth>8?2:1,bp=prev.color.bitDepth>8?2:1;
+                            const size_t ot=size_t(y)*target.linesize[0]+size_t(x)*bt;
+                            const size_t op=size_t(y)*prev.linesize[0]+size_t(x)*bp;
+                            const uint32_t tv=bt==1?target.plane[0][ot]:
+                                uint32_t(target.plane[0][ot])|(uint32_t(target.plane[0][ot+1])<<8);
+                            const uint32_t pv=bp==1?prev.plane[0][op]:
+                                uint32_t(prev.plane[0][op])|(uint32_t(prev.plane[0][op+1])<<8);
+                            const uint32_t tm=target.color.bitDepth>=16?65535u:((1u<<std::max(1,target.color.bitDepth))-1u);
+                            const uint32_t pm=prev.color.bitDepth>=16?65535u:((1u<<std::max(1,prev.color.bitDepth))-1u);
+                            sad+=static_cast<uint64_t>(std::llround(
+                                std::abs(double(tv)/std::max(1u,tm)-double(pv)/std::max(1u,pm))*255.0));
+                        }
                 const double meanDiff = double(sad) / double(width * height);
                 if (meanDiff > config.autoCutThreshold)
                     m.events.push_back({t, "scene_cut",
@@ -598,6 +609,10 @@ RunResult runPipeline(const RunConfig& config) {
             content += "matrix " + ColorMeta::matrixName(target.color.matrix) + "\n";
             content += "chroma_location "
                 + ColorMeta::chromaLocationName(target.color.chromaLocation) + "\n";
+            content += "pixel_format "
+                + std::string(av_get_pix_fmt_name(static_cast<AVPixelFormat>(target.avPixelFormat))
+                    ? av_get_pix_fmt_name(static_cast<AVPixelFormat>(target.avPixelFormat)) : "invalid") + "\n";
+            content += "bit_depth " + std::to_string(target.color.bitDepth) + "\n";
             content += "hdr_mastering_display "
                      + std::to_string(int(target.color.hasMasteringDisplay)) + "\n";
             content += "hdr_content_light_level "
@@ -630,7 +645,7 @@ RunResult runPipeline(const RunConfig& config) {
         if (!dumpBase.empty() && stageDumpable(config.dumpStages, StageId::Accumulate)) {
             const fs::path p = dumpPath(StageId::Accumulate, t, "y.pgm");
             if (writePgm(p.string(), width, height, acc.frame.plane[0].data(),
-                         acc.frame.linesize[0]))
+                         acc.frame.linesize[0], acc.frame.color.bitDepth))
                 recordDump(p);
         }
         addTiming(m, StageId::Accumulate, elapsedNs(accStart));
@@ -651,26 +666,28 @@ RunResult runPipeline(const RunConfig& config) {
             }
         }
         if (outP.empty()) {
-            // planes path: Y plane as PGM (chroma planes dumped alongside)
-            outP = fs::path(config.outputDir) / ("frame_" + std::to_string(t) + "_y.pgm");
-            if (writePgm(outP.string(), width, height, acc.frame.plane[0].data(),
-                         acc.frame.linesize[0])) {
-                result.outputFiles.push_back(outP.string());
-                m.outputFiles.push_back(
-                    fs::relative(outP, config.outputDir, fsEc).string());
-            }
-            if (acc.frame.planeCount > 1 && !acc.frame.plane[1].empty()) {
-                fs::path uP = fs::path(config.outputDir)
-                    / ("frame_" + std::to_string(t) + "_u.pgm");
-                const int cw = (acc.frame.avPixelFormat == AV_PIX_FMT_YUV420P) ? width / 2 : width;
-                const int ch = (acc.frame.avPixelFormat == AV_PIX_FMT_YUV420P) ? height / 2 : height;
-                if (writePgm(uP.string(), cw, ch, acc.frame.plane[1].data(),
-                             acc.frame.linesize[1])) {
-                    result.outputFiles.push_back(uP.string());
-                    m.outputFiles.push_back(
-                        fs::relative(uP, config.outputDir, fsEc).string());
+            const AVPixFmtDescriptor* desc=av_pix_fmt_desc_get(
+                static_cast<AVPixelFormat>(acc.frame.avPixelFormat));
+            const char* suffix[4]={"y","u","v","p3"};
+            for(int p=0;p<acc.frame.planeCount&&p<4;++p){
+                if(acc.frame.plane[p].empty())continue;
+                int pw=width,ph=height;
+                if(desc&&(p==1||p==2)){
+                    pw=AV_CEIL_RSHIFT(width,desc->log2_chroma_w);
+                    ph=AV_CEIL_RSHIFT(height,desc->log2_chroma_h);
                 }
+                const fs::path q=fs::path(config.outputDir)/
+                    ("frame_"+std::to_string(t)+"_"+suffix[p]+".pgm");
+                if(!writePgm(q.string(),pw,ph,acc.frame.plane[p].data(),
+                             acc.frame.linesize[p],acc.frame.color.bitDepth)){
+                    result.error="failed to write depth-preserving output plane "
+                        +std::to_string(p)+" for frame "+std::to_string(t);return result;
+                }
+                result.outputFiles.push_back(q.string());
+                m.outputFiles.push_back(fs::relative(q,config.outputDir,fsEc).string());
+                if(p==0)outP=q;
             }
+            if(outP.empty()){result.error="no output plane available for frame "+std::to_string(t);return result;}
         }
         addTiming(m, StageId::Output, elapsedNs(outStart));
         m.frames.push_back(rec);

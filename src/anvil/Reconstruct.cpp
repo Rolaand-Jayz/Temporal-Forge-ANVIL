@@ -20,8 +20,38 @@ inline float bilinearBlend(float p00, float p10, float p01, float p11,
 } // namespace
 
 namespace {
-inline float lumaAt(const Observation& o, int x, int y) {
-    return static_cast<float>(o.plane[0][static_cast<size_t>(y) * o.linesize[0] + x]);
+inline bool isPlanar420(const Observation& o) {
+    return o.avPixelFormat == AV_PIX_FMT_YUV420P
+        || o.avPixelFormat == AV_PIX_FMT_YUVJ420P
+        || o.avPixelFormat == AV_PIX_FMT_YUV420P10LE
+        || o.avPixelFormat == AV_PIX_FMT_YUV420P12LE
+        || o.avPixelFormat == AV_PIX_FMT_YUV420P16LE;
+}
+inline int bytesPerSample(const Observation& o) { return o.color.bitDepth > 8 ? 2 : 1; }
+inline uint32_t maxSample(const Observation& o) {
+    const int d=std::clamp(o.color.bitDepth,1,16);
+    return d==16?65535u:((1u<<d)-1u);
+}
+float planeAt(const Observation& o,int plane,int x,int y,int pw,int ph){
+    if(plane<0||plane>=o.planeCount||x<0||y<0||x>=pw||y>=ph)return NAN;
+    const int bps=bytesPerSample(o);
+    const size_t off=static_cast<size_t>(y)*o.linesize[plane]+static_cast<size_t>(x)*bps;
+    if(off+static_cast<size_t>(bps)>o.plane[plane].size())return NAN;
+    if(bps==1)return static_cast<float>(o.plane[plane][off]);
+    return static_cast<float>(uint32_t(o.plane[plane][off])|(uint32_t(o.plane[plane][off+1])<<8));
+}
+void planeSet(Observation& o,int plane,int x,int y,float value,int pw,int ph){
+    if(plane<0||plane>=o.planeCount||x<0||y<0||x>=pw||y>=ph)return;
+    const int bps=bytesPerSample(o);
+    const size_t off=static_cast<size_t>(y)*o.linesize[plane]+static_cast<size_t>(x)*bps;
+    if(off+static_cast<size_t>(bps)>o.plane[plane].size())return;
+    const uint32_t v=static_cast<uint32_t>(std::lround(
+        std::clamp(value,0.0f,static_cast<float>(maxSample(o)))));
+    o.plane[plane][off]=static_cast<uint8_t>(v&0xff);
+    if(bps==2)o.plane[plane][off+1]=static_cast<uint8_t>((v>>8)&0xff);
+}
+inline float lumaAt(const Observation& o,int x,int y){
+    return planeAt(o,0,x,y,o.width,o.height);
 }
 
 // Mean absolute difference of two blocks; large penalty when either block
@@ -35,9 +65,9 @@ uint32_t blockSad(const Observation& a, int ax, int ay, const Observation& b,
         for (int x = 0; x < bw; ++x) {
             const int axi = ax + x, bxi = bx + x;
             if (axi < 0 || axi >= a.width || bxi < 0 || bxi >= b.width) return ~0u;
-            const int d = int(a.plane[0][size_t(ayi) * a.linesize[0] + axi])
-                        - int(b.plane[0][size_t(byi) * b.linesize[0] + bxi]);
-            sad += uint32_t(d < 0 ? -d : d);
+            const int d=static_cast<int>(lumaAt(a,axi,ayi))
+                       -static_cast<int>(lumaAt(b,bxi,byi));
+            sad+=static_cast<uint32_t>(d<0?-d:d);
         }
     }
     return sad;
@@ -113,9 +143,9 @@ inline float bilinear(const Observation& o, float fx, float fy) {
     const int x0 = static_cast<int>(std::floor(fx));
     const int y0 = static_cast<int>(std::floor(fy));
     const float tx = fx - x0, ty = fy - y0;
-    const int x1 = x0 + 1, y1 = y0 + 1;
-    auto inside = [&](int x, int y) { return x >= 0 && x < o.width && y >= 0 && y < o.height; };
-    if (!inside(x0, y0)) return NAN;
+    const int x1=std::min(x0+1,o.width-1), y1=std::min(y0+1,o.height-1);
+    auto inside=[&](int x,int y){return x>=0&&x<o.width&&y>=0&&y<o.height;};
+    if(!inside(x0,y0))return NAN;
     auto at = [&](int x, int y) -> float {
         if (!inside(x, y)) return NAN;
         return lumaAt(o, x, y);
@@ -131,113 +161,70 @@ AccumulateResult accumulate(const Observation& target,
                             const std::vector<Observation>& neighbors,
                             const std::vector<FlowField>& neighborFlows,
                             const std::vector<std::vector<Visibility>>& neighborVisibility) {
-    AccumulateResult res;
-    res.frame = target;
-    if (neighbors.empty()) return res;
+    AccumulateResult res; res.frame=target;
+    const int w=target.width,h=target.height;
+    if(w<=0||h<=0||target.plane[0].empty())return res;
 
-    const int w = target.width, h = target.height;
-    std::vector<float> accY(static_cast<size_t>(w) * h, 0.0f);
-    std::vector<float> accW(static_cast<size_t>(w) * h, 0.0f);
-    // U/V planes at half resolution for 4:2:0; other formats handled per plane.
-    const int cw = target.planeCount > 2 ? (target.avPixelFormat == AV_PIX_FMT_YUV420P ? w / 2 : w) : 0;
-    const int ch = target.planeCount > 2 ? (target.avPixelFormat == AV_PIX_FMT_YUV420P ? h / 2 : h) : 0;
-    std::vector<float> accU, accV, accCU, accCV;
-    if (cw > 0 && ch > 0) {
-        accU.assign(static_cast<size_t>(w) * h, 0.0f);
-        accV.assign(static_cast<size_t>(w) * h, 0.0f);
-        accCU.assign(static_cast<size_t>(cw) * ch, 0.0f);
-        accCV.assign(static_cast<size_t>(cw) * ch, 0.0f);
-    }
+    std::vector<float> accY(static_cast<size_t>(w)*h,0.0f);
+    std::vector<float> accW(static_cast<size_t>(w)*h,1.0f);
+    for(int y=0;y<h;++y)for(int x=0;x<w;++x)
+        accY[static_cast<size_t>(y)*w+x]=lumaAt(target,x,y);
 
-    for (size_t n = 0; n < neighbors.size(); ++n) {
-        const Observation& o = neighbors[n];
-        const bool isTarget = o.frameIndex == target.frameIndex;
-        const FlowField empty;
-        const FlowField& flow = isTarget ? empty : neighborFlows[n];
-        const std::vector<Visibility> noVis;
-        const std::vector<Visibility>& vis =
-            neighborVisibility.empty() ? noVis : neighborVisibility[n];
-        // Backend-neutral confidence: known = 1.0 for all window members.
-        // (Confidence estimation is a later-campaign hypothesis; the
-        // build-ready path uses a fixed known weight and explicit visibility.)
-        const float weight = 1.0f;
-        for (int y = 0; y < h; ++y) {
-            for (int x = 0; x < w; ++x) {
-                const size_t i = static_cast<size_t>(y) * w + x;
-                if (!vis.empty() && vis[i] == Visibility::Invalid) continue;
-                if (!isTarget) ++res.totalSamples;
-                float sample;
-                if (isTarget) {
-                    sample = lumaAt(o, x, y);
-                } else {
-                    const size_t f = i * 2;
-                    sample = bilinear(o, x + flow[f], y + flow[f + 1]);
-                }
-                if (std::isnan(sample)) continue;
-                accY[i] += weight * sample;
-                accW[i] += weight;
-                if (!isTarget) ++res.validSamples;
-            }
-        }
-        // chroma (YUV420P): flow is halved; target chroma copied directly.
-        if (cw > 0 && ch > 0 && target.avPixelFormat == AV_PIX_FMT_YUV420P) {
-            for (int cy = 0; cy < ch; ++cy) {
-                for (int cx = 0; cx < cw; ++cx) {
-                    const size_t ci = static_cast<size_t>(cy) * cw + cx;
-                    const size_t fullY = static_cast<size_t>(cy * 2) * w + cx * 2;
-                    if (!vis.empty() && vis[fullY] == Visibility::Invalid) continue;
-                    const float fx = static_cast<float>(cx * 2)
-                        + (isTarget ? 0.0f : flow[fullY * 2] * 0.5f);
-                    const float fy = static_cast<float>(cy * 2)
-                        + (isTarget ? 0.0f : flow[fullY * 2 + 1] * 0.5f);
-                    const int c0x = static_cast<int>(std::floor(fx));
-                    const int c0y = static_cast<int>(std::floor(fy));
-                    auto cAt = [&](int plane, int x, int y) -> float {
-                        if (x < 0 || y < 0 || x >= cw || y >= ch) return NAN;
-                        return static_cast<float>(o.plane[plane][static_cast<size_t>(y) * o.linesize[plane] + x]);
-                    };
-                    const float u = bilinearBlend(cAt(1, c0x, c0y), cAt(1, c0x + 1, c0y),
-                                                  cAt(1, c0x, c0y + 1), cAt(1, c0x + 1, c0y + 1),
-                                                  fx - c0x, fy - c0y);
-                    const float v = bilinearBlend(cAt(2, c0x, c0y), cAt(2, c0x + 1, c0y),
-                                                  cAt(2, c0x, c0y + 1), cAt(2, c0x + 1, c0y + 1),
-                                                  fx - c0x, fy - c0y);
-                    if (!std::isnan(u)) {
-                        accCU[ci] += weight * u;
-                        if (!std::isnan(v)) accCV[ci] += weight * v;
-                    }
-                }
-            }
+    const bool p420=target.planeCount>2&&isPlanar420(target);
+    const int cw=p420?(w+1)/2:0,ch=p420?(h+1)/2:0;
+    std::vector<float> accU,accV,accCW;
+    if(p420){
+        accU.assign(static_cast<size_t>(cw)*ch,0.0f);
+        accV.assign(static_cast<size_t>(cw)*ch,0.0f);
+        accCW.assign(static_cast<size_t>(cw)*ch,1.0f);
+        for(int y=0;y<ch;++y)for(int x=0;x<cw;++x){
+            const size_t i=static_cast<size_t>(y)*cw+x;
+            accU[i]=planeAt(target,1,x,y,cw,ch);
+            accV[i]=planeAt(target,2,x,y,cw,ch);
         }
     }
 
-    // Write averaged planes back; pixels with zero weight keep target values
-    // (recorded via valid/total ratio).
-    for (int y = 0; y < h; ++y) {
-        for (int x = 0; x < w; ++x) {
-            const size_t i = static_cast<size_t>(y) * w + x;
-            if (accW[i] > 0.0f) {
-                const float v = accY[i] / accW[i];
-                res.frame.plane[0][static_cast<size_t>(y) * res.frame.linesize[0] + x] =
-                    static_cast<uint8_t>(std::lround(std::clamp(v, 0.0f, 255.0f)));
+    for(size_t n=0;n<neighbors.size()&&n<neighborFlows.size();++n){
+        const Observation& o=neighbors[n];
+        const FlowField& flow=neighborFlows[n];
+        if(flow.size()<static_cast<size_t>(w)*h*2)continue;
+        const std::vector<Visibility> none;
+        const auto& vis=n<neighborVisibility.size()?neighborVisibility[n]:none;
+        for(int y=0;y<h;++y)for(int x=0;x<w;++x){
+            const size_t i=static_cast<size_t>(y)*w+x; ++res.totalSamples;
+            if(!vis.empty()&&vis[i]==Visibility::Invalid)continue;
+            const float s=bilinear(o,x+flow[i*2],y+flow[i*2+1]);
+            if(std::isnan(s))continue;
+            accY[i]+=s; accW[i]+=1.0f; ++res.validSamples;
+        }
+        if(p420&&isPlanar420(o)){
+            for(int y=0;y<ch;++y)for(int x=0;x<cw;++x){
+                const size_t i=static_cast<size_t>(y)*cw+x;
+                const size_t fy=static_cast<size_t>(std::min(y*2,h-1))*w+std::min(x*2,w-1);
+                if(!vis.empty()&&vis[fy]==Visibility::Invalid)continue;
+                const float fx=static_cast<float>(x)+flow[fy*2]*0.5f;
+                const float fyy=static_cast<float>(y)+flow[fy*2+1]*0.5f;
+                const int x0=static_cast<int>(std::floor(fx)),y0=static_cast<int>(std::floor(fyy));
+                if(x0<0||y0<0||x0>=cw||y0>=ch)continue;
+                const int x1=std::min(x0+1,cw-1),y1=std::min(y0+1,ch-1);
+                const float tx=fx-x0,ty=fyy-y0;
+                const float u=bilinearBlend(planeAt(o,1,x0,y0,cw,ch),planeAt(o,1,x1,y0,cw,ch),
+                    planeAt(o,1,x0,y1,cw,ch),planeAt(o,1,x1,y1,cw,ch),tx,ty);
+                const float v=bilinearBlend(planeAt(o,2,x0,y0,cw,ch),planeAt(o,2,x1,y0,cw,ch),
+                    planeAt(o,2,x0,y1,cw,ch),planeAt(o,2,x1,y1,cw,ch),tx,ty);
+                if(std::isnan(u)||std::isnan(v))continue;
+                accU[i]+=u;accV[i]+=v;accCW[i]+=1.0f;
             }
         }
     }
-    if (cw > 0 && ch > 0 && target.avPixelFormat == AV_PIX_FMT_YUV420P) {
-        for (int plane = 1; plane <= 2; ++plane) {
-            const auto& acc = plane == 1 ? accCU : accCV;
-            for (int cy = 0; cy < ch; ++cy) {
-                for (int cx = 0; cx < cw; ++cx) {
-                    const size_t ci = static_cast<size_t>(cy) * cw + cx;
-                    const size_t fullY = static_cast<size_t>(cy * 2) * w + cx * 2;
-                    if (accW[fullY] > 0.0f) {
-                        const float v = acc[ci] / accW[fullY];
-                        res.frame.plane[plane][static_cast<size_t>(cy) * res.frame.linesize[plane] + cx] =
-                            static_cast<uint8_t>(std::lround(std::clamp(v, 0.0f, 255.0f)));
-                    }
-                }
-            }
-        }
+    for(int y=0;y<h;++y)for(int x=0;x<w;++x){
+        const size_t i=static_cast<size_t>(y)*w+x;
+        planeSet(res.frame,0,x,y,accY[i]/accW[i],w,h);
+    }
+    if(p420)for(int y=0;y<ch;++y)for(int x=0;x<cw;++x){
+        const size_t i=static_cast<size_t>(y)*cw+x;
+        planeSet(res.frame,1,x,y,accU[i]/accCW[i],cw,ch);
+        planeSet(res.frame,2,x,y,accV[i]/accCW[i],cw,ch);
     }
     return res;
 }
