@@ -145,7 +145,13 @@ std::string Manifest::toJson() const {
         w.kv("width", g.width);
         w.kv("height", g.height);
         w.kv("maxval", g.maxval);
+        w.kv("bytes_per_sample", g.bytesPerSample);
         w.kv("format", g.format);
+        w.kv("observation_width", g.observationWidth);
+        w.kv("observation_height", g.observationHeight);
+        w.kv("scale_x", g.scaleX);
+        w.kv("scale_y", g.scaleY);
+        w.kv("resolution_relation", g.resolutionRelation);
         w.kv("usage", g.usageNote);
         w.endObject();
     }
