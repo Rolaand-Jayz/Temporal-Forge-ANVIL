@@ -104,6 +104,24 @@ int main(int argc, char** argv) {
         else if (arg == "--oracle-dir") { if (!next(cfg.oracleDir)) return 2; }
         else if (arg == "--dump-dir") { if (!next(cfg.dumpDir)) return 2; }
         else if (arg == "--dump-stages") { if (!next(cfg.dumpStages)) return 2; }
+        else if (arg == "--ground-truth") {
+            std::string v;
+            if (!next(v)) return 2;
+            const size_t eq = v.find('=');
+            if (eq == std::string::npos || eq == 0 || eq + 1 >= v.size()) {
+                std::cerr << "--ground-truth expects FRAME=PATH\n";
+                return 2;
+            }
+            long long frame = 0;
+            if (!parseNumber(v.substr(0, eq), frame) || frame < 0) {
+                std::cerr << "--ground-truth frame must be a non-negative integer\n";
+                return 2;
+            }
+            if (!cfg.groundTruth.emplace(frame, v.substr(eq + 1)).second) {
+                std::cerr << "duplicate ground truth for frame " << frame << "\n";
+                return 2;
+            }
+        }
         else if (arg == "--seed") { std::string v; if (!next(v)) return 2; cfg.seed = std::stoull(v); }
         else {
             std::cerr << "unknown option: " << arg << "\n";

@@ -20,6 +20,7 @@ extern "C" {
 
 #include "CodecProbe.hpp"
 #include "Core.hpp"
+#include "GroundTruth.hpp"
 #include "Oracle.hpp"
 #include "Pnm.hpp"
 #include "Reconstruct.hpp"
@@ -290,9 +291,30 @@ RunResult runPipeline(const RunConfig& config) {
                            + "_" + tag);
     };
     auto recordDump = [&](const fs::path& p) {
-        m.dumpFiles.push_back(p.string());
+        // Inventory paths are recorded relative to their base directory so
+        // the manifest is deterministic across output locations.
+        std::error_code relEc;
+        const fs::path rel = fs::relative(p, config.dumpDir, relEc);
+        const std::string stored = relEc ? p.string() : rel.string();
+        m.dumpFiles.push_back(stored);
         result.outputFiles.push_back(p.string());
     };
+
+    // --- ground-truth mapping validation (reference evidence only) ---
+    {
+        const int64_t firstTarget = config.startFrame;
+        const int64_t lastTarget = config.startFrame + config.frameCount - 1;
+        for (const auto& [gtFrame, gtPath] : config.groundTruth) {
+            if (gtFrame < firstTarget || gtFrame > lastTarget) {
+                result.error = std::string("ground truth ")
+                    + groundTruthErrorName(GroundTruthError::FrameOutOfRange)
+                    + ": frame " + std::to_string(gtFrame)
+                    + " is not a target of this run [" + std::to_string(firstTarget)
+                    + ", " + std::to_string(lastTarget) + "]";
+                return result;
+            }
+        }
+    }
 
     // --- per-target pipeline ---
     for (int64_t ti = 0; ti < config.frameCount; ++ti) {
@@ -328,6 +350,59 @@ RunResult runPipeline(const RunConfig& config) {
                                 "no codec MV side data on this frame"});
         }
 
+        // decode-stage capture: source planes (pre-pipeline) and raw codec
+        // side information as delivered (never normalized, never invented).
+        if (!dumpBase.empty() && stageDumpable(config.dumpStages, StageId::Decode)) {
+            const fs::path yP = dumpPath(StageId::Decode, t, "y.pgm");
+            if (writePgm(yP.string(), width, height, target.plane[0].data(),
+                         target.linesize[0]))
+                recordDump(yP);
+            std::string mvs = "frame " + std::to_string(t) + "\n";
+            if (target.codecMotionVectors.empty()) {
+                mvs += "state=none count=0\n";
+            } else {
+                mvs += "state=present count="
+                    + std::to_string(target.codecMotionVectors.size()) + "\n";
+                for (const Observation::RawMv& r : target.codecMotionVectors) {
+                    mvs += "dst " + std::to_string(r.dstX) + " "
+                         + std::to_string(r.dstY) + " size " + std::to_string(r.w)
+                         + " " + std::to_string(r.h) + " mv " + std::to_string(r.mvX)
+                         + " " + std::to_string(r.mvY) + " source "
+                         + std::to_string(int(r.source)) + "\n";
+                }
+            }
+            const fs::path mvP = dumpPath(StageId::Decode, t, "mvs.txt");
+            if (writeTextFile(mvP, mvs)) recordDump(mvP);
+        }
+
+        // ground truth: validate against THIS target's decoded geometry,
+        // record provenance, and do nothing else with it.
+        if (auto gtit = config.groundTruth.find(static_cast<int64_t>(t));
+            gtit != config.groundTruth.end()) {
+            GroundTruthRecord g;
+            const GroundTruthError gerr =
+                validateGroundTruth(gtit->second, target.width, target.height, g);
+            if (gerr != GroundTruthError::None) {
+                result.error = std::string("ground truth for frame ")
+                    + std::to_string(t) + ": " + groundTruthErrorName(gerr)
+                    + " (" + gtit->second + ")";
+                return result;
+            }
+            g.frameIndex = t;
+            Manifest::GroundTruthEntry e;
+            e.frameIndex = g.frameIndex;
+            e.path = g.path;
+            e.sha256 = g.sha256;
+            e.sizeBytes = g.sizeBytes;
+            e.width = g.width;
+            e.height = g.height;
+            e.maxval = g.maxval;
+            e.format = g.format;
+            e.usageNote = GroundTruthRecord::kUsageNote;
+            m.groundTruth.push_back(e);
+            rec.hasGroundTruth = true;
+        }
+
         // window selection (cut-aware)
         const Clock::time_point winStart = Clock::now();
         std::vector<uint64_t> window = WindowConfig{config.past, config.future}.windowFor(t);
@@ -339,15 +414,30 @@ RunResult runPipeline(const RunConfig& config) {
             return false;
         };
         std::vector<uint64_t> neighbors;
+        std::vector<std::string> excluded;
         for (uint64_t s : window) {
             if (s == t) continue;
-            if (!frames.count(s)) continue;
+            if (!frames.count(s)) {
+                excluded.push_back(std::to_string(s) + " reason=not_decoded");
+                continue;
+            }
             if (crossesCut(t, s)) {
+                excluded.push_back(std::to_string(s) + " reason=cut_boundary");
                 m.events.push_back({s, "window_reset",
                                     "excluded across forced cut boundary"});
                 continue;
             }
             neighbors.push_back(s);
+        }
+        if (!dumpBase.empty() && stageDumpable(config.dumpStages, StageId::WindowSelect)) {
+            std::string content = "target " + std::to_string(t)
+                + " past=" + std::to_string(config.past)
+                + " future=" + std::to_string(config.future) + "\n";
+            for (uint64_t s : neighbors)
+                content += "neighbor " + std::to_string(s) + "\n";
+            for (const std::string& e : excluded) content += "excluded " + e + "\n";
+            const fs::path wP = dumpPath(StageId::WindowSelect, t, "window.txt");
+            if (writeTextFile(wP, content)) recordDump(wP);
         }
         // auto scene cut: mean-abs luma diff target vs previous frame
         if (config.autoSceneCut && t > 0 && frames.count(t - 1) && !crossesCut(t, t - 1)) {
@@ -370,6 +460,8 @@ RunResult runPipeline(const RunConfig& config) {
         const Clock::time_point corrStart = Clock::now();
         std::vector<FlowField> flows;
         std::vector<std::vector<Visibility>> visMasks;
+        std::vector<std::vector<BlockMotion>> neighborBlocks;
+        std::vector<uint64_t> neighborOrder;
         std::string corrSourceUsed = config.correspondenceMode;
         for (uint64_t s : neighbors) {
             const Observation& obs = frames[s];
@@ -416,6 +508,8 @@ RunResult runPipeline(const RunConfig& config) {
             FlowField flow = buildFlowField(width, height, blocks,
                                             static_cast<int64_t>(s));
             flows.push_back(std::move(flow));
+            neighborBlocks.push_back(std::move(blocks));
+            neighborOrder.push_back(s);
 
             // visibility: oracle replaces; default valid, minus unproven
             // correspondence coverage (unknown provenance is never applied).
@@ -490,6 +584,24 @@ RunResult runPipeline(const RunConfig& config) {
             m.events.push_back({t, "color_unknown_metadata", ws.description});
         }
         rec.colorConversion = ws.description;
+        if (!dumpBase.empty() && stageDumpable(config.dumpStages, StageId::ColorConvert)) {
+            std::string content = "frame " + std::to_string(t) + "\n";
+            content += "range " + ColorMeta::rangeName(target.color.range) + "\n";
+            content += "primaries " + ColorMeta::primariesName(target.color.primaries) + "\n";
+            content += "transfer " + ColorMeta::transferName(target.color.transfer) + "\n";
+            content += "matrix " + ColorMeta::matrixName(target.color.matrix) + "\n";
+            content += "chroma_location "
+                + ColorMeta::chromaLocationName(target.color.chromaLocation) + "\n";
+            content += "hdr_mastering_display "
+                     + std::to_string(int(target.color.hasMasteringDisplay)) + "\n";
+            content += "hdr_content_light_level "
+                     + std::to_string(int(target.color.hasContentLightLevel)) + "\n";
+            content += "working_space state="
+                + std::to_string(static_cast<int>(ws.state))
+                + " description=" + ws.description + "\n";
+            const fs::path cP = dumpPath(StageId::ColorConvert, t, "color.txt");
+            if (writeTextFile(cP, content)) recordDump(cP);
+        }
         addTiming(m, StageId::ColorConvert, elapsedNs(colorStart));
 
         // accumulate
@@ -525,37 +637,80 @@ RunResult runPipeline(const RunConfig& config) {
             int stride = 0;
             if (convertToRgb(acc.frame, rgb, stride)) {
                 outP = fs::path(config.outputDir) / ("frame_" + std::to_string(t) + ".ppm");
-                if (writePpm(outP.string(), width, height, rgb.data(), stride))
+                if (writePpm(outP.string(), width, height, rgb.data(), stride)) {
                     result.outputFiles.push_back(outP.string());
+                    m.outputFiles.push_back(
+                        fs::relative(outP, config.outputDir, fsEc).string());
+                }
             }
         }
         if (outP.empty()) {
             // planes path: Y plane as PGM (chroma planes dumped alongside)
             outP = fs::path(config.outputDir) / ("frame_" + std::to_string(t) + "_y.pgm");
             if (writePgm(outP.string(), width, height, acc.frame.plane[0].data(),
-                         acc.frame.linesize[0]))
+                         acc.frame.linesize[0])) {
                 result.outputFiles.push_back(outP.string());
+                m.outputFiles.push_back(
+                    fs::relative(outP, config.outputDir, fsEc).string());
+            }
             if (acc.frame.planeCount > 1 && !acc.frame.plane[1].empty()) {
                 fs::path uP = fs::path(config.outputDir)
                     / ("frame_" + std::to_string(t) + "_u.pgm");
                 const int cw = (acc.frame.avPixelFormat == AV_PIX_FMT_YUV420P) ? width / 2 : width;
                 const int ch = (acc.frame.avPixelFormat == AV_PIX_FMT_YUV420P) ? height / 2 : height;
                 if (writePgm(uP.string(), cw, ch, acc.frame.plane[1].data(),
-                             acc.frame.linesize[1]))
+                             acc.frame.linesize[1])) {
                     result.outputFiles.push_back(uP.string());
+                    m.outputFiles.push_back(
+                        fs::relative(uP, config.outputDir, fsEc).string());
+                }
             }
         }
         addTiming(m, StageId::Output, elapsedNs(outStart));
         m.frames.push_back(rec);
 
         if (!dumpBase.empty() && stageDumpable(config.dumpStages, StageId::Correspondence)) {
-            std::string content = "# frame " + std::to_string(t)
+            // Actual correspondence values with provenance, per neighbor.
+            std::string content = "frame " + std::to_string(t)
                                 + " source=" + corrSourceUsed + "\n";
-            for (size_t i = 0; i < neighbors.size(); ++i) {
-                content += "neighbor " + std::to_string(neighbors[i]) + "\n";
+            for (size_t i = 0; i < neighborBlocks.size(); ++i) {
+                content += "neighbor " + std::to_string(neighborOrder[i]) + " blocks "
+                         + std::to_string(neighborBlocks[i].size()) + "\n";
+                for (const BlockMotion& b : neighborBlocks[i]) {
+                    content += "block " + std::to_string(b.dstX) + " "
+                         + std::to_string(b.dstY) + " " + std::to_string(b.blockW)
+                         + " " + std::to_string(b.blockH) + " mv "
+                         + std::to_string(b.mvX) + " " + std::to_string(b.mvY)
+                         + " ref " + std::to_string(b.refFrameIndex)
+                         + " ambiguous " + std::to_string(int(b.ambiguous))
+                         + " precision " + std::to_string(static_cast<int>(b.precision))
+                         + " source " + std::to_string(static_cast<int>(b.source))
+                         + "\n";
+                }
             }
-            const fs::path p = dumpPath(StageId::Correspondence, t, "neighbors.txt");
-            if (writeTextFile(p, content)) recordDump(p);
+            const fs::path cP = dumpPath(StageId::Correspondence, t, "correspondence.txt");
+            if (writeTextFile(cP, content)) recordDump(cP);
+        }
+        if (!dumpBase.empty() && stageDumpable(config.dumpStages, StageId::Visibility)) {
+            if (visMasks.empty()) {
+                // single-frame window: visibility is vacuous (no neighbor
+                // samples); record the state explicitly rather than silently.
+                const fs::path vP = dumpPath(StageId::Visibility, t, "none.txt");
+                if (writeTextFile(vP, "frame " + std::to_string(t)
+                                + " state=no_neighbors\n"))
+                    recordDump(vP);
+            } else {
+                for (size_t i = 0; i < visMasks.size(); ++i) {
+                    std::vector<uint8_t> bytes(visMasks[i].size());
+                    for (size_t j = 0; j < bytes.size(); ++j)
+                        bytes[j] = visMasks[i][j] == Visibility::Valid ? 255
+                                 : visMasks[i][j] == Visibility::Unknown ? 128 : 0;
+                    const fs::path vP = dumpPath(StageId::Visibility, t,
+                                                 ("i" + std::to_string(i) + ".pgm").c_str());
+                    if (writePgm(vP.string(), width, height, bytes.data(), width))
+                        recordDump(vP);
+                }
+            }
         }
     }
 
@@ -563,8 +718,10 @@ RunResult runPipeline(const RunConfig& config) {
 
     // --- manifest ---
     const fs::path manifestPath = fs::path(config.outputDir) / "manifest.json";
-    if (writeTextFile(manifestPath, m.toJson() + "\n"))
+    if (writeTextFile(manifestPath, m.toJson() + "\n")) {
         result.outputFiles.push_back(manifestPath.string());
+        m.outputFiles.push_back("manifest.json");
+    }
     result.ok = result.error.empty();
     return result;
 }

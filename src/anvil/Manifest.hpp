@@ -84,7 +84,21 @@ public:
         bool inputHashOk = false;
     } provenance;
 
+    // HR ground-truth attachments (reference evidence only — excluded from
+    // candidate reconstruction; see GroundTruth.hpp).
+    struct GroundTruthEntry {
+        uint64_t frameIndex = 0;
+        std::string path;
+        std::string sha256;
+        uint64_t sizeBytes = 0;
+        int width = 0, height = 0, maxval = 0;
+        std::string format; // pgm | ppm
+        std::string usageNote;
+    };
+    std::vector<GroundTruthEntry> groundTruth;
+
     // --- results ---
+    std::vector<std::string> outputFiles;
     std::vector<StageTiming> stageTimings;
     std::vector<RunEvent> events;
     std::vector<std::string> dumpFiles;
@@ -96,6 +110,7 @@ public:
         std::string correspondenceSource; // which source actually used
         std::string geometryState;
         std::string colorConversion;      // WorkingSpaceResult description
+        bool hasGroundTruth = false;
         uint64_t validSamples = 0;
         uint64_t totalSamples = 0;
     };

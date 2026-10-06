@@ -170,6 +170,101 @@ int main(int argc, char** argv) {
     CHECK(m7c.find("color metadata incomplete") != std::string::npos);
     CHECK(m7c.find("color_unknown_metadata") != std::string::npos);
 
+    // 7d. HR ground truth: attach, provenance in manifest, no contamination
+    fs::create_directories(tmp / "gt");
+    const std::string gtPath = (tmp / "gt" / "gt_64.pgm").string();
+    {
+        std::ofstream f(gtPath, std::ios::binary);
+        f << "P5\n64 64\n255\n";
+        for (int i = 0; i < 64 * 64; ++i) f.put(static_cast<char>((i * 7) & 0xFF));
+    }
+    const int rcgt = runRunner(runner,
+        {"--input", fixture, "--output-dir", tmp / "gt_out", "--start-frame", "1",
+         "--frame-count", "1", "--past", "1",
+         "--ground-truth", "1=" + gtPath}, tmp / "gt_out");
+    CHECK(rcgt == 0);
+    std::string mgt = slurp(tmp / "gt_out" / "manifest.json");
+    CHECK(mgt.find("\"ground_truth\"") != std::string::npos);
+    CHECK(mgt.find("reference evidence only") != std::string::npos);
+    CHECK(mgt.find("\"has_ground_truth\":true") != std::string::npos
+          || mgt.find("\"has_ground_truth\": true") != std::string::npos);
+    CHECK(mgt.find("\"format\":\"pgm\"") != std::string::npos
+          || mgt.find("\"format\": \"pgm\"") != std::string::npos);
+    CHECK(mgt.find("\"width\":64") != std::string::npos
+          || mgt.find("\"width\": 64") != std::string::npos);
+    CHECK(mgt.find("sha256") != std::string::npos);
+
+    // no contamination: identical reconstruction with and without GT
+    const int rcn1 = runRunner(runner,
+        {"--input", fixture, "--output-dir", tmp / "noGT", "--start-frame", "1",
+         "--frame-count", "2", "--past", "1"}, tmp / "noGT");
+    const int rcn2 = runRunner(runner,
+        {"--input", fixture, "--output-dir", tmp / "withGT", "--start-frame", "1",
+         "--frame-count", "2", "--past", "1",
+         "--ground-truth", "1=" + gtPath, "--ground-truth", "2=" + gtPath},
+        tmp / "withGT");
+    CHECK(rcn1 == 0 && rcn2 == 0);
+    for (const char* f : {"frame_1.ppm", "frame_2.ppm"})
+        CHECK(fileEquals(tmp / "noGT" / f, tmp / "withGT" / f));
+
+    // GT rejections: dimension mismatch, malformed, out-of-range frame
+    const std::string gtBadDims = (tmp / "gt" / "gt_bad_dims.pgm").string();
+    {
+        std::ofstream f(gtBadDims, std::ios::binary);
+        f << "P5\n32 32\n255\n" << std::string(32 * 32, '\001');
+    }
+    const int rcgt1 = runRunner(runner,
+        {"--input", fixture, "--output-dir", tmp / "gt_rej1", "--frame-count", "1",
+         "--ground-truth", "0=" + gtBadDims}, tmp / "gt_rej1");
+    CHECK(rcgt1 == 1);
+    const std::string gtMalformed = (tmp / "gt" / "gt_malformed.pgm").string();
+    {
+        std::ofstream f(gtMalformed, std::ios::binary);
+        f << "P4\n64 64\n255\nxx";
+    }
+    const int rcgt2 = runRunner(runner,
+        {"--input", fixture, "--output-dir", tmp / "gt_rej2", "--frame-count", "1",
+         "--ground-truth", "0=" + gtMalformed}, tmp / "gt_rej2");
+    CHECK(rcgt2 == 1);
+    const int rcgt3 = runRunner(runner,
+        {"--input", fixture, "--output-dir", tmp / "gt_rej3", "--frame-count", "1",
+         "--ground-truth", "9=" + gtPath}, tmp / "gt_rej3");
+    CHECK(rcgt3 == 1);
+    const int rcgt4 = runRunner(runner,
+        {"--input", fixture, "--output-dir", tmp / "gt_rej4", "--frame-count", "1",
+         "--ground-truth", "0=/nonexistent/missing.pgm"}, tmp / "gt_rej4");
+    CHECK(rcgt4 == 1);
+
+    // 7e. comprehensive stage capture: expected artifact set + contents
+    const int rccap = runRunner(runner,
+        {"--input", fixture, "--output-dir", tmp / "cap", "--start-frame", "2",
+         "--frame-count", "2", "--past", "1", "--dump-dir", tmp / "capdumps",
+         "--dump-stages", "all"}, tmp / "cap");
+    CHECK(rccap == 0);
+    const std::string mcap = slurp(tmp / "cap" / "manifest.json");
+    for (const char* artifact :
+         {"decode_f2_y.pgm", "decode_f2_mvs.txt", "window_select_f2_window.txt",
+          "correspondence_f2_correspondence.txt", "visibility_f2_i0.pgm",
+          "sample_geometry_f2_geometry.txt", "color_convert_f2_color.txt",
+          "accumulate_f2_y.pgm", "decode_f3_y.pgm", "decode_f3_mvs.txt"}) {
+        CHECK(fileExists(tmp / "capdumps" / artifact));
+    }
+    // correspondence capture carries actual vector values, not labels
+    const std::string corr = slurp(tmp / "capdumps" / "correspondence_f2_correspondence.txt");
+    CHECK(corr.find("block ") != std::string::npos);
+    CHECK(corr.find(" mv ") != std::string::npos);
+    CHECK(corr.find("source ") != std::string::npos);
+    // codec side info capture carries actual exported entries
+    const std::string mvs = slurp(tmp / "capdumps" / "decode_f2_mvs.txt");
+    CHECK(mvs.find("state=") != std::string::npos);
+    CHECK(mvs.find("dst ") != std::string::npos || mvs.find("state=none") != std::string::npos);
+    // color capture carries the metadata + working-space decision
+    const std::string col = slurp(tmp / "capdumps" / "color_convert_f2_color.txt");
+    CHECK(col.find("transfer ") != std::string::npos);
+    CHECK(col.find("working_space state=") != std::string::npos);
+    // manifest inventory matches what is on disk, incl. final outputs
+    CHECK(mcap.find("\"output_files\"") != std::string::npos);
+
     // 8. missing input -> graceful error
     const int rc8 = runRunner(runner,
         {"--input", tmp / "nonexistent.mp4", "--output-dir", tmp / "err"}, tmp / "err");
