@@ -36,6 +36,7 @@ void usage() {
         << "  --oracle-dir DIR         oracle fixture directory\n"
         << "  --dump-dir DIR           intermediate dump directory\n"
         << "  --dump-stages LIST       comma-separated stage names or 'all'\n"
+        << "  --ground-truth F=PATH    attach same-res or higher-res reference truth (repeatable)\n"
         << "  --seed N                 recorded in manifest; pipeline is deterministic\n";
 }
 

@@ -397,7 +397,13 @@ RunResult runPipeline(const RunConfig& config) {
             e.width = g.width;
             e.height = g.height;
             e.maxval = g.maxval;
+            e.bytesPerSample = g.bytesPerSample;
             e.format = g.format;
+            e.observationWidth = g.observationWidth;
+            e.observationHeight = g.observationHeight;
+            e.scaleX = g.scaleX;
+            e.scaleY = g.scaleY;
+            e.resolutionRelation = g.resolutionRelation;
             e.usageNote = GroundTruthRecord::kUsageNote;
             m.groundTruth.push_back(e);
             rec.hasGroundTruth = true;

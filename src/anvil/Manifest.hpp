@@ -92,7 +92,11 @@ public:
         std::string sha256;
         uint64_t sizeBytes = 0;
         int width = 0, height = 0, maxval = 0;
+        int bytesPerSample = 1;
         std::string format; // pgm | ppm
+        int observationWidth = 0, observationHeight = 0;
+        double scaleX = 1.0, scaleY = 1.0;
+        std::string resolutionRelation;
         std::string usageNote;
     };
     std::vector<GroundTruthEntry> groundTruth;
