@@ -259,7 +259,123 @@ def test_intermediate_dumps_with_manifest_inventory(sdr_clip, tmp_path):
     m = load_manifest(out)
     assert m["dump_files"], "manifest dump inventory empty"
     for d in m["dump_files"]:
-        assert Path(d).is_file()
+        assert (dump_dir / d).is_file(), f"inventory entry missing on disk: {d}"
+
+
+def test_ground_truth_attachment_and_provenance(sdr_clip, tmp_path):
+    """HR ground truth attaches explicitly: per-frame association, dimensions,
+    format, and an independently verifiable SHA-256 in the manifest."""
+    gt = tmp_path / "gt.pgm"
+    gt.write_bytes(b"P5\n64 64\n255\n" + bytes((i * 11) % 256 for i in range(64 * 64)))
+    out = tmp_path / "gt_out"
+    proc = run_runner(out, "--input", sdr_clip, "--start-frame", 1,
+                      "--frame-count", 1, "--past", 1,
+                      "--ground-truth", f"1={gt}")
+    assert proc.returncode == 0, proc.stderr
+    m = load_manifest(out)
+    assert len(m["ground_truth"]) == 1
+    g = m["ground_truth"][0]
+    assert g["frame_index"] == 1            # unambiguous target association
+    assert g["sha256"] == hashlib.sha256(gt.read_bytes()).hexdigest()  # independent digest
+    assert (g["width"], g["height"], g["maxval"]) == (64, 64, 255)
+    assert g["format"] == "pgm"
+    assert g["size_bytes"] == gt.stat().st_size
+    assert "excluded from candidate reconstruction" in g["usage"]
+    assert m["frames"][0]["has_ground_truth"] is True
+
+
+def test_ground_truth_never_contaminates_reconstruction(sdr_clip, tmp_path):
+    gt = tmp_path / "gt.pgm"
+    gt.write_bytes(b"P5\n64 64\n255\n" + bytes((i * 3) % 256 for i in range(64 * 64)))
+    plain, with_gt = tmp_path / "plain", tmp_path / "withgt"
+    args = ["--input", sdr_clip, "--start-frame", 1, "--frame-count", 2,
+            "--past", 1]
+    assert run_runner(plain, *args).returncode == 0
+    assert run_runner(with_gt, *args,
+                      "--ground-truth", f"1={gt}",
+                      "--ground-truth", f"2={gt}").returncode == 0
+    for f in ("frame_1.ppm", "frame_2.ppm"):
+        assert (plain / f).read_bytes() == (with_gt / f).read_bytes(), (
+            f"{f} changed when ground truth was attached: oracle leakage")
+
+
+def test_ground_truth_rejections(sdr_clip, tmp_path):
+    bad_dims = tmp_path / "bad_dims.pgm"
+    bad_dims.write_bytes(b"P5\n32 32\n255\n" + bytes(32 * 32))
+    malformed = tmp_path / "malformed.pgm"
+    malformed.write_bytes(b"P4\n64 64\n255\nxx")
+    proc1 = run_runner(tmp_path / "r1", "--input", sdr_clip, "--frame-count", 1,
+                       "--ground-truth", f"0={bad_dims}")
+    assert proc1.returncode == 1 and "dimension_mismatch" in proc1.stderr
+    proc2 = run_runner(tmp_path / "r2", "--input", sdr_clip, "--frame-count", 1,
+                       "--ground-truth", f"0={malformed}")
+    assert proc2.returncode == 1 and "malformed" in proc2.stderr
+    proc3 = run_runner(tmp_path / "r3", "--input", sdr_clip, "--frame-count", 1,
+                       "--ground-truth", "9=/nonexistent.pgm")
+    assert proc3.returncode == 1 and "frame_out_of_range" in proc3.stderr
+    proc4 = run_runner(tmp_path / "r4", "--input", sdr_clip, "--frame-count", 1,
+                       "--ground-truth", "0=/nonexistent.pgm")
+    assert proc4.returncode == 1 and "missing" in proc4.stderr
+
+
+def test_comprehensive_stage_capture_inventory(sdr_clip, tmp_path):
+    """Every consequential implemented stage yields an auditable artifact;
+    the manifest inventory matches disk; artifacts replay byte-identically."""
+    dump_dir = tmp_path / "dumps"
+    args = ["--input", sdr_clip, "--start-frame", 2, "--frame-count", 2,
+            "--past", 1, "--dump-dir", dump_dir, "--dump-stages", "all"]
+    out = tmp_path / "cap"
+    assert run_runner(out, *args).returncode == 0
+    m = load_manifest(out)
+
+    expected = set()
+    for t in (2, 3):
+        expected |= {
+            dump_dir / f"decode_f{t}_y.pgm",            # decoded source planes
+            dump_dir / f"decode_f{t}_mvs.txt",          # raw codec side info (or explicit none)
+            dump_dir / f"window_select_f{t}_window.txt",  # window selection + exclusions
+            dump_dir / f"correspondence_f{t}_correspondence.txt",  # actual vectors
+            dump_dir / f"visibility_f{t}_i0.pgm",       # actual mask values
+            dump_dir / f"sample_geometry_f{t}_geometry.txt",
+            dump_dir / f"color_convert_f{t}_color.txt",
+            dump_dir / f"accumulate_f{t}_y.pgm",        # reconstructed data
+        }
+    on_disk = {p for p in dump_dir.iterdir() if p.is_file()}
+    assert expected <= on_disk, f"missing artifacts: {expected - on_disk}"
+    # manifest inventory == disk artifacts exactly (paths relative to dump dir)
+    listed = {dump_dir / d for d in m["dump_files"]}
+    assert listed == on_disk
+    for d in listed:
+        assert d.is_file()
+
+    # artifact contents carry consequential data, not labels
+    corr = (dump_dir / "correspondence_f2_correspondence.txt").read_text()
+    assert " mv " in corr and "block " in corr  # actual vector values
+    mvs = (dump_dir / "decode_f2_mvs.txt").read_text()
+    assert "state=" in mvs and ("dst " in mvs or "state=none" in mvs)
+    color = (dump_dir / "color_convert_f2_color.txt").read_text()
+    for field in ("range ", "primaries ", "transfer ", "matrix ",
+                  "chroma_location ", "working_space state="):
+        assert field in color, f"color capture missing {field}"
+    window = (dump_dir / "window_select_f2_window.txt").read_text()
+    assert "target 2" in window and "neighbor " in window
+    # accumulate artifact is real image data with the exact PGM header
+    acc_bytes = (dump_dir / "accumulate_f2_y.pgm").read_bytes()
+    assert acc_bytes.startswith(b"P5\n64 64\n255\n")
+
+    # output inventory in manifest, files on disk
+    assert m["output_files"], "output inventory empty"
+    for o in m["output_files"]:
+        assert (out / o).is_file(), f"output inventory entry missing: {o}"
+
+    # replay equality: deterministic dumps byte-identical across runs
+    out2, dump2 = tmp_path / "cap2", tmp_path / "dumps2"
+    assert run_runner(out2, *args[:-4] + ["--dump-dir", dump2,
+                                          "--dump-stages", "all"]).returncode == 0
+    for a in expected:
+        b = dump2 / a.name
+        assert b.is_file(), f"replay missing {a.name}"
+        assert a.read_bytes() == b.read_bytes(), f"replay differs: {a.name}"
 
 
 def test_missing_input_graceful_error(tmp_path):

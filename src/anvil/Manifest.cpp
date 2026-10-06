@@ -135,6 +135,26 @@ std::string Manifest::toJson() const {
     }
     w.endArray();
 
+    w.array("ground_truth");
+    for (const auto& g : groundTruth) {
+        w.beginObject();
+        w.kv("frame_index", g.frameIndex);
+        w.kv("path", g.path);
+        w.kv("sha256", g.sha256);
+        w.kv("size_bytes", g.sizeBytes);
+        w.kv("width", g.width);
+        w.kv("height", g.height);
+        w.kv("maxval", g.maxval);
+        w.kv("format", g.format);
+        w.kv("usage", g.usageNote);
+        w.endObject();
+    }
+    w.endArray();
+
+    w.array("output_files");
+    for (const auto& o : outputFiles) w.value(o);
+    w.endArray();
+
     w.array("dump_files");
     for (const auto& d : dumpFiles) w.value(d);
     w.endArray();
@@ -149,6 +169,7 @@ std::string Manifest::toJson() const {
         w.kv("correspondence_source", fr.correspondenceSource);
         w.kv("geometry_state", fr.geometryState);
         w.kv("color_conversion", fr.colorConversion);
+        w.kv("has_ground_truth", fr.hasGroundTruth);
         w.kv("valid_samples", fr.validSamples);
         w.kv("total_samples", fr.totalSamples);
         w.endObject();

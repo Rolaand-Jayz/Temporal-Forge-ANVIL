@@ -7,6 +7,7 @@
 // Every stage is bypassable; every consequential stage is dumpable; all
 // observable behavior lands in the run manifest.
 #pragma once
+#include <map>
 #include <string>
 #include <vector>
 
@@ -35,6 +36,9 @@ struct RunConfig {
     std::string oracleDir; // empty = no oracles
     std::string dumpDir;   // empty = no dumps
     std::string dumpStages; // comma list of stage names to dump
+    // HR ground truth, mapped frame -> file path (reference evidence only;
+    // validated + hashed, never fed into reconstruction).
+    std::map<int64_t, std::string> groundTruth;
     uint64_t seed = 0;      // recorded; no stochastic component exists
 };
 
