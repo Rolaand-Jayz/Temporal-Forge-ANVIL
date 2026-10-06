@@ -31,6 +31,9 @@ src/anvil/
   Pnm.hpp/.cpp              deterministic PGM/PPM captures
   Oracle.hpp/.cpp           oracle loading (correspondence txt, visibility
                             PGM, geometry txt) with strict validation
+  GroundTruth.hpp/.cpp      HR ground-truth attachment: per-frame mapping,
+                            PNM validation, SHA-256 provenance; reference
+                            evidence only (never fed to reconstruction)
   CodecProbe.hpp/.cpp       per-codec MEASURED capability probe
                             (H.264 / HEVC / AV1 MV-export reality)
   Reconstruct.hpp/.cpp      deterministic block-SAD estimator (always labeled
@@ -56,6 +59,9 @@ color_convert → accumulate → output
 and excluded from replay equality):
 
 - `config` — every runner parameter, including `deterministic_no_random_components: true`
+- `ground_truth[]` — HR ground-truth attachments: frame association, SHA-256,
+  size, width/height, maxval, format, usage note (reference evidence only)
+- `output_files[]` — final artifact inventory (paths relative to the output dir)
 - `provenance` — git SHA/dirty (null when unavailable), FFmpeg version,
   build type, compiler, input SHA-256 + size, decode mode
 - `codec_capabilities` — measured H.264/HEVC/AV1 matrix
@@ -74,8 +80,26 @@ anvil_runner --input FILE --output-dir DIR
     [--no-accumulate] [--no-color-convert]
     [--cut-frames 3,17] [--auto-scene-cut] [--auto-cut-threshold X]
     [--oracle-dir DIR] [--dump-dir DIR] [--dump-stages all|stage,list]
-    [--seed N]
+    [--ground-truth F=PATH ...] [--seed N]
 ```
+
+`--ground-truth` attaches HR reference truth to a target frame (repeatable).
+It is validated (PNM header, dimensions vs the decoded target) and recorded
+with provenance in the manifest, but its pixels are never read into
+reconstruction — attaching it cannot change output frames (proven by test).
+
+With `--dump-stages all`, the captured artifact set per target frame is:
+`decode_f<N>_y.pgm` (source planes), `decode_f<N>_mvs.txt` (raw codec MV
+entries as delivered, or explicit `state=none`), `window_select_f<N>_window.txt`
+(selection + exclusions), `correspondence_f<N>_correspondence.txt` (actual
+block/vector values with provenance), `visibility_f<N>_i<I>.pgm` (actual
+masks; `visibility_f<N>_none.txt` for the single-frame control),
+`sample_geometry_f<N>_geometry.txt`, `color_convert_f<N>_color.txt` (metadata
++ working-space decision), `accumulate_f<N>_y.pgm` (reconstructed data).
+Per-pixel confidence capture is N/A (a fixed scalar exists; no per-pixel
+estimator is implemented); there is no distinct backend-input stage. All
+inventory paths are recorded relative to their base directory for
+deterministic replay.
 
 Example (deterministic offline run):
 
@@ -110,4 +134,4 @@ suites. The ANVIL targets themselves need only FFmpeg.
 - `tests/anvil_codec_tests.cpp` — measured codec capability truthfulness
 - `tests/anvil_runner_tests.cpp` — end-to-end CLI on generated fixtures
   (SDR full-metadata, PQ-HDR, unspecified-metadata)
-- `tests/test_anvil_contract.py` — 11 python contract tests over the CLI
+- `tests/test_anvil_contract.py` — 15 python contract tests over the CLI
