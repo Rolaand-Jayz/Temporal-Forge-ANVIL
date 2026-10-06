@@ -1,5 +1,4 @@
-// Pnm.hpp — deterministic PGM/PPM writers for captures and dumps.
-// PNM is dependency-free and byte-deterministic for fixed inputs.
+// Pnm.hpp — deterministic PGM/PPM I/O.
 #pragma once
 #include <cstdint>
 #include <string_view>
@@ -7,16 +6,15 @@
 
 namespace anvil {
 
-// Writes binary PGM (P5) for single-plane 8-bit data.
+// P5 writer for 8..16-bit source planes. FFmpeg high-bit-depth LE samples
+// are serialized as the big-endian two-byte raster required by PNM.
 bool writePgm(std::string_view path, int width, int height,
-              const uint8_t* data, size_t stride);
+              const uint8_t* data, size_t stride, int bitDepth = 8);
 
-// Writes binary PPM (P6) for interleaved RGB24.
 bool writePpm(std::string_view path, int width, int height,
               const uint8_t* rgb, size_t stride);
 
-// Reads a binary PGM (P5, maxval <= 255). Returns false on any mismatch.
+// Visibility oracle reader intentionally remains byte-valued.
 bool readPgm(std::string_view path, int& width, int& height,
              std::vector<uint8_t>& pixels);
-
 } // namespace anvil

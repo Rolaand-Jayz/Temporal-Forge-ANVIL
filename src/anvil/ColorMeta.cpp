@@ -18,6 +18,8 @@ ColorMeta ColorMeta::fromFrame(const AVFrame* f) {
     m.matrix = f->colorspace;
     m.chromaLocation = f->chroma_location;
     m.pixelFormat = f->format;
+    if (const AVPixFmtDescriptor* d=av_pix_fmt_desc_get(static_cast<AVPixelFormat>(f->format));
+        d && d->comp[0].depth>0) m.bitDepth=d->comp[0].depth;
     for (int sd = 0; sd < 2; ++sd) {
         // HDR side data presence is recorded; values are container truth.
         if (av_frame_get_side_data(const_cast<AVFrame*>(f),
