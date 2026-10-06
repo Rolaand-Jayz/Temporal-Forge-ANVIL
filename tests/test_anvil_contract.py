@@ -266,7 +266,10 @@ def test_ground_truth_attachment_and_provenance(sdr_clip, tmp_path):
     """HR ground truth attaches explicitly: per-frame association, dimensions,
     format, and an independently verifiable SHA-256 in the manifest."""
     gt = tmp_path / "gt.pgm"
-    gt.write_bytes(b"P5\n64 64\n255\n" + bytes((i * 11) % 256 for i in range(64 * 64)))
+    # Genuine 2x HR reference for the 64x64 LR observation. The first raster
+    # byte is '#' to guard the binary PNM header/raster boundary.
+    payload = bytes([0x23]) + bytes((i * 11) % 256 for i in range(128 * 128 - 1))
+    gt.write_bytes(b"P5\n128 128\n255\n" + payload)
     out = tmp_path / "gt_out"
     proc = run_runner(out, "--input", sdr_clip, "--start-frame", 1,
                       "--frame-count", 1, "--past", 1,
@@ -277,7 +280,11 @@ def test_ground_truth_attachment_and_provenance(sdr_clip, tmp_path):
     g = m["ground_truth"][0]
     assert g["frame_index"] == 1            # unambiguous target association
     assert g["sha256"] == hashlib.sha256(gt.read_bytes()).hexdigest()  # independent digest
-    assert (g["width"], g["height"], g["maxval"]) == (64, 64, 255)
+    assert (g["width"], g["height"], g["maxval"]) == (128, 128, 255)
+    assert (g["observation_width"], g["observation_height"]) == (64, 64)
+    assert (g["scale_x"], g["scale_y"]) == (2.0, 2.0)
+    assert g["resolution_relation"] == "higher_resolution"
+    assert g["bytes_per_sample"] == 1
     assert g["format"] == "pgm"
     assert g["size_bytes"] == gt.stat().st_size
     assert "excluded from candidate reconstruction" in g["usage"]
@@ -286,7 +293,7 @@ def test_ground_truth_attachment_and_provenance(sdr_clip, tmp_path):
 
 def test_ground_truth_never_contaminates_reconstruction(sdr_clip, tmp_path):
     gt = tmp_path / "gt.pgm"
-    gt.write_bytes(b"P5\n64 64\n255\n" + bytes((i * 3) % 256 for i in range(64 * 64)))
+    gt.write_bytes(b"P5\n128 128\n255\n" + bytes((i * 3) % 256 for i in range(128 * 128)))
     plain, with_gt = tmp_path / "plain", tmp_path / "withgt"
     args = ["--input", sdr_clip, "--start-frame", 1, "--frame-count", 2,
             "--past", 1]
@@ -306,7 +313,7 @@ def test_ground_truth_rejections(sdr_clip, tmp_path):
     malformed.write_bytes(b"P4\n64 64\n255\nxx")
     proc1 = run_runner(tmp_path / "r1", "--input", sdr_clip, "--frame-count", 1,
                        "--ground-truth", f"0={bad_dims}")
-    assert proc1.returncode == 1 and "dimension_mismatch" in proc1.stderr
+    assert proc1.returncode == 1 and "lower_resolution_than_observation" in proc1.stderr
     proc2 = run_runner(tmp_path / "r2", "--input", sdr_clip, "--frame-count", 1,
                        "--ground-truth", f"0={malformed}")
     assert proc2.returncode == 1 and "malformed" in proc2.stderr
@@ -376,6 +383,67 @@ def test_comprehensive_stage_capture_inventory(sdr_clip, tmp_path):
         b = dump2 / a.name
         assert b.is_file(), f"replay missing {a.name}"
         assert a.read_bytes() == b.read_bytes(), f"replay differs: {a.name}"
+
+
+def _read_pgm_samples(path: Path):
+    data = path.read_bytes()
+    magic, dims, maxval_b, payload = data.split(b"\n", 3)
+    assert magic == b"P5"
+    width, height = map(int, dims.split())
+    maxval = int(maxval_b)
+    if maxval < 256:
+        samples = list(payload)
+        assert len(samples) == width * height
+    else:
+        assert len(payload) == width * height * 2
+        samples = [int.from_bytes(payload[i:i + 2], "big")
+                   for i in range(0, len(payload), 2)]
+    return width, height, maxval, samples
+
+
+def _decode_yuv420p10le_frames(path: Path, frame_count: int):
+    proc = subprocess.run([
+        FFMPEG, "-loglevel", "error", "-i", str(path),
+        "-frames:v", str(frame_count), "-f", "rawvideo",
+        "-pix_fmt", "yuv420p10le", "-"
+    ], check=True, stdout=subprocess.PIPE)
+    w = h = 64
+    y_n = w * h
+    c_n = (w // 2) * (h // 2)
+    frame_bytes = (y_n + 2 * c_n) * 2
+    assert len(proc.stdout) >= frame_count * frame_bytes
+    frames = []
+    for fi in range(frame_count):
+        raw = proc.stdout[fi * frame_bytes:(fi + 1) * frame_bytes]
+        vals = [int.from_bytes(raw[i:i + 2], "little")
+                for i in range(0, len(raw), 2)]
+        frames.append((vals[:y_n],
+                       vals[y_n:y_n + c_n],
+                       vals[y_n + c_n:y_n + 2 * c_n]))
+    return frames
+
+
+def test_hdr_10bit_temporal_reconstruction_is_sample_depth_safe(hdr_clip, tmp_path):
+    out = tmp_path / "hdr_temporal"
+    proc = run_runner(out, "--input", hdr_clip, "--start-frame", 2,
+                      "--frame-count", 1, "--past", 1, "--future", 0,
+                      "--correspondence", "none")
+    assert proc.returncode == 0, proc.stderr
+
+    source = _decode_yuv420p10le_frames(hdr_clip, 3)
+    prev, target = source[1], source[2]
+    for suffix, plane, dims in (("y", 0, (64, 64)),
+                                ("u", 1, (32, 32)),
+                                ("v", 2, (32, 32))):
+        p = out / f"frame_2_{suffix}.pgm"
+        assert p.is_file(), f"missing preserved {suffix.upper()} plane"
+        w, h, maxval, actual = _read_pgm_samples(p)
+        assert (w, h) == dims
+        assert maxval == 1023
+        expected = [(a + b + 1) // 2
+                    for a, b in zip(target[plane], prev[plane])]
+        assert actual == expected, f"10-bit {suffix.upper()} accumulation mismatch"
+        assert max(actual) > 255, "fixture did not exercise >8-bit values"
 
 
 def test_missing_input_graceful_error(tmp_path):
