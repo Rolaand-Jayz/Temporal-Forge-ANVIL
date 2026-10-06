@@ -47,11 +47,11 @@ FSR 4.1 adaptation is no longer the architectural center of Temporal Forge.
 
 Future Temporal Forge work should begin from the broader objective of recovering genuine source-supported detail from temporally distributed video observations. It must not inherit FSR-specific assumptions by default. On 2026-10-05 the maintainer authorized the concrete successor build program recorded under [`../../zcode_packs/`](../../zcode_packs/README.md); see "Successor program state" below.
 
-## Successor program state (2026-10-05)
+## Successor program state (2026-10-06)
 
-- The maintainer has authorized the successor "Temporal Forge / ANVIL" build program via the execution pack ingested and adapted under [`../../zcode_packs/`](../../zcode_packs/README.md).
-- This repository (`/mnt/workdrive/Temporal-Forge-ANVIL`, remote `origin-anvil`) is the designated mutable working repository and push target; historical `main` must not be rewritten — successor work proceeds on a dedicated branch per the pack.
-- As of this entry the program has **not** been executed: no successor branch exists, no `BUILD_READY_FOR_RESEARCH` claim has been made, and no successor quality campaign has run.
+- The maintainer authorized the successor "Temporal Forge / ANVIL" build program via the execution pack ingested and adapted under [`../../zcode_packs/`](../../zcode_packs/README.md).
+- This repository (`/mnt/workdrive/Temporal-Forge-ANVIL`, remote resolved by URL to `Rolaand-Jayz/Temporal-Forge-ANVIL`) is the designated mutable working repository and push target; historical `main` must not be rewritten — successor work proceeds on the dedicated branch `successor/anvil-build-ready` under draft PR #1 (not merged; merge requires explicit maintainer authorization).
+- 2026-10-06: the minimum complete build-ready successor implementation exists (`src/anvil/`, `anvil_runner`, C++ + Python contract tests) and the contract item-by-item qualification record is [`ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](ANVIL_BUILD_READY_QUALIFICATION_20261005.md); architecture map in [`ANVIL_SUCCESSOR_ARCHITECTURE.md`](ANVIL_SUCCESSOR_ARCHITECTURE.md).
 - The FSR-era prohibitions in this document and in `AGENTS.md` remain in force for all historical material.
 
 ## Repository authority
