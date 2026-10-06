@@ -155,6 +155,9 @@ file(GLOB_RECURSE TFORGE_LIB_SOURCES CONFIGURE_DEPENDS
 )
 list(FILTER TFORGE_LIB_SOURCES EXCLUDE REGEX "${CMAKE_CURRENT_SOURCE_DIR}/external/.*")
 list(FILTER TFORGE_LIB_SOURCES EXCLUDE REGEX "${CMAKE_CURRENT_SOURCE_DIR}/src/main\\.cpp$")
+# ANVIL successor isolation: the successor builds as its own FFmpeg-only
+# library and must not be absorbed into the FSR-era player library.
+list(FILTER TFORGE_LIB_SOURCES EXCLUDE REGEX "${CMAKE_CURRENT_SOURCE_DIR}/src/anvil/.*")
 
 add_library(temporal_forge_lib STATIC ${TFORGE_LIB_SOURCES} ${FSR4_SHADER_FILES}
     ${FSR1_SHADER_FILES})
@@ -216,6 +219,38 @@ set_target_properties(temporal_forge_player PROPERTIES
     WIN32_EXECUTABLE FALSE
     MACOSX_BUNDLE FALSE
 )
+
+# --- ANVIL successor (non-FSR, Qt-free, Vulkan-free, deterministic) ---
+file(GLOB ANVIL_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/anvil/*.cpp")
+# Reused historical decode shell: justified independently of FSR (FFmpeg
+# correctness, MV side-data extraction, color metadata). Compiled into the
+# successor lib so no Qt/Vulkan dependency is inherited.
+list(APPEND ANVIL_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/media/Demuxer.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/media/VideoDecoder.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/util/Log.cpp")
+add_library(anvil_lib STATIC ${ANVIL_SOURCES})
+target_include_directories(anvil_lib PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_compile_features(anvil_lib PUBLIC cxx_std_23)
+target_compile_definitions(anvil_lib PRIVATE
+    ANVIL_BUILD_TYPE="${CMAKE_BUILD_TYPE}"
+    ANVIL_COMPILER_ID="${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+foreach(lib ${FFMPEG_LIBRARIES})
+    target_link_libraries(anvil_lib PUBLIC ${lib})
+endforeach()
+target_link_directories(anvil_lib PUBLIC ${FFMPEG_LIBRARY_DIRS})
+target_include_directories(anvil_lib PUBLIC ${FFMPEG_INCLUDE_DIRS})
+target_link_libraries(anvil_lib PUBLIC Threads::Threads)
+
+add_executable(anvil_runner tools/anvil/main.cpp)
+target_include_directories(anvil_runner PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_compile_features(anvil_runner PRIVATE cxx_std_23)
+target_link_libraries(anvil_runner PRIVATE anvil_lib)
+target_compile_definitions(anvil_runner PRIVATE
+    ANVIL_BUILD_TYPE="${CMAKE_BUILD_TYPE}"
+    ANVIL_COMPILER_ID="${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 
 # --- tests ---
 enable_testing()
