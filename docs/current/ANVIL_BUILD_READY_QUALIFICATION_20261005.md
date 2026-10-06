@@ -88,15 +88,30 @@ Codec support/limitation matrix (this host — re-probed per run):
 | Deterministic replay reproduces artifacts | PASS | Byte-equal frame outputs across identical runs (`test_deterministic_replay_byte_equality` + C++ replay checks); manifests equal excluding wall-clock timings (documented exclusion). |
 | Clean-clone instructions sufficient | PASS | Instructions in `docs/current/ANVIL_SUCCESSOR_ARCHITECTURE.md`; verified by cloning `successor/anvil-build-ready` from GitHub and building/testing fresh (CTEST green, runner tests pass), 2026-10-06. |
 
-## Command evidence (host run 2026-10-06)
+## Command evidence
+
+Host run at the original qualification head (2026-10-06, pre-repair):
 
 ```
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+ctest --test-dir build                 # 100% tests passed, 26 tests
+ANVIL_RUNNER=build/anvil_runner python3 -m pytest -q tests/test_anvil_contract.py
+                                       # 11 passed (pre-repair suite)
+python3 -m pytest -q <historical suite files>   # 68 passed, 39 subtests
+```
+
+Host run at the repaired head `7c755712` (2026-10-06, current evidence):
+
+```
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release   # clean configure
 cmake --build build --parallel
 ctest --test-dir build                 # 100% tests passed, 26 tests
 ANVIL_RUNNER=build/anvil_runner python3 -m pytest -q tests/test_anvil_contract.py
-                                       # 11 passed
+                                       # 15 passed (adds ground-truth and
+                                       # comprehensive-capture coverage)
 python3 -m pytest -q <historical suite files>   # 68 passed, 39 subtests
+# Clean-clone from GitHub at 7c755712: build OK, 26/26 CTest, 15/15 ANVIL
+# pytest, 68 historical pytest.
+# GitHub CI run 37419954759 on PR #1 head 7c755712: both jobs green.
 ```
 
 ## Reused historical infrastructure and justification
