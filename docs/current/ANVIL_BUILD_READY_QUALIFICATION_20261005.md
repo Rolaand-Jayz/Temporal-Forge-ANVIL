@@ -1,7 +1,8 @@
 # ANVIL BUILD_READY_FOR_RESEARCH Qualification Record
 
 **Date:** 2026-10-06
-**Branch:** `successor/anvil-build-ready` (see final SHA in the goal handoff)
+**Branch:** `successor/anvil-build-ready`
+**Current qualified head:** `b62e57f8d766a93309fd531795afea346ce728c6`
 **Contract evaluated:** `zcode_packs/temporal_forge_anvil_zcode_pack_2026-10-05/BUILD_READY_CONTRACT.md`
 **Evidence vocabulary:** per `docs/closure/EVALUATION_STANDARD.md`
 
@@ -99,20 +100,33 @@ ANVIL_RUNNER=build/anvil_runner python3 -m pytest -q tests/test_anvil_contract.p
 python3 -m pytest -q <historical suite files>   # 68 passed, 39 subtests
 ```
 
-Host run at the repaired head `7c755712` (2026-10-06, current evidence):
+Current repaired head `b62e57f8d766a93309fd531795afea346ce728c6` (2026-10-06):
 
 ```
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release   # clean configure
-cmake --build build --parallel
-ctest --test-dir build                 # 100% tests passed, 26 tests
-ANVIL_RUNNER=build/anvil_runner python3 -m pytest -q tests/test_anvil_contract.py
-                                       # 16 passed (ground-truth, comprehensive-capture,
-                                       # and 10-bit temporal numeric coverage)
-python3 -m pytest -q <historical suite files>   # 68 passed, 39 subtests
-# Clean-clone from GitHub at 7c755712: build OK, 26/26 CTest, 15/15 ANVIL
-# pytest, 68 historical pytest.
-# GitHub CI run 37419954759 on PR #1 head 7c755712: both jobs green.
+GitHub Actions run 37479349861 on PR #1:
+  Arch build + CTest     SUCCESS
+    - clean checkout
+    - configure          SUCCESS
+    - build              SUCCESS
+    - CTest              SUCCESS
+  Python contract suite  SUCCESS
+    - anvil_runner build SUCCESS
+    - historical suite   included
+    - ANVIL suite        16 tests in current source
+
+Current executable coverage includes:
+  - genuine higher-resolution ground-truth attachment + scale provenance;
+  - ground-truth no-contamination proof;
+  - complete consequential-stage capture;
+  - deterministic replay;
+  - independent yuv420p10le decode comparison proving temporal Y/U/V
+    reconstruction sample-for-sample with 10-bit values;
+  - all pre-existing applicable CTest/Python regressions.
 ```
+
+The earlier clean-clone verification at `7c755712` remains historical evidence
+for the documented clone/build instructions. The current head is additionally
+built and tested from GitHub Actions' clean checkout in run `37479349861`.
 
 ## Reused historical infrastructure and justification
 
