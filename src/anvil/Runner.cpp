@@ -269,9 +269,18 @@ RunResult runPipeline(const RunConfig& config) {
     m.provenance.buildType = ANVIL_BUILD_TYPE;
     m.provenance.compilerId = ANVIL_COMPILER_ID;
     m.provenance.inputHashOk = sha256FileHex(config.inputPath, m.provenance.inputSha256);
+    if (!m.provenance.inputHashOk) {
+        result.error = "failed to hash input for provenance: " + config.inputPath;
+        return result;
+    }
     std::error_code ecSize;
-    m.provenance.inputSizeBytes = static_cast<uint64_t>(fs::file_size(config.inputPath, ecSize));
-    if (ecSize) m.provenance.inputSizeBytes = 0;
+    m.provenance.inputSizeBytes = static_cast<uint64_t>(
+        fs::file_size(config.inputPath, ecSize));
+    if (ecSize) {
+        result.error = "failed to stat input for provenance: " + config.inputPath
+            + ": " + ecSize.message();
+        return result;
+    }
     m.decodeMode = "software";
 
     const Clock::time_point probeStart = Clock::now();
@@ -338,9 +347,6 @@ RunResult runPipeline(const RunConfig& config) {
         return result;
     }
     addTiming(m, StageId::Decode, elapsedNs(decodeStart));
-
-    const int width = frames.begin()->second.width;
-    const int height = frames.begin()->second.height;
 
     // F3: capability is judged from the ACTUAL input codec, never from the
     // global probe matrix (H.264 support must not imply HEVC/AV1 support).
@@ -502,6 +508,8 @@ RunResult runPipeline(const RunConfig& config) {
             break;
         }
         const Observation& target = it->second;
+        const int width = target.width;
+        const int height = target.height;
         rec.ptsUs = target.ptsUs;
 
         // Side-info state derived from the INPUT codec's measured
@@ -628,6 +636,15 @@ RunResult runPipeline(const RunConfig& config) {
             if (s == t) continue;
             if (!frames.count(s)) {
                 excluded.push_back(std::to_string(s) + " reason=not_decoded");
+                continue;
+            }
+            if (!reconstructionSpaceCompatible(target, frames.at(s))) {
+                excluded.push_back(std::to_string(s)
+                                   + " reason=incompatible_sample_space");
+                m.events.push_back({t, "neighbor_incompatible",
+                                    "excluded reference " + std::to_string(s)
+                                    + " because geometry/pixel/color sample "
+                                      "space differs from target"});
                 continue;
             }
             const bool ablated = std::find(config.excludedNeighbors.begin(),

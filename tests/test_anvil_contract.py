@@ -229,6 +229,7 @@ def test_manifest_schema_and_provenance(sdr_clip, tmp_path):
     assert cfg["start_frame"] == 0 and cfg["frame_count"] == 2
     assert cfg["past"] == 0 and cfg["future"] == 0
     prov = m["provenance"]
+    assert prov["input_hash_ok"] is True
     assert len(prov["input_sha256"]) == 64
     assert prov["input_sha256"] == hashlib.sha256(sdr_clip.read_bytes()).hexdigest()
     assert prov["decode_mode"] == "software"

@@ -12,6 +12,11 @@
 
 namespace anvil {
 
+// True only when two observations can be combined numerically without an
+// implicit geometry/pixel/color-space conversion.
+bool reconstructionSpaceCompatible(const Observation& target,
+                                   const Observation& neighbor);
+
 // Deterministic block-SAD correspondence estimate between `target` (frame t)
 // and `obs` (frame s). Blocks are 16x16 over the luma plane, integer search
 // radius around (0,0). Output blocks carry refFrameIndex = obs.frameIndex

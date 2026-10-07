@@ -128,6 +128,33 @@ static void testEstimatorIsLabeledAndCorrect() {
     CHECK(foundBright);
 }
 
+static void testIncompatibleNeighborCannotEnterAccumulation() {
+    Observation target = makeObs(0, 32, 32, 100);
+    target.color.range = AVCOL_RANGE_MPEG;
+    target.color.primaries = AVCOL_PRI_BT709;
+    target.color.transfer = AVCOL_TRC_BT709;
+    target.color.matrix = AVCOL_SPC_BT709;
+    target.color.pixelFormat = AV_PIX_FMT_YUV420P;
+    target.color.bitDepth = 8;
+
+    Observation wrongGeometry = makeObs(1, 16, 16, 200);
+    wrongGeometry.color = target.color;
+    CHECK(!reconstructionSpaceCompatible(target, wrongGeometry));
+    FlowField flow(static_cast<size_t>(32 * 32 * 2), 0.0f);
+    std::vector<Visibility> valid(static_cast<size_t>(32 * 32), Visibility::Valid);
+    auto rg = accumulate(target, {wrongGeometry}, {flow}, {valid});
+    CHECK(rg.validSamples == 0 && rg.totalSamples == 0);
+    CHECK(rg.frame.plane[0] == target.plane[0]);
+
+    Observation wrongColor = makeObs(2, 32, 32, 200);
+    wrongColor.color = target.color;
+    wrongColor.color.range = AVCOL_RANGE_JPEG;
+    CHECK(!reconstructionSpaceCompatible(target, wrongColor));
+    auto rc = accumulate(target, {wrongColor}, {flow}, {valid});
+    CHECK(rc.validSamples == 0 && rc.totalSamples == 0);
+    CHECK(rc.frame.plane[0] == target.plane[0]);
+}
+
 static void testAccumulateSingleFrameIsIdentity() {
     Observation target = makeObs(0, 32, 32, 200);
     auto res = accumulate(target, {}, {}, {});
@@ -419,6 +446,7 @@ int main() {
     testJsonWriter();
     testManifestRoundTripNames();
     testEstimatorIsLabeledAndCorrect();
+    testIncompatibleNeighborCannotEnterAccumulation();
     testAccumulateSingleFrameIsIdentity();
     testAccumulateIncludesTargetSample();
     testAccumulateAverageWithOracleFlow();
