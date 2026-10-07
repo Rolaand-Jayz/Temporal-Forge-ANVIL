@@ -512,6 +512,11 @@ RunResult runPipeline(const RunConfig& config) {
                 + std::to_string(t);
             return result;
         }
+        if (!frames.count(t)) {
+            result.error = "neighbor ablation target " + std::to_string(t)
+                + " is selected but not decoded";
+            return result;
+        }
         if (!frames.count(r)) {
             result.error = "neighbor ablation reference " + std::to_string(r)
                 + " is not decoded for target " + std::to_string(t);
