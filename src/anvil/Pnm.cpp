@@ -11,9 +11,9 @@ bool writeAll(const std::string& path, const std::vector<uint8_t>& bytes) {
     FILE* f = std::fopen(path.c_str(), "wb");
     if (!f) return false;
     const size_t n = std::fwrite(bytes.data(), 1, bytes.size(), f);
-    const bool ok = n == bytes.size();
-    std::fclose(f);
-    return ok;
+    const bool writeOk = n == bytes.size() && std::ferror(f) == 0;
+    const bool closeOk = std::fclose(f) == 0;
+    return writeOk && closeOk;
 }
 }
 
