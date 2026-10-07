@@ -991,7 +991,8 @@ def test_checked_derived_window_bounds(sdr_clip, tmp_path):
     proc = run_runner(tmp_path / "overflow_window", "--input", sdr_clip,
                       "--start-frame", "9223372036854775807",
                       "--frame-count", "2")
-    assert proc.returncode == 1
+    assert proc.returncode == 2
+    assert "configuration error" in proc.stderr.lower()
     assert "overflow" in proc.stderr.lower()
 
 
