@@ -1,15 +1,16 @@
 # ANVIL BUILD_READY_FOR_RESEARCH Qualification Record
 
-**Date:** 2026-10-06
+**Date:** 2026-10-07
 **Branch:** `successor/anvil-build-ready`
-**Current qualified head:** `b62e57f8d766a93309fd531795afea346ce728c6`
+**Implementation evidence head before documentation refresh:** `0e03af613bbaa904d8497857989ab1c88b9381ad`
 **Contract evaluated:** `zcode_packs/temporal_forge_anvil_zcode_pack_2026-10-05/BUILD_READY_CONTRACT.md`
 **Evidence vocabulary:** per `docs/closure/EVALUATION_STANDARD.md`
 
-Every mandatory contract item is recorded below as PASS or N/A with concrete
-evidence. No item is BLOCKED. This record is the audit trail for the
-`BUILD_READY_FOR_RESEARCH = TRUE` claim; it does not launch the later
-adversarial campaign.
+Every mandatory contract item is recorded below with concrete implementation
+evidence. The current repair head is a **candidate** for
+`BUILD_READY_FOR_RESEARCH = TRUE`; the independent PR evaluator re-review is
+still pending and remains authoritative for closing the open review threads.
+This record does not launch the later adversarial campaign.
 
 ## Mandatory architecture conditions
 
@@ -20,25 +21,26 @@ adversarial campaign.
 | FSR optional, not a core dependency | PASS | Successor target graph contains no FSR sources; FSR-era player builds independently in the same tree (CTest 26/26). |
 | Past/future temporal window configurable | PASS | `--past/--future`; `WindowConfig::windowFor` (`src/anvil/Core.cpp`); `tests/anvil_core_tests.cpp` window tests; `test_single_frame_control_and_window_selection`. |
 | Single-frame control exists | PASS | `--past 0 --future 0` produces zero neighbor samples (manifest `frames[].total_samples == 0`, python test). |
-| Stages independently selectable/bypassable | PASS | `--no-accumulate`, `--no-color-convert`, correspondence/visibility/geometry mode selection incl. `none`; `test_stage_bypass`. |
+| Stages independently selectable/bypassable | PASS | `--refinement none|local`, `--confidence unit|estimate|oracle`, `--no-accumulate`, `--no-color-convert`, correspondence/visibility/geometry selection; unsupported geometry estimation is rejected rather than exposed as a false arm. Stage timing/dumps cover refinement and confidence. |
 | Missing side info explicit, never fabricated | PASS | `SideInfoState` (available/unsupported/ambiguous/estimator_only) recorded per frame in manifest; `side_info_unsupported` events; `test_oracle_injection_replaces_estimates`, codec probe notes. |
-| Backend-neutral confidence/visibility | PASS | `Confidence` C(x)∈[0,1] with known/unknown state; `Visibility` separate enum (invalid/valid/unknown) — never conflated (`src/anvil/Core.hpp`); visibility oracle injection tested. |
-| Sample geometry known/estimated/unknown, no fake jitter | PASS | `SampleGeometryState`; no phase synthesis anywhere in `src/anvil/` (code-searched); oracle geometry injection tested (`geometry_state == "known"`). |
-| Temporal reconstruction outputs via non-FSR path | PASS | Deterministic confidence-weighted aligned average (`src/anvil/Reconstruct.cpp`) writing PPM/PGM through `Pnm` writer; exercised by runner tests. |
+| Backend-neutral confidence/visibility | PASS | Per-pixel `ConfidenceField` C(x)∈[0,1] supports unit, deterministic photometric estimate, and per-neighbor oracle modes; `Visibility` remains a separate invalid/valid/unknown signal. `accumulate()` consumes confidence as the sample weight and excludes every visibility state except `Valid`; `test_confidence_estimate_oracle_and_consumption` and strict visibility-oracle regressions cover the separation. |
+| Sample geometry known/estimated/unknown, no fake jitter | PASS | `SampleGeometryState` preserves Known/Estimated/Unknown representation. The current runner exposes `unknown|oracle`; `--geometry estimate` is deliberately rejected until a real estimator exists, preventing a false experimental arm. Oracle relative phase is operationally applied to proven flow and changes reconstruction (`test_geometry_oracle_changes_sampling_and_is_provenanced`). |
+| Temporal reconstruction outputs via non-FSR path | PASS | Deterministic confidence-weighted aligned average (`src/anvil/Reconstruct.cpp`) consumes flow, visibility and confidence, preserves single-frame control, and supports exact target/reference ablation with `--exclude-neighbor TARGET:REFERENCE`; exercised by C++ and Python runner tests. |
 
 ## Mandatory testability conditions
 
 | Item | Verdict | Evidence |
 |---|---|---|
 | Headless/offline deterministic runner | PASS | `anvil_runner` CLI; no window/GPU/network; all runner tests run headless in CI containers. |
-| Exact input frame indices/timestamps selectable | PASS | `--start-frame/--frame-count`; manifest `frames[].frame_index` and `pts_us` recorded per frame. |
+| Exact input frame indices/timestamps selectable | PASS | `--start-frame/--frame-count` plus exact `--start-pts-us` selection (no nearest fallback; no-match is an error; mutually exclusive with explicit start-frame); VFR regression `test_exact_pts_selection_on_vfr`; manifest records frame indices and `pts_us`. |
 | Exact configuration serialized in run manifest | PASS | `manifest.json` `config` section (all CLI parameters); `test_manifest_schema_and_provenance`. |
 | Git/build/input provenance captured | PASS | `provenance.git_sha/git_dirty/ffmpeg_version/build_type/compiler`; input SHA-256 verified equal to independent `hashlib` digest (`test_manifest_schema_and_provenance`); FIPS 180-4 known-answer tests guard the hash implementation. |
-| Per-stage timing hooks | PASS | `stage_timings[]` per StageId in manifest. |
-| Intermediate numeric/image dumps per consequential stage | PASS | `--dump-dir/--dump-stages all`; per-stage artifact set asserted by test (`test_comprehensive_stage_capture_inventory`, `anvil_runner_tests` scenario 7e): decode = source Y plane + raw codec MV entries as delivered (or explicit `state=none`); window_select = selection + exclusions with reasons; correspondence = actual per-neighbor block values (geometry, mv, ref, ambiguous flag, precision, provenance); visibility = actual per-neighbor masks (0/128/255) or explicit `no_neighbors` state; sample_geometry = actual state/phase; color_convert = full recorded metadata + working-space decision; accumulate = reconstructed Y plane; output = final artifacts inventoried in manifest `output_files[]`. `dump_files[]` is normalized to dump-dir-relative paths and asserted equal to disk contents; capture replay is byte-identical. **Recorded N/A sub-items, not fabricated:** per-pixel confidence (a fixed scalar with known state exists; no per-pixel confidence estimator is implemented in the minimal successor, so there are no per-pixel confidence values to capture) and a distinct backend input (there is no separate backend stage; the accumulate artifact is the output writer's input). |
+| Per-stage timing hooks | PASS | `stage_timings[]` covers decode, window_select, correspondence, correspondence_refinement, visibility, confidence, sample_geometry, color_convert, accumulate and output; `test_stage_timing_attribution` asserts exercised stages have meaningful timings. |
+| Intermediate numeric/image dumps per consequential stage | PASS | `--dump-dir/--dump-stages all`; `test_comprehensive_stage_capture_inventory` asserts decode source/MV evidence, window selection + exclusions, coarse correspondence, refined correspondence, per-neighbor visibility masks, per-neighbor confidence fields, sample geometry, color decision, accumulated reconstruction and final outputs. `dump_files[]` is normalized to dump-dir-relative paths and asserted equal to disk contents; replay is byte-identical. A distinct backend-input stage is still not present; the accumulate artifact is the output writer's input. |
 | Oracle correspondence replaces estimates | PASS | `--correspondence oracle`; manifest records `oracle_used` events and `correspondence_source == "oracle"`. |
-| Oracle visibility replaces estimates | PASS | `--visibility oracle` (PGM masks; 0/128/255 states). |
-| Oracle sample geometry/phase replaces estimates | PASS | `--geometry oracle` (`geometry_1.txt`; `geometry_state == "known"`). |
+| Oracle visibility replaces estimates | PASS | `--visibility oracle` uses strict per-target/per-reference PGM masks (exact 0/128/255 vocabulary), then gates them by proven correspondence coverage so visibility cannot manufacture motion evidence. |
+| Oracle confidence replaces estimates | PASS | `--confidence oracle` loads strict per-target/per-reference confidence PGM fields; consumed artifacts are SHA-256-provenanced and `accumulate()` uses the values as weights. |
+| Oracle sample geometry/phase replaces estimates | PASS | `--geometry oracle` uses strict finite three-field records, hashes every consumed target/reference geometry artifact, applies relative phase to proven flow, and records `geometry_state == "known"`. |
 | HR ground truth attachable to synthetic fixtures | PASS | Repeatable `--ground-truth FRAME=PATH` accepts same-resolution reference truth or genuinely higher-resolution truth. References smaller than the LR observation in either axis are rejected. Manifest `ground_truth[]` records frame association, SHA-256, size, truth dimensions/maxval/bytes-per-sample, observation dimensions, scale_x/scale_y, resolution relation, format, and the fixed reference-only usage note; `frames[].has_ground_truth` marks association. Evidence: `test_ground_truth_attachment_and_provenance` (SHA-256 verified against an independent `hashlib` digest), `anvil_runner_tests` scenario 7d. Contamination guard: pixel data is never loaded into the pipeline; `test_ground_truth_never_contaminates_reconstruction` and runner-test scenario 7d prove byte-identical reconstruction with and without GT attached. Clean rejection (exit 1, named reason): missing, malformed, dimension mismatch, out-of-range frame, duplicate mapping — all tested. **Corrected 2026-10-06:** the earlier PASS row cited only synthetic-pattern knowledge and hypothetical later-campaign use, which is not attachment; that evidence was rejected and replaced by the mechanism above. |
 | Stochastic components seeded or disabled | PASS | N/A-strength PASS: no stochastic component exists (`config.deterministic_no_random_components: true` asserted in tests); `--seed` recorded for future use. |
 | Scene cut/reset observable and controllable | PASS | `--cut-frames` (forced) + `--auto-scene-cut` (deterministic luma SAD threshold). Repair 63580a7a: detected boundaries are canonicalized in a pre-pass BEFORE windows are built and share one exclusion rule with forced cuts, in both temporal directions — reconstruction cannot sample across a detected cut. `test_auto_scene_cut_blocks_cross_cut_accumulation` asserts the detected cut frame, excluded neighbor IDs per side, window contents, and no cross-scene neighbors; `test_scene_cut_observable_and_controllable` covers forced cuts. |
@@ -82,7 +84,7 @@ Codec support/limitation matrix (this host — re-probed per run):
 |---|---|---|
 | Clean configure/build on intended environment | PASS | Fresh configure+build on host (gcc 16.2.1, cmake 4.4.4, ninja, FFmpeg n9.0.2) 2026-10-05; clean-clone from GitHub URL 2026-10-06 (see below). |
 | Existing applicable tests pass | PASS | CTest 26/26 (up from baseline 23; the 3 new ANVIL targets included); the 4 previously disabled FSR-era GPU tests remain disabled by design. |
-| New unit/integration tests pass | PASS | `anvil_core_tests`, `anvil_codec_tests`, `anvil_runner_tests` (C++), `tests/test_anvil_contract.py` (16 tests). |
+| New unit/integration tests pass | PASS | `anvil_core_tests`, `anvil_codec_tests`, `anvil_runner_tests` (C++), plus `tests/test_anvil_contract.py` (**46 tests** at implementation evidence head `0e03af61`). |
 | Vulkan validation on exercised successor paths | N/A | **Justification:** the build-ready successor path exercises no Vulkan code — `anvil_lib`/`anvil_runner` do not link or call Vulkan, and no existing Vulkan path was modified (diff scope: `src/anvil/`, `tools/anvil/`, tests, CMake, CI). The historical player's Vulkan paths are unchanged and its tests remain green. Any future Vulkan successor backend re-opens this item with validation-layer evidence. |
 | No known resource lifetime/synchronization defect | PASS | CPU-only pipeline; ownership reviewed: AVPacket freed in probe (`CodecProbe.cpp`), decoder flush on EOF (delayed-frame drain), decoder/demuxer RAII via reused classes, no cross-thread sharing. |
 | Graceful fallback/error tested | PASS | Missing input → exit 1 with message; missing oracle → explicit error; absent encoders → capability notes; unknown color metadata → recorded unknown state. |
@@ -169,44 +171,76 @@ green).
 Test counts at `fb9a7bf8`: CTest 26/26; ANVIL python suite 28 passed;
 historical python suite 68 passed, 39 subtests.
 
+## Repair addendum — round 3 evaluator findings (implementation-side evidence, 2026-10-07)
+
+The independent evaluator's head `19ccb55a5da48e1e6a42f4099ea11847e684c61a`
+left two partially repaired findings and nine new findings. The implementation
+branch advanced **28 commits** from that reviewed head through
+`0e03af613bbaa904d8497857989ab1c88b9381ad`. These are repair claims for the next evaluator pass, not a
+self-approval; the corresponding GitHub threads intentionally remain open.
+
+- Oracle correspondence now range-checks `temporalDistance` before narrowing
+  and requires a known `refFrameIndex` to agree with target, direction and
+  temporal distance. Malformed/self/contradictory oracle records fail closed.
+- CLI destination narrowing and derived frame/window arithmetic are checked;
+  oversized `past/future`, timestamps, seeds and overflowing window bounds
+  return configuration error 2 with no experiment output.
+- Oracle visibility is intersected with correspondence coverage, so a valid
+  mask cannot resurrect placeholder zero-flow pixels.
+- `--geometry estimate` is rejected because no estimator is implemented;
+  the state model still preserves Estimated for future implementations.
+- A distinct `correspondence_refinement` stage now exists with deterministic
+  local residual search, mode control, timing, dumps and regression coverage.
+- Confidence is now operational: unit, deterministic estimated and oracle
+  per-pixel fields are supported, dumped/provenanced, and consumed as
+  accumulation weights.
+- Exact selected-neighbor ablation is exposed as repeatable
+  `--exclude-neighbor TARGET:REFERENCE`, validated fail-closed, serialized in
+  the manifest and visible in window dumps.
+- Every consumed correspondence/visibility/confidence/sample-geometry oracle
+  artifact is SHA-256/size/type/target/reference provenanced; provenance
+  mutation and repeated-consumption roles are regression-tested.
+- Known-but-unsupported color matrices fail the RGB conversion gate instead of
+  falling through to `SWS_CS_DEFAULT`.
+- Visibility oracle parsing accepts only 0/128/255 and `Unknown` is excluded
+  from accumulation because only `Visibility::Valid` is consumable.
+- Sample-geometry oracle parsing is strict: exactly three fields, finite phase,
+  state bounds and phase range [0,1); trailing data is rejected.
+
+Current clean GitHub Actions evidence on `0e03af613bbaa904d8497857989ab1c88b9381ad`: run
+`37582895384` succeeded in both jobs. CTest reports **26/26 passed** and the
+combined Python job reports **114 passed** = 68 historical + **46 ANVIL**
+contract tests.
+
 ## Command evidence
 
-Host run at the original qualification head (2026-10-06, pre-repair):
+Current implementation evidence head `0e03af613bbaa904d8497857989ab1c88b9381ad` (2026-10-07):
 
 ```
-ctest --test-dir build                 # 100% tests passed, 26 tests
-ANVIL_RUNNER=build/anvil_runner python3 -m pytest -q tests/test_anvil_contract.py
-                                       # 11 passed (pre-repair suite)
-python3 -m pytest -q <historical suite files>   # 68 passed, 39 subtests
-```
-
-Current repaired head `b62e57f8d766a93309fd531795afea346ce728c6` (2026-10-06):
-
-```
-GitHub Actions run 37479349861 on PR #1:
+GitHub Actions run 37582895384 on PR #1:
   Arch build + CTest     SUCCESS
     - clean checkout
-    - configure          SUCCESS
-    - build              SUCCESS
-    - CTest              SUCCESS
+    - configure/build    SUCCESS
+    - CTest              26/26 passed
   Python contract suite  SUCCESS
-    - anvil_runner build SUCCESS
-    - historical suite   included
-    - ANVIL suite        16 tests in current source
+    - historical suite   68 passed
+    - ANVIL suite        46 passed
+    - combined total     114 passed
 
-Current executable coverage includes:
-  - genuine higher-resolution ground-truth attachment + scale provenance;
-  - ground-truth no-contamination proof;
-  - complete consequential-stage capture;
-  - deterministic replay;
-  - independent yuv420p10le decode comparison proving temporal Y/U/V
-    reconstruction sample-for-sample with 10-bit values;
-  - all pre-existing applicable CTest/Python regressions.
+Source-level inventory at this head:
+  - tests/test_anvil_contract.py: 46 test functions
+  - deterministic refinement/confidence/ablation controls present
+  - strict oracle parsing + SHA-256 provenance for consumed oracle inputs
+  - exact PTS selection, scene-cut reset, color/HDR evidence and
+    high-bit-depth temporal reconstruction regressions present
 ```
 
-The earlier clean-clone verification at `7c755712` remains historical evidence
-for the documented clone/build instructions. The current head is additionally
-built and tested from GitHub Actions' clean checkout in run `37479349861`.
+The earlier clean-clone verification remains historical evidence for the clone
+and build instructions. GitHub Actions run `37582895384` supplies a fresh
+clean-checkout build/test result for the implementation evidence head above.
+The documentation refresh commit that follows this evidence head changes only
+the two current ANVIL documentation files and must itself remain green before
+evaluator handoff.
 
 ## Reused historical infrastructure and justification
 
@@ -232,16 +266,19 @@ built and tested from GitHub Actions' clean checkout in run `37479349861`.
 
 ## Unresolved engineering risks (for the later campaign, not blocking)
 
-1. Codec-MV reference-frame identity is unprovable from exported side data
-   alone; codec MVs currently cannot enter reconstruction unless an oracle
-   pairing proves the reference. HYPOTHESIS for the campaign: pairing probes
-   or decoder-internal reference tracking could change this.
-2. The deterministic block-SAD estimator is integer-precision, 16×16, small
-   radius — a deliberately weak baseline so the campaign can measure prior
-   value honestly.
-3. Accumulation confidence is fixed at 1.0 for valid samples (visibility
-   only); confidence estimation is deferred by design.
-4. `swscale` chroma siting convention may differ from the stream's recorded
-   chroma_location; the assumption is recorded per frame for audit.
-5. Long-input memory: the runner holds the decode window in RAM; frame-exact
-   streaming is deferred until the campaign needs long clips.
+1. Codec-MV reference-frame identity remains unprovable from exported FFmpeg
+   side data alone; ambiguous codec vectors are preserved as evidence but do
+   not enter reconstruction.
+2. The coarse estimator and local residual refiner are intentionally simple
+   integer-search baselines. They are scientific controls, not quality claims.
+3. The deterministic confidence estimator is a simple warped photometric
+   residual. Its usefulness versus oracle/unit confidence is a later research
+   question, not an established quality result.
+4. No sample-geometry estimator is implemented. `--geometry estimate` is
+   therefore rejected rather than pretending to provide an experimental arm;
+   unknown and oracle geometry remain explicit.
+5. `swscale` chroma siting convention may differ from the stream's recorded
+   `chroma_location`; the assumption is recorded per frame for audit.
+6. Long-input memory: the runner retains the bounded decoded working window in
+   RAM; a streaming implementation is deferred until long-clip research needs
+   it.
