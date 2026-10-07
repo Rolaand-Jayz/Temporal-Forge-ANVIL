@@ -16,6 +16,7 @@ extern "C" {
 #include <cstring>
 #include <cstdlib>
 #include <algorithm>
+#include <limits>
 
 namespace temporal_forge {
 
@@ -355,10 +356,33 @@ bool VideoDecoder::receiveFrame(DecodedVideoFrame& out) {
         for (int i = 0; i < out.planes; ++i) {
             int planeH = out.height;
             if (desc && i > 0) planeH = AV_CEIL_RSHIFT(out.height, desc->log2_chroma_h);
-            int ls = sourceFrame->linesize[i];
-            size_t bytes = static_cast<size_t>(ls) * planeH;
-            out.linesize[i] = ls;
-            out.plane[i].assign(sourceFrame->data[i], sourceFrame->data[i] + bytes);
+            const int sourceStride = sourceFrame->linesize[i];
+            const int64_t stride64 = sourceStride < 0
+                ? -static_cast<int64_t>(sourceStride)
+                : static_cast<int64_t>(sourceStride);
+            if (!sourceFrame->data[i] || planeH <= 0 || stride64 <= 0
+                || stride64 > std::numeric_limits<int>::max()
+                || static_cast<uint64_t>(stride64)
+                    > std::numeric_limits<size_t>::max()
+                        / static_cast<uint64_t>(planeH)) {
+                logWarn("VideoDecoder: invalid decoded plane {} stride={} height={}",
+                        i, sourceStride, planeH);
+                lastReceiveError_ = AVERROR_INVALIDDATA;
+                if (transferredFrame) av_frame_free(&transferredFrame);
+                av_frame_unref(frame_);
+                return false;
+            }
+            const size_t rowBytes = static_cast<size_t>(stride64);
+            const size_t bytes = rowBytes * static_cast<size_t>(planeH);
+            out.linesize[i] = static_cast<int>(stride64);
+            out.plane[i].resize(bytes);
+            for (int y = 0; y < planeH; ++y) {
+                const uint8_t* srcRow = sourceFrame->data[i]
+                    + static_cast<ptrdiff_t>(y) * sourceStride;
+                std::memcpy(out.plane[i].data()
+                                + static_cast<size_t>(y) * rowBytes,
+                            srcRow, rowBytes);
+            }
         }
     } else if (drmFrame) {
         const auto* drm = reinterpret_cast<const AVDRMFrameDescriptor*>(drmFrame->data[0]);
