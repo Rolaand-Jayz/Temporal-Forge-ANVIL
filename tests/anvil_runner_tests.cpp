@@ -122,6 +122,15 @@ int main(int argc, char** argv) {
             for (int bx = 0; bx < 64; bx += 16)
                 f << "1 0 0 " << bx << " " << by << " 16 16 0 0 3 P 0 0\n";
     }
+    // per-neighbor visibility fixtures (refs 0 and 2 of target 1)
+    {
+        std::ofstream a((tmp / "oracle" / "visibility_1_ref0.pgm").string(), std::ios::binary);
+        a << "P5\n64 64\n255\n";
+        for (int i = 0; i < 64 * 64; ++i) a.put('\377');
+        std::ofstream b((tmp / "oracle" / "visibility_1_ref2.pgm").string(), std::ios::binary);
+        b << "P5\n64 64\n255\n";
+        for (int i = 0; i < 64 * 64; ++i) b.put('\377');
+    }
     const int rc5 = runRunner(runner,
         {"--input", fixture, "--output-dir", tmp / "oracle_out", "--start-frame", "1",
          "--frame-count", "1", "--past", "1", "--correspondence", "oracle",

@@ -35,6 +35,7 @@ struct MvEntry {
     uint8_t w = 0;          // block width
     uint8_t h = 0;          // block height
     int8_t  source = 0;     // <0 = backward (past ref), >0 = forward (future ref)
+    int32_t motionScale = 0; // AVMotionVector::motion_scale divisor, verbatim
     float confidence = 1.0f; // optional history trust, 1.0 for ordinary codec vectors
 };
 

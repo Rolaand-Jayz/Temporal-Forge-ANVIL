@@ -51,6 +51,10 @@ struct Observation {
         uint8_t w = 0;
         uint8_t h = 0;
         int8_t source = 0; // <0 past ref, >0 future ref
+        // The decoder's motion_scale divisor (motion_x / motion_scale =
+        // source pixels). Carried verbatim so precision classification is
+        // justified by actual metadata instead of assumed.
+        int32_t motionScale = 0;
     };
     std::vector<RawMv> codecMotionVectors;
 };
@@ -103,6 +107,19 @@ enum class SideInfoState : uint8_t {
 };
 
 const char* sideInfoStateName(SideInfoState s);
+
+// Maps the decoder's AVMotionVector::motion_scale divisor to the declared
+// precision: 1 = Integer, 2 = HalfPel, 4 = QuarterPel, 8/16/32 = SubQuarter.
+// Scale 0 or unmappable values yield Unknown — precision is only claimed
+// when actual metadata justifies it (review 4202855070).
+MotionPrecision motionPrecisionFromScale(int32_t motionScale);
+
+// Normalizes raw codec MVs of frame f into BlockMotion entries with provenance
+// CodecMv. Reference frame identity is NOT provable from the exported side
+// data (direction only), so every entry is marked ambiguous unless the
+// reference index can be proven by other means; ambiguous vectors are never
+// applied by the accumulator.
+std::vector<BlockMotion> normalizeCodecMv(const Observation& f);
 
 // --- Confidence / visibility ------------------------------------------------
 

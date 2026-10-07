@@ -304,6 +304,8 @@ anvil_add_test(anvil_core_tests
             ../src/anvil/JsonWriter.cpp
             ../src/anvil/ColorMeta.cpp
             ../src/anvil/Manifest.cpp
+            ../src/anvil/Oracle.cpp
+            ../src/anvil/Pnm.cpp
             ../src/anvil/Reconstruct.cpp
             ../src/anvil/Sha256.cpp)
 # git-provenance regression runs inside the checkout so detectGitSha() can

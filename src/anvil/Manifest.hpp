@@ -54,6 +54,7 @@ public:
     struct Config {
         std::string inputPath;
         int64_t startFrame = 0;
+        std::optional<int64_t> startPtsUs; // nullopt = frame-index selection
         int64_t frameCount = 1;
         int past = 0;
         int future = 0;
