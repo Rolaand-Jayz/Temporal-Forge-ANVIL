@@ -1408,6 +1408,32 @@ def test_confidence_estimate_oracle_and_consumption(sdr_clip, tmp_path):
     assert m["frames"][0]["valid_samples"] == 0
 
 
+def test_oracle_artifact_records_each_consumption_role(sdr_clip, tmp_path):
+    oracle = tmp_path / "oracle_roles"
+    oracle.mkdir()
+    (oracle / "correspondence_1.txt").write_text(
+        "\n".join(_identity_oracle_lines(1, [0])) + "\n")
+    (oracle / "correspondence_2.txt").write_text(
+        "\n".join(_identity_oracle_lines(2, [1])) + "\n")
+    for idx in (0, 1, 2):
+        (oracle / f"geometry_{idx}.txt").write_text("2 0.0 0.0\n")
+
+    out = tmp_path / "oracle_roles_out"
+    proc = run_runner(out, "--input", sdr_clip, "--start-frame", 1,
+                      "--frame-count", 2, "--past", 1,
+                      "--correspondence", "oracle", "--geometry", "oracle",
+                      "--oracle-dir", oracle)
+    assert proc.returncode == 0, proc.stderr
+    artifacts = load_manifest(out)["oracle_artifacts"]
+    uses = [a for a in artifacts if Path(a["path"]).name == "geometry_1.txt"]
+    assert len(uses) == 2
+    assert any(a["target_frame"] == 1 and a["reference_frame"] is None
+               for a in uses)
+    assert any(a["target_frame"] == 2 and a["reference_frame"] == 1
+               for a in uses)
+    assert uses[0]["sha256"] == uses[1]["sha256"]
+
+
 def test_oracle_artifact_content_provenance_changes_on_mutation(sdr_clip, tmp_path):
     oracle = tmp_path / "oracle_hash"
     oracle.mkdir()
