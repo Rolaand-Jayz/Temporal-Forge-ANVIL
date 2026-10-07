@@ -10,6 +10,9 @@
 #include "anvil/Manifest.hpp"
 #include "anvil/Reconstruct.hpp"
 #include "anvil/Sha256.hpp"
+#include "anvil/Oracle.hpp"
+#include <filesystem>
+#include <fstream>
 
 using namespace anvil;
 
@@ -290,6 +293,76 @@ static void testEdgeTilesOn1920x1080() {
     CHECK(uncovered == 0);
 }
 
+static void testMotionPrecisionFromScale() {
+    // Regression (review 4202855070): precision must reflect the decoder's
+    // motion_scale, never an unconditional SubQuarter label.
+    CHECK(motionPrecisionFromScale(1) == MotionPrecision::Integer);
+    CHECK(motionPrecisionFromScale(2) == MotionPrecision::HalfPel);
+    CHECK(motionPrecisionFromScale(4) == MotionPrecision::QuarterPel);
+    CHECK(motionPrecisionFromScale(8) == MotionPrecision::SubQuarter);
+    CHECK(motionPrecisionFromScale(0) == MotionPrecision::Unknown);
+    CHECK(motionPrecisionFromScale(3) == MotionPrecision::Unknown);
+
+    // normalizeCodecMv carries the scale through to the normalized block.
+    Observation f = makeObs(0, 64, 64, 128);
+    f.codecMotionVectors.push_back({0, 0, 1.5f, -2.0f, 16, 16, -1, 4});
+    f.codecMotionVectors.push_back({16, 0, 0.5f, 0.0f, 16, 16, -1, 2});
+    f.codecMotionVectors.push_back({32, 0, 0.0f, 0.0f, 16, 16, -1, 0});
+    auto blocks = normalizeCodecMv(f);
+    CHECK(blocks.size() == 3);
+    CHECK(blocks[0].precision == MotionPrecision::QuarterPel);
+    CHECK(blocks[1].precision == MotionPrecision::HalfPel);
+    CHECK(blocks[2].precision == MotionPrecision::Unknown);
+    // Normalized coordinates remain source pixels for every scale.
+    CHECK(blocks[0].mvX == 1.5f && blocks[0].mvY == -2.0f);
+    CHECK(blocks[1].mvX == 0.5f);
+    CHECK(blocks[0].ambiguous && blocks[1].ambiguous && blocks[2].ambiguous);
+}
+
+static void testOracleCorrespondenceRejection() {
+    // Regression (review 4202854085): malformed oracle geometry is rejected
+    // with a named reason, never coerced into usable motion.
+    namespace fs = std::filesystem;
+    const std::string dir = "/tmp/anvil_oracle_reject_test";
+    std::error_code ec;
+    fs::remove_all(dir, ec);
+    fs::create_directories(dir, ec);
+    auto write = [&](const std::string& content) {
+        std::ofstream f(dir + "/correspondence_0.txt", std::ios::binary);
+        f << content;
+    };
+    const std::string valid = "1 0 -1 0 0 16 16 0 0 3 P 0 0\n";
+
+    write(valid);
+    std::string err;
+    auto ok = loadOracleCorrespondence(dir, 0, &err);
+    CHECK(ok.has_value());          // positive case
+    CHECK(ok->size() == 1);
+    CHECK(err.empty());
+
+    struct Case { const char* line; const char* why; };
+    const Case cases[] = {
+        {"1 0 -1 0 0 0 16 0 0 3 P 0 0\n", "zero extent"},          // blockW=0
+        {"1 0 -1 0 0 -16 16 0 0 3 P 0 0\n", "negative extent"},    // blockW<0
+        {"1 0 -1 70000 0 16 16 0 0 3 P 0 0\n", "oversized dstX"},  // > int16
+        {"1 0 -1 0 0 16 16 1e40 0 3 P 0 0\n", "unrepresentable mv"},
+        {"1 0 -1 0 0 16 16 nan 0 3 P 0 0\n", "NaN motion"},
+        {"1 0 5 0 0 16 16 0 0 3 P 0 0\n", "past dir + positive distance"},
+        {"1 1 -3 0 0 16 16 0 0 3 P 0 0\n", "future dir + negative distance"},
+        {"-9 0 0 0 0 16 16 0 0 3 P 0 0\n", "ref below -1"},
+        {"1 0 -1 0 0 16 16 0 0 9 P 0 0\n", "precision out of range"},
+        {"1 0 -1 0 0 16 16 0 0\n", "truncated line"},
+    };
+    for (const Case& c : cases) {
+        write(c.line);
+        err.clear();
+        auto bad = loadOracleCorrespondence(dir, 0, &err);
+        CHECK(!bad.has_value());    // coerced acceptance would be the defect
+        CHECK(!err.empty());
+    }
+    fs::remove_all(dir, ec);
+}
+
 static void testSha256KnownAnswers() {
     // FIPS 180-4 vectors — provenance hashes must be real SHA-256.
     CHECK(sha256Hex(nullptr, 0)
@@ -318,6 +391,8 @@ int main() {
     testAccumulateAverageWithOracleFlow();
     testAmbiguousBlocksNeverEnterFlow();
     testProvenanceDetection();
+    testMotionPrecisionFromScale();
+    testOracleCorrespondenceRejection();
     testGitShaAcceptsAnyHex();
     testPartialEdgeTilesAreCovered();
     testEdgeTilesOn1920x1080();

@@ -47,6 +47,7 @@ static MvEntry codecMvToCurrentPrevious(const AVMotionVector& motion) {
     entry.w = motion.w;
     entry.h = motion.h;
     entry.source = static_cast<int8_t>(std::clamp(motion.source, -128, 127));
+    entry.motionScale = motion.motion_scale;
     return entry;
 }
 

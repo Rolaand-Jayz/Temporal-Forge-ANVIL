@@ -6,6 +6,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <map>
 #include <set>
 
@@ -92,40 +93,10 @@ Observation observationFromDecoded(const temporal_forge::DecodedVideoFrame& d) {
         r.w = mv.w;
         r.h = mv.h;
         r.source = mv.source;
+        r.motionScale = mv.motionScale;
         o.codecMotionVectors.push_back(r);
     }
     return o;
-}
-
-// Normalizes raw codec MVs of frame f into BlockMotion entries. Reference
-// frame identity is NOT provable from the exported side data (direction only,
-// and only for past refs of P/B pictures), so entries are marked ambiguous
-// unless the reference index can be proven by other means. Ambiguous vectors
-// are never applied by the accumulator.
-std::vector<BlockMotion> normalizeCodecMv(const Observation& f) {
-    std::vector<BlockMotion> out;
-    out.reserve(f.codecMotionVectors.size());
-    for (const Observation::RawMv& r : f.codecMotionVectors) {
-        BlockMotion b;
-        b.frameIndex = f.frameIndex;
-        b.refFrameIndex = -1; // not provable from side data
-        b.temporalDistance = 0;
-        b.direction = r.source < 0 ? RefDirection::Past : RefDirection::Future;
-        b.dstX = r.dstX;
-        b.dstY = r.dstY;
-        b.blockW = r.w;
-        b.blockH = r.h;
-        b.mvX = r.mvX;
-        b.mvY = r.mvY;
-        // Precision/scale: AVMotionVector carries motion_scale; the reused
-        // decoder normalized to source pixels, so declared precision is
-        // subpixel. Partition geometry (w/h) is preserved as delivered.
-        b.precision = MotionPrecision::SubQuarter;
-        b.ambiguous = true;
-        b.source = CorrespondenceSource::CodecMv;
-        out.push_back(b);
-    }
-    return out;
 }
 
 // Map AVColorSpace to swscale coefficient tables for explicit conversion.
@@ -236,6 +207,7 @@ RunResult runPipeline(const RunConfig& config) {
     // --- config + provenance ---
     m.config.inputPath = config.inputPath;
     m.config.startFrame = config.startFrame;
+    m.config.startPtsUs = config.startPtsUs;
     m.config.frameCount = config.frameCount;
     m.config.past = config.past;
     m.config.future = config.future;
@@ -282,7 +254,12 @@ RunResult runPipeline(const RunConfig& config) {
 
     // --- decode pass (software, deterministic) ---
     const Clock::time_point decodeStart = Clock::now();
-    const int64_t lastNeeded = config.startFrame + config.frameCount - 1 + config.future;
+    // PTS selection needs the frame ordering to resolve exact matches, so it
+    // decodes the whole stream; frame-index selection stops once the window
+    // is covered.
+    const int64_t lastNeeded = config.startPtsUs
+        ? std::numeric_limits<int64_t>::max()
+        : config.startFrame + config.frameCount - 1 + config.future;
     std::map<uint64_t, Observation> frames;
     bool decodeFailed = false;
     std::string decodeError;
@@ -361,10 +338,20 @@ RunResult runPipeline(const RunConfig& config) {
     // --- output dirs ---
     std::error_code fsEc;
     fs::create_directories(config.outputDir, fsEc);
+    if (fsEc) {
+        result.error = "failed to create output directory " + config.outputDir
+            + ": " + fsEc.message();
+        return result;
+    }
     fs::path dumpBase;
     if (!config.dumpDir.empty()) {
         dumpBase = config.dumpDir;
         fs::create_directories(dumpBase, fsEc);
+        if (fsEc) {
+            result.error = "failed to create dump directory " + config.dumpDir
+                + ": " + fsEc.message();
+            return result;
+        }
     }
     auto dumpPath = [&](StageId stage, uint64_t frame, const char* tag) {
         return dumpBase / (std::string(stageName(stage)) + "_f" + std::to_string(frame)
@@ -380,10 +367,52 @@ RunResult runPipeline(const RunConfig& config) {
         result.outputFiles.push_back(p.string());
     };
 
+    // --- target resolution (frame-index or exact-timestamp semantics) ---
+    std::vector<uint64_t> targets;
+    if (config.startPtsUs) {
+        // Exact match only: no nearest-frame fallback. Duplicate timestamps
+        // are ambiguous and rejected rather than silently picking one.
+        std::vector<uint64_t> anchors;
+        for (const auto& [idx, obs] : frames)
+            if (obs.ptsUs == *config.startPtsUs) anchors.push_back(idx);
+        if (anchors.empty()) {
+            result.error = "no frame with exact pts_us="
+                + std::to_string(*config.startPtsUs)
+                + " in decoded stream (exact-match selection never falls back "
+                  "to the nearest frame)";
+            return result;
+        }
+        if (anchors.size() > 1) {
+            result.error = "ambiguous timestamp pts_us="
+                + std::to_string(*config.startPtsUs) + ": "
+                + std::to_string(anchors.size())
+                + " decoded frames share it; selection is undefined";
+            return result;
+        }
+        for (int64_t k = 0; k < config.frameCount; ++k) {
+            const uint64_t t = anchors[0] + static_cast<uint64_t>(k);
+            if (!frames.count(t)) {
+                result.error = "requested frame sequence starting at pts_us="
+                    + std::to_string(*config.startPtsUs)
+                    + " runs past the end of the decoded stream at index "
+                    + std::to_string(t);
+                return result;
+            }
+            targets.push_back(t);
+        }
+    } else {
+        for (int64_t ti = 0; ti < config.frameCount; ++ti)
+            targets.push_back(static_cast<uint64_t>(config.startFrame + ti));
+    }
+    if (targets.empty()) {
+        result.error = "no target frames resolved";
+        return result;
+    }
+
     // --- ground-truth mapping validation (reference evidence only) ---
     {
-        const int64_t firstTarget = config.startFrame;
-        const int64_t lastTarget = config.startFrame + config.frameCount - 1;
+        const int64_t firstTarget = static_cast<int64_t>(targets.front());
+        const int64_t lastTarget = static_cast<int64_t>(targets.back());
         for (const auto& [gtFrame, gtPath] : config.groundTruth) {
             if (gtFrame < firstTarget || gtFrame > lastTarget) {
                 result.error = std::string("ground truth ")
@@ -397,8 +426,7 @@ RunResult runPipeline(const RunConfig& config) {
     }
 
     // --- per-target pipeline ---
-    for (int64_t ti = 0; ti < config.frameCount; ++ti) {
-        const uint64_t t = static_cast<uint64_t>(config.startFrame + ti);
+    for (uint64_t t : targets) {
         Manifest::FrameRecord rec;
         rec.frameIndex = t;
         auto it = frames.find(t);
@@ -450,9 +478,12 @@ RunResult runPipeline(const RunConfig& config) {
         // side information as delivered (never normalized, never invented).
         if (!dumpBase.empty() && stageDumpable(config.dumpStages, StageId::Decode)) {
             const fs::path yP = dumpPath(StageId::Decode, t, "y.pgm");
-            if (writePgm(yP.string(), width, height, target.plane[0].data(),
-                         target.linesize[0], target.color.bitDepth))
-                recordDump(yP);
+            if (!writePgm(yP.string(), width, height, target.plane[0].data(),
+                          target.linesize[0], target.color.bitDepth)) {
+                result.error = "failed to write decode dump " + yP.string();
+                return result;
+            }
+            recordDump(yP);
             std::string mvs = "frame " + std::to_string(t) + "\n";
             if (target.codecMotionVectors.empty()) {
                 mvs += "state=none count=0\n";
@@ -464,11 +495,16 @@ RunResult runPipeline(const RunConfig& config) {
                          + std::to_string(r.dstY) + " size " + std::to_string(r.w)
                          + " " + std::to_string(r.h) + " mv " + std::to_string(r.mvX)
                          + " " + std::to_string(r.mvY) + " source "
-                         + std::to_string(int(r.source)) + "\n";
+                         + std::to_string(int(r.source)) + " scale "
+                         + std::to_string(r.motionScale) + "\n";
                 }
             }
             const fs::path mvP = dumpPath(StageId::Decode, t, "mvs.txt");
-            if (writeTextFile(mvP, mvs)) recordDump(mvP);
+            if (!writeTextFile(mvP, mvs)) {
+                result.error = "failed to write decode dump " + mvP.string();
+                return result;
+            }
+            recordDump(mvP);
         }
 
         // ground truth: validate against THIS target's decoded geometry,
@@ -545,7 +581,11 @@ RunResult runPipeline(const RunConfig& config) {
                 content += "neighbor " + std::to_string(s) + "\n";
             for (const std::string& e : excluded) content += "excluded " + e + "\n";
             const fs::path wP = dumpPath(StageId::WindowSelect, t, "window.txt");
-            if (writeTextFile(wP, content)) recordDump(wP);
+            if (!writeTextFile(wP, content)) {
+                result.error = "failed to write window dump " + wP.string();
+                return result;
+            }
+            recordDump(wP);
         }
         addTiming(m, StageId::WindowSelect, elapsedNs(winStart));
 
@@ -566,17 +606,34 @@ RunResult runPipeline(const RunConfig& config) {
                                  + std::to_string(t);
                     return result;
                 }
-                auto ob = loadOracleCorrespondence(config.oracleDir, t);
+                std::string oracleError;
+                auto ob = loadOracleCorrespondence(config.oracleDir, t, &oracleError);
                 if (!ob) {
-                    result.error = "oracle correspondence parse failure for frame "
-                                 + std::to_string(t);
+                    result.error = "oracle correspondence rejected for frame "
+                                 + std::to_string(t) + ": " + oracleError;
                     return result;
                 }
-                if (s == t) continue; // unreachable: neighbors exclude target
                 // Oracle lines may address all window frames at once; keep
-                // only proven references to this neighbor.
-                for (const BlockMotion& b : *ob)
-                    if (b.refFrameIndex == static_cast<int64_t>(s)) blocks.push_back(b);
+                // only proven references to this neighbor. Geometry must fit
+                // the decoded target frame: ground truth that exceeds the
+                // frame is invalid, never clipped or coerced.
+                for (const BlockMotion& b : *ob) {
+                    if (b.refFrameIndex != static_cast<int64_t>(s)) continue;
+                    if (b.dstX < 0 || b.dstY < 0
+                        || static_cast<int64_t>(b.dstX) + b.blockW > width
+                        || static_cast<int64_t>(b.dstY) + b.blockH > height) {
+                        result.error = "oracle correspondence geometry out of "
+                            "bounds for frame " + std::to_string(t)
+                            + ": block at (" + std::to_string(b.dstX) + ","
+                            + std::to_string(b.dstY) + ") size "
+                            + std::to_string(b.blockW) + "x"
+                            + std::to_string(b.blockH)
+                            + " exceeds frame " + std::to_string(width)
+                            + "x" + std::to_string(height);
+                        return result;
+                    }
+                    blocks.push_back(b);
+                }
                 m.events.push_back({t, "oracle_used", "correspondence"});
             } else if (config.correspondenceMode == "estimate") {
                 blocks = estimateCorrespondence(target, obs);
@@ -621,10 +678,15 @@ RunResult runPipeline(const RunConfig& config) {
             std::vector<Visibility> vis(static_cast<size_t>(width) * height,
                                         Visibility::Valid);
             if (config.visibilityMode == "oracle") {
-                auto ov = loadOracleVisibility(config.oracleDir, t, width, height);
+                std::string visError;
+                auto ov = loadOracleVisibility(config.oracleDir, t,
+                                               static_cast<int64_t>(neighbors[i]),
+                                               width, height, &visError);
                 if (!ov) {
-                    result.error = "oracle visibility missing/invalid for frame "
-                                 + std::to_string(t);
+                    result.error = "oracle visibility rejected for frame "
+                                 + std::to_string(t) + " reference "
+                                 + std::to_string(neighbors[i]) + ": "
+                                 + visError;
                     return result;
                 }
                 vis = std::move(*ov);
@@ -655,7 +717,11 @@ RunResult runPipeline(const RunConfig& config) {
             const fs::path p = dumpPath(StageId::SampleGeometryStage, t, "geometry.txt");
             const std::string content = std::to_string(int(geo.state)) + " "
                 + std::to_string(geo.phaseX) + " " + std::to_string(geo.phaseY) + "\n";
-            if (writeTextFile(p, content)) recordDump(p);
+            if (!writeTextFile(p, content)) {
+                result.error = "failed to write geometry dump " + p.string();
+                return result;
+            }
+            recordDump(p);
         }
         addTiming(m, StageId::SampleGeometryStage, elapsedNs(geoStart));
 
@@ -703,7 +769,11 @@ RunResult runPipeline(const RunConfig& config) {
                 + std::to_string(static_cast<int>(ws.state))
                 + " description=" + ws.description + "\n";
             const fs::path cP = dumpPath(StageId::ColorConvert, t, "color.txt");
-            if (writeTextFile(cP, content)) recordDump(cP);
+            if (!writeTextFile(cP, content)) {
+                result.error = "failed to write color dump " + cP.string();
+                return result;
+            }
+            recordDump(cP);
         }
         addTiming(m, StageId::ColorConvert, elapsedNs(colorStart));
 
@@ -726,9 +796,12 @@ RunResult runPipeline(const RunConfig& config) {
         rec.totalSamples = acc.totalSamples;
         if (!dumpBase.empty() && stageDumpable(config.dumpStages, StageId::Accumulate)) {
             const fs::path p = dumpPath(StageId::Accumulate, t, "y.pgm");
-            if (writePgm(p.string(), width, height, acc.frame.plane[0].data(),
-                         acc.frame.linesize[0], acc.frame.color.bitDepth))
-                recordDump(p);
+            if (!writePgm(p.string(), width, height, acc.frame.plane[0].data(),
+                          acc.frame.linesize[0], acc.frame.color.bitDepth)) {
+                result.error = "failed to write accumulate dump " + p.string();
+                return result;
+            }
+            recordDump(p);
         }
         addTiming(m, StageId::Accumulate, elapsedNs(accStart));
 
@@ -744,11 +817,13 @@ RunResult runPipeline(const RunConfig& config) {
             addTiming(m, StageId::ColorConvert, elapsedNs(convStart));
             if (converted) {
                 outP = fs::path(config.outputDir) / ("frame_" + std::to_string(t) + ".ppm");
-                if (writePpm(outP.string(), width, height, rgb.data(), stride)) {
-                    result.outputFiles.push_back(outP.string());
-                    m.outputFiles.push_back(
-                        fs::relative(outP, config.outputDir, fsEc).string());
+                if (!writePpm(outP.string(), width, height, rgb.data(), stride)) {
+                    result.error = "failed to write output frame " + outP.string();
+                    return result;
                 }
+                result.outputFiles.push_back(outP.string());
+                m.outputFiles.push_back(
+                    fs::relative(outP, config.outputDir, fsEc).string());
             }
         }
         if (outP.empty()) {
@@ -814,16 +889,23 @@ RunResult runPipeline(const RunConfig& config) {
                 }
             }
             const fs::path cP = dumpPath(StageId::Correspondence, t, "correspondence.txt");
-            if (writeTextFile(cP, content)) recordDump(cP);
+            if (!writeTextFile(cP, content)) {
+                result.error = "failed to write correspondence dump " + cP.string();
+                return result;
+            }
+            recordDump(cP);
         }
         if (!dumpBase.empty() && stageDumpable(config.dumpStages, StageId::Visibility)) {
             if (visMasks.empty()) {
                 // single-frame window: visibility is vacuous (no neighbor
                 // samples); record the state explicitly rather than silently.
                 const fs::path vP = dumpPath(StageId::Visibility, t, "none.txt");
-                if (writeTextFile(vP, "frame " + std::to_string(t)
-                                + " state=no_neighbors\n"))
-                    recordDump(vP);
+                if (!writeTextFile(vP, "frame " + std::to_string(t)
+                                + " state=no_neighbors\n")) {
+                    result.error = "failed to write visibility dump " + vP.string();
+                    return result;
+                }
+                recordDump(vP);
             } else {
                 for (size_t i = 0; i < visMasks.size(); ++i) {
                     std::vector<uint8_t> bytes(visMasks[i].size());
@@ -832,8 +914,11 @@ RunResult runPipeline(const RunConfig& config) {
                                  : visMasks[i][j] == Visibility::Unknown ? 128 : 0;
                     const fs::path vP = dumpPath(StageId::Visibility, t,
                                                  ("i" + std::to_string(i) + ".pgm").c_str());
-                    if (writePgm(vP.string(), width, height, bytes.data(), width))
-                        recordDump(vP);
+                    if (!writePgm(vP.string(), width, height, bytes.data(), width, 8)) {
+                        result.error = "failed to write visibility dump " + vP.string();
+                        return result;
+                    }
+                    recordDump(vP);
                 }
             }
         }
@@ -843,10 +928,13 @@ RunResult runPipeline(const RunConfig& config) {
 
     // --- manifest ---
     const fs::path manifestPath = fs::path(config.outputDir) / "manifest.json";
-    if (writeTextFile(manifestPath, m.toJson() + "\n")) {
-        result.outputFiles.push_back(manifestPath.string());
-        m.outputFiles.push_back("manifest.json");
+    if (!writeTextFile(manifestPath, m.toJson() + "\n")) {
+        result.error = "failed to write run manifest " + manifestPath.string();
+        result.ok = false;
+        return result;
     }
+    result.outputFiles.push_back(manifestPath.string());
+    m.outputFiles.push_back("manifest.json");
     result.ok = result.error.empty();
     return result;
 }

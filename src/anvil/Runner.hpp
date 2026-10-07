@@ -8,6 +8,7 @@
 // observable behavior lands in the run manifest.
 #pragma once
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -19,6 +20,11 @@ struct RunConfig {
     std::string inputPath;
     std::string outputDir;   // required; manifest.json + frames written here
     int64_t startFrame = 0;
+    // Exact-timestamp selection: when set, the target sequence starts at the
+    // frame whose pts_us equals this value EXACTLY (no nearest fallback).
+    // No match, or an ambiguous duplicate timestamp, is a hard error.
+    // Mutually exclusive with an explicit --start-frame.
+    std::optional<int64_t> startPtsUs;
     int64_t frameCount = 1;
     int past = 0;
     int future = 0;

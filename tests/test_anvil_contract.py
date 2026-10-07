@@ -122,6 +122,38 @@ def hevc_hdr_clip(tmp_path_factory):
 
 
 @pytest.fixture(scope="module")
+def vfr_clip(tmp_path_factory):
+    """Deterministic VFR stream: 10 fps segment (0/100000/200000 us) then a
+    25 fps segment (300000/340000/380000 us)."""
+    out = tmp_path_factory.mktemp("fx") / "anvil_vfr.mp4"
+    cmd = [
+        FFMPEG, "-y", "-loglevel", "error",
+        "-f", "lavfi", "-i", "testsrc2=size=32x32:rate=10:duration=0.3",
+        "-f", "lavfi", "-i", "testsrc2=size=32x32:rate=25:duration=0.12",
+        "-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p",
+        "-x264-params", "keyint=10:bframes=0",
+        str(out),
+    ]
+    subprocess.run(cmd, check=True)
+    return out
+
+
+@pytest.fixture(scope="module")
+def mpeg2_clip(tmp_path_factory):
+    """MPEG-2 fixture: software decode exports half-pel MVs (motion_scale=2)."""
+    out = tmp_path_factory.mktemp("fx") / "anvil_mpeg2.mp4"
+    cmd = [
+        FFMPEG, "-y", "-loglevel", "error",
+        "-f", "lavfi", "-i", "testsrc2=size=64x64:rate=10:duration=1",
+        "-c:v", "mpeg2video", "-pix_fmt", "yuv420p", "-q:v", "4",
+        str(out),
+    ]
+    subprocess.run(cmd, check=True)
+    return out
+
+
+@pytest.fixture(scope="module")
 def clip66x65(tmp_path_factory):
     """Non-16-aligned frame: right column tiles 2 wide, bottom row 1 tall."""
     out = tmp_path_factory.mktemp("fx") / "anvil_66x65.mp4"
@@ -254,8 +286,10 @@ def test_oracle_injection_replaces_estimates(sdr_clip, tmp_path):
             # proven reference to frame index 1, identity correspondence
             lines.append(f"1 0 0 {bx} {by} 16 16 0 0 3 P 0 0")
     (oracle_dir / "correspondence_1.txt").write_text("\n".join(lines) + "\n")
-    # visibility oracle: fully valid
-    (oracle_dir / "visibility_1.pgm").write_bytes(
+    # per-neighbor visibility oracles (target 1, refs 0 and 2): fully valid
+    (oracle_dir / "visibility_1_ref0.pgm").write_bytes(
+        b"P5\n64 64\n255\n" + b"\xff" * (64 * 64))
+    (oracle_dir / "visibility_1_ref2.pgm").write_bytes(
         b"P5\n64 64\n255\n" + b"\xff" * (64 * 64))
     # geometry oracle: known zero phase
     (oracle_dir / "geometry_1.txt").write_text("2 0.0 0.0\n")
@@ -369,6 +403,38 @@ def test_auto_scene_cut_blocks_cross_cut_accumulation(twoscene_clip, tmp_path):
             assert all(i >= 6 for i in ids), f"target {t} spans cut: {ids}"
 
 
+def test_exact_pts_selection_on_vfr(vfr_clip, tmp_path):
+    """Exact-timestamp selection: exact match on a VFR stream, no nearest
+    fallback, and hard failure on no-match (review 4202852907)."""
+    # anchor: select the 25-fps segment's second frame by its exact PTS
+    out = tmp_path / "pts"
+    proc = run_runner(out, "--input", vfr_clip, "--start-pts-us", 340000,
+                      "--frame-count", 2, "--past", 1)
+    assert proc.returncode == 0, proc.stderr
+    m = load_manifest(out)
+    assert m["config"]["start_pts_us"] == 340000
+    fr = m["frames"]
+    assert fr[0]["frame_index"] == 4          # 10fps*3 + 1
+    assert fr[0]["pts_us"] == 340000          # exact, not nearest
+    assert fr[1]["pts_us"] == 380000
+
+    # no-match: exact-match semantics never fall back to the nearest frame
+    out2 = tmp_path / "pts_nomatch"
+    proc = run_runner(out2, "--input", vfr_clip, "--start-pts-us", 350000,
+                      "--frame-count", 1)
+    assert proc.returncode == 1
+    assert "no frame with exact pts_us=350000" in proc.stderr
+    assert not (out2 / "manifest.json").exists(), \
+        "failed selection must not emit experiment output"
+
+    # mutual exclusion of selection controls
+    proc = run_runner(tmp_path / "pts_both", "--input", vfr_clip,
+                      "--start-frame", 1, "--start-pts-us", 340000,
+                      "--frame-count", 1)
+    assert proc.returncode == 2
+    assert "mutually exclusive" in proc.stderr
+
+
 def test_git_sha_matches_rev_parse(sdr_clip, tmp_path):
     """Regression (review 4202350957): manifest git_sha must equal
     `git rev-parse HEAD` for any valid 40-hex SHA, not just '0'-leading."""
@@ -465,6 +531,54 @@ def test_per_frame_structured_color_metadata(
     assert ch["transfer"] == "pq" and ch["bit_depth"] == 10
 
 
+def test_malformed_oracle_rejection_matrix(sdr_clip, tmp_path):
+    """Oracle data is ground truth: invalid geometry/motion/metadata must
+    fail with a named reason, never be narrowed or coerced
+    (review 4202854085)."""
+    lines_ok = []
+    for by in range(0, 64, 16):
+        for bx in range(0, 64, 16):
+            lines_ok.append(f"1 0 -1 {bx} {by} 16 16 0 0 3 P 0 0")
+    bad_cases = {
+        "zero_extent": "1 0 -1 0 0 0 16 0 0 3 P 0 0\n",
+        "negative_extent": "1 0 -1 0 0 -16 16 0 0 3 P 0 0\n",
+        "oversized_coordinate": "1 0 -1 70000 0 16 16 0 0 3 P 0 0\n",
+        "nonfinite_motion": "1 0 -1 0 0 16 16 nan 0 3 P 0 0\n",
+        "unrepresentable_motion": "1 0 -1 0 0 16 16 1e40 0 3 P 0 0\n",
+        "contradictory_direction": "1 0 5 0 0 16 16 0 0 3 P 0 0\n",
+        "contradictory_future": "1 1 -3 0 0 16 16 0 0 3 P 0 0\n",
+        "ref_below_minus_one": "-9 0 0 0 0 16 16 0 0 3 P 0 0\n",
+        "out_of_bounds_geometry": "1 0 -1 48 48 32 32 0 0 3 P 0 0\n",
+    }
+    for name, bad_line in bad_cases.items():
+        oracle_dir = tmp_path / f"oracle_{name}"
+        oracle_dir.mkdir()
+        (oracle_dir / "correspondence_2.txt").write_text(
+            "\n".join(lines_ok[:1]) + "\n" + bad_line)
+        out = tmp_path / f"out_{name}"
+        proc = run_runner(out, "--input", sdr_clip, "--start-frame", 2,
+                          "--frame-count", 1, "--past", 1, "--future", 1,
+                          "--correspondence", "oracle",
+                          "--oracle-dir", oracle_dir)
+        assert proc.returncode == 1, f"{name}: malformed oracle accepted"
+        # loader rejections and runner-side bounds rejections are both
+        # legitimate named failures for ground-truth violations
+        assert ("oracle correspondence rejected" in proc.stderr
+                or "oracle correspondence geometry out of bounds" in proc.stderr), name
+        assert not (out / "manifest.json").exists(), name
+
+    # positive case: valid oracle is accepted end-to-end
+    good = tmp_path / "oracle_good"
+    good.mkdir()
+    (good / "correspondence_2.txt").write_text("\n".join(lines_ok) + "\n")
+    out = tmp_path / "out_good"
+    proc = run_runner(out, "--input", sdr_clip, "--start-frame", 2,
+                      "--frame-count", 1, "--past", 1, "--future", 1,
+                      "--correspondence", "oracle", "--oracle-dir", good)
+    assert proc.returncode == 0, proc.stderr
+    assert load_manifest(out)["frames"][0]["correspondence_source"] == "oracle"
+
+
 def test_stage_timing_attribution(sdr_clip, tmp_path):
     """Regression (review 4202350973): every exercised stage has a recorded,
     meaningful timing; visibility is independent; the actual RGB transform
@@ -488,6 +602,48 @@ def test_stage_timing_attribution(sdr_clip, tmp_path):
     assert len(conv_entries) >= 2, "actual conversion not attributed to color_convert"
 
 
+def test_two_neighbor_visibility_oracle_independence(sdr_clip, tmp_path):
+    """Visibility oracles are keyed by target AND reference: two temporal
+    neighbors carry independent masks and accumulation consumes them
+    independently (review 4202854571)."""
+    identity = []
+    for by in range(0, 64, 16):
+        for bx in range(0, 64, 16):
+            # proven past reference (frame 1, dist -1) and future (frame 3)
+            identity.append(f"2 0 -1 {bx} {by} 16 16 0 0 3 P 0 0")
+            identity.append(f"2 1 1 {bx} {by} 16 16 0 0 3 P 0 0")
+
+    def masks(ref1_png, ref3_png, tag):
+        oracle_dir = tmp_path / ("vis_" + tag)
+        oracle_dir.mkdir()
+        (oracle_dir / "correspondence_2.txt").write_text("\n".join(identity) + "\n")
+        (oracle_dir / "visibility_2_ref1.pgm").write_bytes(ref1_png)
+        (oracle_dir / "visibility_2_ref3.pgm").write_bytes(ref3_png)
+        return oracle_dir
+
+    half = b"P5\n64 64\n255\n" + b"\xff" * (64 * 32) + b"\x00" * (64 * 32)
+    full = b"P5\n64 64\n255\n" + b"\xff" * (64 * 64)
+    none = b"P5\n64 64\n255\n" + b"\x00" * (64 * 64)
+
+    def run_with(oracle_dir):
+        out = tmp_path / ("acc_" + oracle_dir.name)
+        proc = run_runner(out, "--input", sdr_clip, "--start-frame", 2,
+                          "--frame-count", 1, "--past", 1, "--future", 1,
+                          "--correspondence", "oracle",
+                          "--visibility", "oracle",
+                          "--oracle-dir", oracle_dir)
+        assert proc.returncode == 0, proc.stderr
+        return load_manifest(out)["frames"][0]
+
+    # ref1 bottom-half invalid, ref3 fully valid
+    fr1 = run_with(masks(half, full, "a"))
+    # only ref3's mask changed -> only ref3's contribution changes
+    fr2 = run_with(masks(half, none, "b"))
+    assert fr1["valid_samples"] == 64 * 64 + (64 * 32), fr1
+    assert fr2["valid_samples"] == 64 * 32, fr2
+    assert fr1["total_samples"] == fr2["total_samples"] == 2 * 64 * 64
+
+
 def test_partial_edge_block_coverage(clip66x65, tmp_path):
     """Regression (review 4202350977): non-16-aligned frames get clipped
     edge tiles whose measured correspondence covers every pixel; uncovered
@@ -509,6 +665,27 @@ def test_partial_edge_block_coverage(clip66x65, tmp_path):
     assert fr["total_samples"] > 0
     assert fr["valid_samples"] == fr["total_samples"], (
         "uncovered pixels leaked into accumulation as invalid/valid mismatch")
+
+
+def test_codec_mv_precision_reflects_motion_scale(
+        sdr_clip, mpeg2_clip, tmp_path):
+    """Codec precision is derived from the decoder's motion_scale
+    (h264: quarter-pel scale 4; mpeg2: half-pel scale 2), never an
+    unconditional label (review 4202855070)."""
+    out = tmp_path / "prec_h264"
+    assert run_runner(out, "--input", sdr_clip, "--frame-count", 2,
+                      "--dump-dir", tmp_path / "d_h264",
+                      "--dump-stages", "decode").returncode == 0
+    h264_mvs = (tmp_path / "d_h264" / "decode_f1_mvs.txt").read_text()
+    assert "scale 4" in h264_mvs, "h264 motion_scale not transported"
+
+    out2 = tmp_path / "prec_mpeg2"
+    assert run_runner(out2, "--input", mpeg2_clip, "--frame-count", 2,
+                      "--dump-dir", tmp_path / "d_mpeg2",
+                      "--dump-stages", "decode").returncode == 0
+    mpeg2_mvs = (tmp_path / "d_mpeg2" / "decode_f1_mvs.txt").read_text()
+    assert "scale 2" in mpeg2_mvs, "mpeg2 motion_scale not transported"
+    assert "scale 4" not in mpeg2_mvs
 
 
 def test_ground_truth_attachment_and_provenance(sdr_clip, tmp_path):
@@ -710,6 +887,72 @@ def test_hdr_10bit_temporal_reconstruction_is_sample_depth_safe(hdr_clip, tmp_pa
     assert fr["total_samples"] > 0
     assert fr["valid_samples"] == fr["total_samples"], (
         "uncovered pixels present in estimate mode")
+
+
+def test_mandatory_write_failure_propagation(sdr_clip, tmp_path):
+    """A run must FAIL when mandatory evidence cannot be written: output
+    directory, manifest.json, requested dumps, output frames
+    (review 4202854270)."""
+    # manifest.json blocked by a directory of the same name
+    out = tmp_path / "manifest_block"
+    out.mkdir()
+    (out / "manifest.json").mkdir()
+    proc = run_runner(out, "--input", sdr_clip, "--frame-count", 1)
+    assert proc.returncode == 1
+    assert "failed to write run manifest" in proc.stderr
+
+    # requested stage dump blocked deterministically
+    out2 = tmp_path / "dump_block"
+    dump_dir = tmp_path / "dump_block_dumps"
+    dump_dir.mkdir()
+    (dump_dir / "window_select_f2_window.txt").mkdir()
+    proc = run_runner(out2, "--input", sdr_clip, "--start-frame", 2,
+                      "--frame-count", 1, "--dump-dir", dump_dir,
+                      "--dump-stages", "window_select")
+    assert proc.returncode == 1
+    assert "failed to write window dump" in proc.stderr
+
+    # output directory itself is unwritable (a file occupies the path)
+    blocked = tmp_path / "output_dir_is_file"
+    blocked.write_text("x")
+    proc = run_runner(tmp_path / "unused", "--input", sdr_clip,
+                      "--frame-count", 1, "--output-dir", blocked)
+    assert proc.returncode == 1
+    assert "failed to create output directory" in proc.stderr
+
+    # sanity: the same configurations succeed once the blockage is removed
+    (out / "manifest.json").rmdir()
+    assert run_runner(out, "--input", sdr_clip, "--frame-count", 1).returncode == 0
+
+
+def test_strict_cli_configuration_matrix(sdr_clip, tmp_path):
+    """Malformed configuration exits 2 with a diagnostic BEFORE any
+    experiment output (review 4202854436)."""
+    cases = {
+        "malformed_int": ["--frame-count", "abc"],
+        "zero_frame_count": ["--frame-count", "0"],
+        "negative_past": ["--past", "-1"],
+        "overflow": ["--start-frame", "99999999999999999999999"],
+        "unknown_correspondence": ["--correspondence", "estmate"],
+        "unknown_visibility": ["--visibility", "vald"],
+        "unknown_geometry": ["--geometry", "unknow"],
+        "empty_cut_token": ["--cut-frames", "1,,2"],
+        "nonnumeric_cut": ["--cut-frames", "x"],
+        "negative_cut": ["--cut-frames", "-3"],
+        "nan_threshold": ["--auto-cut-threshold", "nan"],
+        "negative_threshold": ["--auto-cut-threshold", "-1"],
+        "unknown_dump_stage": ["--dump-stages", "accumlate"],
+        "missing_value": ["--frame-count"],
+        "mutually_exclusive": ["--start-frame", "1", "--start-pts-us", "5"],
+        "seed_overflow": ["--seed", "99999999999999999999999"],
+    }
+    for name, extra in cases.items():
+        out = tmp_path / name
+        proc = run_runner(out, "--input", sdr_clip, *extra)
+        assert proc.returncode == 2, f"{name}: rc={proc.returncode}"
+        assert "configuration error" in proc.stderr, name
+        assert not (out / "manifest.json").exists(), \
+            f"{name}: malformed config must not emit experiment output"
 
 
 def test_missing_input_graceful_error(tmp_path):
