@@ -158,6 +158,34 @@ static void testIncompatibleNeighborCannotEnterAccumulation() {
     CHECK(rc.frame.plane[0] == target.plane[0]);
 }
 
+static void testConfidenceFailsClosedOnMalformedInputs() {
+    Observation target = makeObs(0, 8, 8, 100);
+    Observation neighbor = makeObs(1, 8, 8, 110);
+    target.color.pixelFormat = AV_PIX_FMT_YUV420P;
+    neighbor.color.pixelFormat = AV_PIX_FMT_YUV420P;
+    target.avPixelFormat = neighbor.avPixelFormat = AV_PIX_FMT_YUV420P;
+    target.color.bitDepth = neighbor.color.bitDepth = 8;
+
+    FlowField flow(static_cast<size_t>(8 * 8 * 2), 0.0f);
+    std::vector<uint8_t> shortCoverage(1, 1);
+    const auto badCoverage =
+        estimateConfidence(target, neighbor, flow, shortCoverage);
+    CHECK(badCoverage.size() == 64);
+    CHECK(std::all_of(badCoverage.begin(), badCoverage.end(),
+                      [](float v) { return v == 0.0f; }));
+
+    Observation incompatible = neighbor;
+    incompatible.width = 4;
+    const auto badSpace = estimateConfidence(target, incompatible, flow, {});
+    CHECK(std::all_of(badSpace.begin(), badSpace.end(),
+                      [](float v) { return v == 0.0f; }));
+
+    Observation malformed = target;
+    malformed.plane[0].clear();
+    const auto estimated = estimateCorrespondence(malformed, neighbor);
+    CHECK(estimated.empty());
+}
+
 static void testRelativeSampleGeometryAdjustsOnlyCoveredFlow() {
     FlowField flow(8, 0.0f); // 2x2 pixels, xy pairs
     std::vector<uint8_t> coverage = {1, 0, 1, 1};
@@ -491,6 +519,7 @@ int main() {
     testManifestRoundTripNames();
     testEstimatorIsLabeledAndCorrect();
     testIncompatibleNeighborCannotEnterAccumulation();
+    testConfidenceFailsClosedOnMalformedInputs();
     testRelativeSampleGeometryAdjustsOnlyCoveredFlow();
     testExtremeFlowAndMalformedEvidenceFailClosed();
     testAccumulateSingleFrameIsIdentity();
