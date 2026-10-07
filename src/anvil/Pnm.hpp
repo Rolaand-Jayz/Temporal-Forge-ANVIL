@@ -16,5 +16,5 @@ bool writePpm(std::string_view path, int width, int height,
 
 // Visibility oracle reader intentionally remains byte-valued.
 bool readPgm(std::string_view path, int& width, int& height,
-             std::vector<uint8_t>& pixels);
+             std::vector<uint8_t>& pixels, int* maxvalOut = nullptr);
 } // namespace anvil

@@ -51,7 +51,6 @@ bool ColorMeta::matrixConversionSupported() const {
         case AVCOL_SPC_BT470BG:
         case AVCOL_SPC_SMPTE170M:
         case AVCOL_SPC_BT2020_NCL:
-        case AVCOL_SPC_BT2020_CL:
         case AVCOL_SPC_FCC:
         case AVCOL_SPC_SMPTE240M:
             return true;

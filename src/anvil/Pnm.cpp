@@ -59,7 +59,7 @@ bool writePpm(std::string_view path, int width, int height,
 }
 
 bool readPgm(std::string_view path, int& width, int& height,
-             std::vector<uint8_t>& pixels) {
+             std::vector<uint8_t>& pixels, int* maxvalOut) {
     FILE* f=std::fopen(std::string(path).c_str(),"rb");
     if(!f)return false;
     int w=0,h=0,maxval=0;
@@ -69,8 +69,12 @@ bool readPgm(std::string_view path, int& width, int& height,
     if(std::fgetc(f)!='\n'){std::fclose(f);return false;}
     pixels.resize(static_cast<size_t>(w)*h);
     const size_t n=std::fread(pixels.data(),1,pixels.size(),f);
+    const int trailing=std::fgetc(f);
+    const bool ioError=std::ferror(f)!=0;
     std::fclose(f);
-    if(n!=pixels.size())return false;
-    width=w;height=h;return true;
+    if(n!=pixels.size()||trailing!=EOF||ioError)return false;
+    width=w;height=h;
+    if(maxvalOut)*maxvalOut=maxval;
+    return true;
 }
 } // namespace anvil

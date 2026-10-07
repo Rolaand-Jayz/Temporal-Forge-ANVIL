@@ -603,6 +603,8 @@ def test_malformed_oracle_rejection_matrix(sdr_clip, tmp_path):
         "contradictory_direction": "1 0 5 0 0 16 16 0 0 3 P 0 0\n",
         "contradictory_future": "1 1 -3 0 0 16 16 0 0 3 P 0 0\n",
         "ref_below_minus_one": "-9 0 0 0 0 16 16 0 0 3 P 0 0\n",
+        "invalid_frame_type": "1 0 -1 0 0 16 16 0 0 3 X 0 0\n",
+        "multi_char_frame_type": "1 0 -1 0 0 16 16 0 0 3 PP 0 0\n",
         "out_of_bounds_geometry": "1 0 -1 48 48 32 32 0 0 3 P 0 0\n",
     }
     for name, bad_line in bad_cases.items():
@@ -1091,6 +1093,29 @@ def test_visibility_oracle_rejects_noncanonical_and_unknown_is_excluded(
     assert proc.returncode == 1
     assert "noncanonical visibility value" in proc.stderr
 
+    bad_maxval = tmp_path / "vis_bad_maxval"
+    bad_maxval.mkdir()
+    (bad_maxval / "correspondence_2.txt").write_text(rows)
+    (bad_maxval / "visibility_2_ref1.pgm").write_bytes(
+        b"P5\n64 64\n128\n" + bytes([128]) * (64 * 64))
+    proc = run_runner(tmp_path / "vis_bad_maxval_out", "--input", sdr_clip,
+                      "--start-frame", 2, "--frame-count", 1, "--past", 1,
+                      "--correspondence", "oracle", "--visibility", "oracle",
+                      "--oracle-dir", bad_maxval)
+    assert proc.returncode == 1
+    assert "maxval must be 255" in proc.stderr
+
+    trailing = tmp_path / "vis_trailing"
+    trailing.mkdir()
+    (trailing / "correspondence_2.txt").write_text(rows)
+    (trailing / "visibility_2_ref1.pgm").write_bytes(
+        b"P5\n64 64\n255\n" + b"\xff" * (64 * 64) + b"junk")
+    proc = run_runner(tmp_path / "vis_trailing_out", "--input", sdr_clip,
+                      "--start-frame", 2, "--frame-count", 1, "--past", 1,
+                      "--correspondence", "oracle", "--visibility", "oracle",
+                      "--oracle-dir", trailing)
+    assert proc.returncode == 1
+
     unknown = tmp_path / "vis_unknown"
     unknown.mkdir()
     (unknown / "correspondence_2.txt").write_text(rows)
@@ -1168,6 +1193,20 @@ def test_confidence_estimate_oracle_and_consumption(sdr_clip, tmp_path):
     assert proc.returncode == 0, proc.stderr
     assert load_manifest(est)["frames"][0]["confidence_source"] == "estimate"
     assert (d / "confidence_f2_i0.pgm").is_file()
+
+    bad_oracle = tmp_path / "conf_bad_maxval"
+    bad_oracle.mkdir()
+    (bad_oracle / "correspondence_2.txt").write_text(
+        "\n".join(_identity_oracle_lines(2, [1])) + "\n")
+    (bad_oracle / "confidence_2_ref1.pgm").write_bytes(
+        b"P5\n64 64\n100\n" + bytes([100]) * (64 * 64))
+    proc = run_runner(tmp_path / "conf_bad_maxval_out",
+                      "--input", sdr_clip, "--start-frame", 2,
+                      "--frame-count", 1, "--past", 1,
+                      "--correspondence", "oracle", "--confidence", "oracle",
+                      "--oracle-dir", bad_oracle)
+    assert proc.returncode == 1
+    assert "confidence oracle maxval must be 255" in proc.stderr
 
     oracle = tmp_path / "conf_oracle"
     oracle.mkdir()
