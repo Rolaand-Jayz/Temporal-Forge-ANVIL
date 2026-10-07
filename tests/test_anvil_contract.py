@@ -1032,6 +1032,8 @@ def test_strict_cli_configuration_matrix(sdr_clip, tmp_path):
             "--correspondence", "oracle", "--refinement", "local"],
         "none_refinement_false_arm": [
             "--correspondence", "none", "--refinement", "local"],
+        "codec_refinement_false_arm": [
+            "--correspondence", "codec", "--refinement", "local"],
         "duplicate_neighbor_ablation": [
             "--past", "1", "--exclude-neighbor", "2:1",
             "--exclude-neighbor", "2:1"],
