@@ -241,6 +241,7 @@ RunResult runPipeline(const RunConfig& config) {
 
     // --- config + provenance ---
     m.config.inputPath = config.inputPath;
+    m.config.outputDir = config.outputDir;
     m.config.startFrame = config.startFrame;
     m.config.startPtsUs = config.startPtsUs;
     m.config.frameCount = config.frameCount;
