@@ -533,11 +533,12 @@ RunResult runPipeline(const RunConfig& config) {
             return result;
         }
     }
-    std::set<std::string> recordedOraclePaths;
     auto recordOracleArtifact = [&](const std::string& path, const std::string& type,
                                     uint64_t target,
                                     std::optional<int64_t> reference) -> bool {
-        if (recordedOraclePaths.count(path)) return true;
+        // Record every consumption role. The same file may legitimately be
+        // target geometry in one reconstruction and neighbor geometry in
+        // another; path-only deduplication erased that provenance.
         Manifest::OracleArtifact a;
         a.type = type;
         a.targetFrame = target;
@@ -554,7 +555,6 @@ RunResult runPipeline(const RunConfig& config) {
                 + ": " + oec.message();
             return false;
         }
-        recordedOraclePaths.insert(path);
         m.oracleArtifacts.push_back(std::move(a));
         return true;
     };
