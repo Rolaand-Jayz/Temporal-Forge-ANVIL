@@ -286,8 +286,9 @@ def test_oracle_injection_replaces_estimates(sdr_clip, tmp_path):
     lines = []
     for by in range(0, 64, 16):
         for bx in range(0, 64, 16):
-            # proven reference to frame index 1, identity correspondence
-            lines.append(f"1 0 0 {bx} {by} 16 16 0 0 3 P 0 0")
+            # proven references to frames 0 and 2 around target frame 1
+            lines.append(f"0 0 -1 {bx} {by} 16 16 0 0 3 P 0 0")
+            lines.append(f"2 1 1 {bx} {by} 16 16 0 0 3 P 0 0")
     (oracle_dir / "correspondence_1.txt").write_text("\n".join(lines) + "\n")
     # per-neighbor visibility oracles (target 1, refs 0 and 2): fully valid
     (oracle_dir / "visibility_1_ref0.pgm").write_bytes(
@@ -634,8 +635,8 @@ def test_two_neighbor_visibility_oracle_independence(sdr_clip, tmp_path):
     for by in range(0, 64, 16):
         for bx in range(0, 64, 16):
             # proven past reference (frame 1, dist -1) and future (frame 3)
-            identity.append(f"2 0 -1 {bx} {by} 16 16 0 0 3 P 0 0")
-            identity.append(f"2 1 1 {bx} {by} 16 16 0 0 3 P 0 0")
+            identity.append(f"1 0 -1 {bx} {by} 16 16 0 0 3 P 0 0")
+            identity.append(f"3 1 1 {bx} {by} 16 16 0 0 3 P 0 0")
 
     def masks(ref1_png, ref3_png, tag):
         oracle_dir = tmp_path / ("vis_" + tag)
