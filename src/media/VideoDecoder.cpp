@@ -78,8 +78,10 @@ VideoDecoder::VideoDecoder() = default;
 VideoDecoder::~VideoDecoder() { close(); }
 
 bool VideoDecoder::open(AVFormatContext* fmt, int streamIndex) {
-    drainComplete_ = false;
     close();
+    drainComplete_ = false;
+    lastSendError_ = 0;
+    lastReceiveError_ = 0;
     if (!fmt || streamIndex < 0 || streamIndex >= static_cast<int>(fmt->nb_streams)) {
         logError("VideoDecoder: invalid stream index {}", streamIndex);
         return false;
@@ -179,6 +181,9 @@ void VideoDecoder::close() {
     frameCounter_ = 0;
     hwPixFmt_ = AV_PIX_FMT_NONE;
     hwaccelEnabled_ = false;
+    drainComplete_ = false;
+    lastSendError_ = 0;
+    lastReceiveError_ = 0;
 }
 
 Timebase VideoDecoder::timebase() const {
@@ -194,6 +199,7 @@ const char* VideoDecoder::codecName() const {
 int VideoDecoder::sendPacket(AVPacket* pkt) {
     if (!codec_) return 0;
     int err = avcodec_send_packet(codec_, pkt);
+    lastSendError_ = err;
     if (err < 0 && err != AVERROR(EAGAIN) && err != AVERROR_EOF) {
         char buf[128] = {0}; av_strerror(err, buf, sizeof(buf));
         logWarn("VideoDecoder: send_packet error: {}", buf);
@@ -217,8 +223,9 @@ bool VideoDecoder::receiveFrame(DecodedVideoFrame& out) {
     for (auto& layer : out.drmLayerPlane)
         for (auto& plane : layer) plane = {};
     int err = avcodec_receive_frame(codec_, frame_);
+    lastReceiveError_ = err;
     if (err == AVERROR_EOF) drainComplete_ = true;
-    if (err < 0) return false; // EAGAIN or EOF
+    if (err < 0) return false; // EAGAIN, EOF, or fatal error (inspect accessor)
 
     const AVPixelFormat decodedFmt = static_cast<AVPixelFormat>(frame_->format);
     const bool decodedHwFrame = isHardwarePixelFormat(decodedFmt) || isDrmPrimeFrame(frame_);
@@ -469,6 +476,8 @@ void VideoDecoder::flush() {
     if (codec_) avcodec_flush_buffers(codec_);
     frameCounter_ = 0;
     drainComplete_ = false;
+    lastSendError_ = 0;
+    lastReceiveError_ = 0;
 }
 
 } // namespace temporal_forge

@@ -140,11 +140,9 @@ int main(int argc, char** argv) {
             cfg.startFrame = n;
         } else if (arg == "--start-pts-us") {
             std::string v;
-            unsigned long long n = 0;
-            if (!next(v) || !parseUintStrict(v, n))
-                return configError("--start-pts-us requires a non-negative integer");
-            if (n > static_cast<unsigned long long>(std::numeric_limits<int64_t>::max()))
-                return configError("--start-pts-us exceeds int64 range");
+            long long n = 0;
+            if (!next(v) || !parseIntStrict(v, n))
+                return configError("--start-pts-us requires a signed int64 timestamp");
             haveStartPts = true;
             cfg.startPtsUs = static_cast<int64_t>(n);
         } else if (arg == "--frame-count") {
@@ -236,8 +234,8 @@ int main(int argc, char** argv) {
         } else if (arg == "--auto-cut-threshold") {
             std::string v;
             double d = 0;
-            if (!next(v) || !parseDoubleStrict(v, d) || d < 0)
-                return configError("--auto-cut-threshold requires a finite non-negative number");
+            if (!next(v) || !parseDoubleStrict(v, d) || d < 0 || d > 255)
+                return configError("--auto-cut-threshold requires a finite number in [0,255]");
             cfg.autoCutThreshold = d;
         } else if (arg == "--oracle-dir") {
             if (!next(cfg.oracleDir)) return configError("--oracle-dir requires a value");

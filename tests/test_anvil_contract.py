@@ -1080,6 +1080,7 @@ def test_strict_cli_configuration_matrix(sdr_clip, tmp_path):
         "negative_cut": ["--cut-frames", "-3"],
         "nan_threshold": ["--auto-cut-threshold", "nan"],
         "negative_threshold": ["--auto-cut-threshold", "-1"],
+        "threshold_above_luma_range": ["--auto-cut-threshold", "255.0001"],
         "unknown_dump_stage": ["--dump-stages", "accumlate"],
         "missing_value": ["--frame-count"],
         "mutually_exclusive": ["--start-frame", "1", "--start-pts-us", "5"],
@@ -1126,6 +1127,18 @@ def test_checked_derived_window_bounds(sdr_clip, tmp_path):
                       "--start-frame", 2, "--frame-count", 1,
                       "--past", "2147483647", "--future", "2147483647")
     assert proc.returncode == 0, proc.stderr
+
+
+def test_negative_pts_is_valid_configuration(sdr_clip, tmp_path):
+    out = tmp_path / "negative_pts"
+    proc = run_runner(out, "--input", sdr_clip, "--start-pts-us", "-1",
+                      "--frame-count", 1)
+    # The normal fixture has no -1 us frame, so runtime exact-match failure is
+    # expected; the important invariant is that signed PTS is not rejected as
+    # malformed configuration.
+    assert proc.returncode == 1
+    assert "configuration error" not in proc.stderr.lower()
+    assert "exact pts_us=-1" in proc.stderr
 
 
 def _identity_oracle_lines(target, refs):
