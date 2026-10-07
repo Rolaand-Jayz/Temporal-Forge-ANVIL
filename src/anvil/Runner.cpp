@@ -381,6 +381,7 @@ RunResult runPipeline(const RunConfig& config) {
         : windowEnd;
     std::map<uint64_t, Observation> frames;
     bool decodeFailed = false;
+    bool eofFlushStarted = false;
     std::string decodeError;
     while (static_cast<int64_t>(frames.size()) == 0
            || frames.rbegin()->first < static_cast<uint64_t>(lastNeeded)) {
@@ -393,11 +394,29 @@ RunResult runPipeline(const RunConfig& config) {
                     + std::string(errbuf);
                 return result;
             }
-            decoder.sendPacket(nullptr); // clean EOF: flush delayed decoder frames
+            const int accepted = decoder.sendPacket(nullptr);
+            const int sendErr = decoder.lastSendError();
+            if (!accepted && sendErr != AVERROR_EOF) {
+                char errbuf[128] = {};
+                av_strerror(sendErr, errbuf, sizeof(errbuf));
+                result.error = "failed to start decoder EOF drain: "
+                    + std::string(errbuf);
+                return result;
+            }
+            eofFlushStarted = true;
             break;
         }
         if (pkt.isEof) {
-            decoder.sendPacket(nullptr);
+            const int accepted = decoder.sendPacket(nullptr);
+            const int sendErr = decoder.lastSendError();
+            if (!accepted && sendErr != AVERROR_EOF) {
+                char errbuf[128] = {};
+                av_strerror(sendErr, errbuf, sizeof(errbuf));
+                result.error = "failed to start decoder EOF drain: "
+                    + std::string(errbuf);
+                return result;
+            }
+            eofFlushStarted = true;
             break;
         }
         if (pkt.isFlush) decoder.flush();
@@ -424,21 +443,39 @@ RunResult runPipeline(const RunConfig& config) {
         }
         if (decoder.drainComplete()) break;
     }
-    // final drain in case the decoder still holds delayed frames
-    while (!decoder.drainComplete()) {
-        temporal_forge::DecodedVideoFrame d;
-        if (!decoder.receiveFrame(d)) {
-            const int receiveErr = decoder.lastReceiveError();
-            if (receiveErr == AVERROR_EOF) break;
-            char errbuf[128] = {};
-            av_strerror(receiveErr, errbuf, sizeof(errbuf));
-            result.error = receiveErr == AVERROR(EAGAIN)
-                ? "video decoder requested more input after end-of-stream flush"
-                : "video decode failed during final drain: " + std::string(errbuf);
-            return result;
+    // Drain delayed frames only when clean EOF actually initiated decoder
+    // draining. Frame-index runs intentionally stop once their requested
+    // window is decoded; EAGAIN there is normal and must not be relabeled as
+    // an incomplete EOF drain.
+    if (eofFlushStarted) {
+        while (!decoder.drainComplete()) {
+            temporal_forge::DecodedVideoFrame d;
+            if (!decoder.receiveFrame(d)) {
+                const int receiveErr = decoder.lastReceiveError();
+                if (receiveErr == AVERROR_EOF) break;
+                if (receiveErr == AVERROR(EAGAIN)) {
+                    // A null packet may have returned EAGAIN if delayed output
+                    // was still pending. Drain what is ready, then re-submit
+                    // the EOF marker and continue until AVERROR_EOF.
+                    const int accepted = decoder.sendPacket(nullptr);
+                    const int sendErr = decoder.lastSendError();
+                    if (accepted) continue;
+                    if (sendErr == AVERROR_EOF) break;
+                    char errbuf[128] = {};
+                    av_strerror(sendErr, errbuf, sizeof(errbuf));
+                    result.error = "failed to continue decoder EOF drain: "
+                        + std::string(errbuf);
+                    return result;
+                }
+                char errbuf[128] = {};
+                av_strerror(receiveErr, errbuf, sizeof(errbuf));
+                result.error = "video decode failed during final drain: "
+                    + std::string(errbuf);
+                return result;
+            }
+            Observation o = observationFromDecoded(d);
+            frames.emplace(o.frameIndex, std::move(o));
         }
-        Observation o = observationFromDecoded(d);
-        frames.emplace(o.frameIndex, std::move(o));
     }
     if (frames.empty()) {
         result.error = "no frames decoded from input";
