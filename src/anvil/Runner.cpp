@@ -473,8 +473,24 @@ RunResult runPipeline(const RunConfig& config) {
             targets.push_back(t);
         }
     } else {
-        for (int64_t ti = 0; ti < config.frameCount; ++ti)
-            targets.push_back(static_cast<uint64_t>(config.startFrame + ti));
+        const uint64_t first = static_cast<uint64_t>(config.startFrame);
+        const uint64_t last = static_cast<uint64_t>(targetEnd);
+        const uint64_t decodedLast = frames.rbegin()->first;
+        if (first > decodedLast || last > decodedLast) {
+            result.error = "requested frame sequence [" + std::to_string(first)
+                + ", " + std::to_string(last)
+                + "] extends past decoded stream ending at "
+                + std::to_string(decodedLast);
+            return result;
+        }
+        for (auto fit = frames.lower_bound(first);
+             fit != frames.end() && fit->first <= last; ++fit) {
+            targets.push_back(fit->first);
+        }
+        if (targets.size() != static_cast<size_t>(config.frameCount)) {
+            result.error = "requested frame sequence contains a decode gap";
+            return result;
+        }
     }
     if (targets.empty()) {
         result.error = "no target frames resolved";
@@ -504,9 +520,9 @@ RunResult runPipeline(const RunConfig& config) {
                 + " is not a selected target";
             return result;
         }
-        const auto nominal = WindowConfig{config.past, config.future}.windowFor(t);
-        if (std::find(nominal.begin(), nominal.end(), r) == nominal.end()
-            || r == t) {
+        const bool inPast = r < t && t - r <= static_cast<uint64_t>(config.past);
+        const bool inFuture = r > t && r - t <= static_cast<uint64_t>(config.future);
+        if (!inPast && !inFuture) {
             result.error = "neighbor ablation reference " + std::to_string(r)
                 + " is outside the configured window for target "
                 + std::to_string(t);
@@ -678,7 +694,13 @@ RunResult runPipeline(const RunConfig& config) {
 
         // window selection (cut-aware)
         const Clock::time_point winStart = Clock::now();
-        std::vector<uint64_t> window = WindowConfig{config.past, config.future}.windowFor(t);
+        std::vector<uint64_t> window;
+        const uint64_t lo = t > static_cast<uint64_t>(config.past)
+            ? t - static_cast<uint64_t>(config.past) : 0;
+        const uint64_t hi = t + static_cast<uint64_t>(config.future);
+        for (auto fit = frames.lower_bound(lo);
+             fit != frames.end() && fit->first <= hi; ++fit)
+            window.push_back(fit->first);
         std::vector<uint64_t> neighbors;
         std::vector<std::string> excluded;
         for (uint64_t s : window) {
@@ -713,6 +735,20 @@ RunResult runPipeline(const RunConfig& config) {
                 continue;
             }
             neighbors.push_back(s);
+        }
+        if (!neighbors.empty()
+            && (config.accumulateEnabled
+                || config.correspondenceMode == "estimate"
+                || config.confidenceMode == "estimate"
+                || config.refinementMode == "local")
+            && !temporalReconstructionFormatSupported(target)) {
+            result.error = "temporal reconstruction/estimation supports only "
+                           "planar 4:2:0 sample formats at this gate; target "
+                + std::to_string(t) + " is "
+                + (av_get_pix_fmt_name(static_cast<AVPixelFormat>(target.avPixelFormat))
+                    ? av_get_pix_fmt_name(static_cast<AVPixelFormat>(target.avPixelFormat))
+                    : "unknown");
+            return result;
         }
         if (!dumpBase.empty() && stageDumpable(config.dumpStages, StageId::WindowSelect)) {
             std::string content = "target " + std::to_string(t)
@@ -905,6 +941,12 @@ RunResult runPipeline(const RunConfig& config) {
             if (!og) {
                 result.error = "oracle geometry rejected for frame "
                              + std::to_string(t) + ": " + geoError;
+                return result;
+            }
+            if (og->state != SampleGeometryState::Known) {
+                result.error = "oracle geometry for frame " + std::to_string(t)
+                    + " must declare known state (2), not "
+                    + sampleGeometryStateName(og->state);
                 return result;
             }
             geo = *og;
