@@ -111,10 +111,22 @@ public:
         int64_t ptsUs = -1;
         std::string sideInfoState;   // SideInfoState name
         size_t codecMvCount = 0;
+        size_t codecMvUsableCount = 0; // entries with PROVEN reference identity
         std::string correspondenceSource; // which source actually used
         std::string geometryState;
         std::string colorConversion;      // WorkingSpaceResult description
         bool hasGroundTruth = false;
+        // Structured color metadata so every manifest consumer can interpret
+        // the samples without optional debug dumps. Names use the ColorMeta
+        // vocabulary; "unspecified" is preserved verbatim, never guessed.
+        struct ColorFields {
+            std::string range, primaries, transfer, matrix, chromaLocation;
+            std::string pixelFormat;
+            int bitDepth = 0;
+            bool hasMasteringDisplay = false, hasContentLightLevel = false;
+        };
+        ColorFields colorSource;   // decoded source space
+        ColorFields colorOutput;   // space of the written output artifacts
         uint64_t validSamples = 0;
         uint64_t totalSamples = 0;
     };

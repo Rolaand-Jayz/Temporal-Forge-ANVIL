@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <set>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -69,6 +70,8 @@ Observation observationFromDecoded(const temporal_forge::DecodedVideoFrame& d) {
     o.color.chromaLocation = d.chromaLocation;
     o.color.pixelFormat = d.avFormat;
     o.color.bitDepth = d.bitDepth;
+    o.color.hasMasteringDisplay = d.hasMasteringDisplay;
+    o.color.hasContentLightLevel = d.hasContentLightLevel;
     o.ptsUs = d.ptsUs;
     o.ptsTicks = d.ptsTicks;
     o.frameIndex = d.frameIndex;
@@ -163,6 +166,51 @@ bool convertToRgb(const Observation& o, std::vector<uint8_t>& rgb, int& stride) 
     const int h = sws_scale(sws, src, srcStride, 0, o.height, dst, dstStride);
     sws_freeContext(sws);
     return h == o.height;
+}
+
+// Deterministic mean absolute luma difference in 8-bit scale, bit-depth
+// normalized. Used for automatic scene-cut detection.
+double meanLumaDiff8(const Observation& a, const Observation& b) {
+    if (a.width != b.width || a.height != b.height || a.plane[0].empty()
+        || b.plane[0].empty())
+        return 0.0;
+    const int bpsA = a.color.bitDepth > 8 ? 2 : 1;
+    const int bpsB = b.color.bitDepth > 8 ? 2 : 1;
+    const uint32_t maxA = a.color.bitDepth >= 16
+        ? 65535u : ((1u << std::max(1, a.color.bitDepth)) - 1u);
+    const uint32_t maxB = b.color.bitDepth >= 16
+        ? 65535u : ((1u << std::max(1, b.color.bitDepth)) - 1u);
+    uint64_t sad = 0;
+    for (int y = 0; y < a.height; ++y) {
+        for (int x = 0; x < a.width; ++x) {
+            const size_t oa = size_t(y) * a.linesize[0] + size_t(x) * bpsA;
+            const size_t ob = size_t(y) * b.linesize[0] + size_t(x) * bpsB;
+            const uint32_t va = bpsA == 1 ? a.plane[0][oa]
+                : uint32_t(a.plane[0][oa]) | (uint32_t(a.plane[0][oa + 1]) << 8);
+            const uint32_t vb = bpsB == 1 ? b.plane[0][ob]
+                : uint32_t(b.plane[0][ob]) | (uint32_t(b.plane[0][ob + 1]) << 8);
+            sad += static_cast<uint64_t>(std::llround(
+                std::abs(double(va) / std::max(1u, maxA)
+                       - double(vb) / std::max(1u, maxB)) * 255.0));
+        }
+    }
+    return double(sad) / double(a.width * a.height);
+}
+
+Manifest::FrameRecord::ColorFields colorFieldsOf(const ColorMeta& c) {
+    Manifest::FrameRecord::ColorFields f;
+    f.range = ColorMeta::rangeName(c.range);
+    f.primaries = ColorMeta::primariesName(c.primaries);
+    f.transfer = ColorMeta::transferName(c.transfer);
+    f.matrix = ColorMeta::matrixName(c.matrix);
+    f.chromaLocation = ColorMeta::chromaLocationName(c.chromaLocation);
+    f.pixelFormat = av_get_pix_fmt_name(static_cast<AVPixelFormat>(c.pixelFormat))
+        ? av_get_pix_fmt_name(static_cast<AVPixelFormat>(c.pixelFormat))
+        : std::string("invalid");
+    f.bitDepth = c.bitDepth;
+    f.hasMasteringDisplay = c.hasMasteringDisplay;
+    f.hasContentLightLevel = c.hasContentLightLevel;
+    return f;
 }
 
 bool writeTextFile(const fs::path& p, const std::string& content) {
@@ -278,6 +326,38 @@ RunResult runPipeline(const RunConfig& config) {
     const int width = frames.begin()->second.width;
     const int height = frames.begin()->second.height;
 
+    // F3: capability is judged from the ACTUAL input codec, never from the
+    // global probe matrix (H.264 support must not imply HEVC/AV1 support).
+    const char* inputCodecName = decoder.codecName();
+    const std::string inputCodec = inputCodecName ? inputCodecName : "unknown";
+    const Manifest::CodecCapability* inputCap = nullptr;
+    for (const auto& c : m.codecCapabilities)
+        if (c.codec == inputCodec) inputCap = &c;
+
+    // F1: canonicalize automatic cut boundaries BEFORE any window is built.
+    // Detection compares every consecutive decoded frame pair, so cuts
+    // between arbitrary neighbor pairs are found regardless of which frame
+    // is the reconstruction target. Forced cuts and detected cuts share one
+    // exclusion rule downstream.
+    std::set<int64_t> autoCuts;
+    if (config.autoSceneCut) {
+        uint64_t prevIndex = 0;
+        bool havePrev = false;
+        for (const auto& [idx, obs] : frames) {
+            if (havePrev) {
+                const double diff = meanLumaDiff8(frames.at(prevIndex), obs);
+                if (diff > config.autoCutThreshold) {
+                    autoCuts.insert(static_cast<int64_t>(idx));
+                    m.events.push_back({idx, "scene_cut",
+                                        "auto: mean luma diff "
+                                        + std::to_string(diff)});
+                }
+            }
+            prevIndex = idx;
+            havePrev = true;
+        }
+    }
+
     // --- output dirs ---
     std::error_code fsEc;
     fs::create_directories(config.outputDir, fsEc);
@@ -331,23 +411,39 @@ RunResult runPipeline(const RunConfig& config) {
         const Observation& target = it->second;
         rec.ptsUs = target.ptsUs;
 
-        // side-info state from measurement
+        // Side-info state derived from the INPUT codec's measured
+        // capability and the frame's actual evidence. Exported data with
+        // unproven reference identity is reported ambiguous (exported but
+        // unusable) — never "available", which would contradict the
+        // reconstruction behavior that rejects ambiguous vectors.
+        const auto normalizedMv = normalizeCodecMv(target);
+        size_t usableMv = 0;
+        for (const BlockMotion& b : normalizedMv)
+            if (!b.ambiguous && b.refFrameIndex >= 0) ++usableMv;
+        rec.codecMvCount = target.codecMotionVectors.size();
+        rec.codecMvUsableCount = usableMv;
         if (!target.codecMotionVectors.empty()) {
-            rec.sideInfoState = sideInfoStateName(SideInfoState::Available);
-            rec.codecMvCount = target.codecMotionVectors.size();
-        } else {
-            const bool exportMechanismWorks = std::any_of(
-                m.codecCapabilities.begin(), m.codecCapabilities.end(),
-                [](const Manifest::CodecCapability& c) { return c.mvExportProven; });
-            // Frame carries no codec MV side data. If the export mechanism
-            // works for some codec on this host, the honest state is
-            // estimator-only (e.g. an I-frame); otherwise the codec's export
-            // is unsupported outright.
             rec.sideInfoState = sideInfoStateName(
-                exportMechanismWorks ? SideInfoState::EstimatorOnly
-                                     : SideInfoState::Unsupported);
+                usableMv > 0 ? SideInfoState::Available
+                             : SideInfoState::Ambiguous);
+            if (usableMv == 0)
+                m.events.push_back({t, "side_info_ambiguous",
+                                    "codec MV side data exported but reference "
+                                    "identity unproven; not applied to "
+                                    "reconstruction"});
+        } else if (inputCap && inputCap->mvExportProven) {
+            // The input codec CAN export MVs (measured), this frame simply
+            // carries none (e.g. an I-frame): estimator fallback is allowed.
+            rec.sideInfoState = sideInfoStateName(SideInfoState::EstimatorOnly);
+            m.events.push_back({t, "side_info_absent",
+                                "no codec MV side data on this frame; input "
+                                "codec " + inputCodec + " export is proven"});
+        } else {
+            rec.sideInfoState = sideInfoStateName(SideInfoState::Unsupported);
             m.events.push_back({t, "side_info_unsupported",
-                                "no codec MV side data on this frame"});
+                                "input codec " + inputCodec
+                                + " cannot export MV side data (measured "
+                                "capability)"});
         }
 
         // decode-stage capture: source planes (pre-pipeline) and raw codec
@@ -412,10 +508,16 @@ RunResult runPipeline(const RunConfig& config) {
         // window selection (cut-aware)
         const Clock::time_point winStart = Clock::now();
         std::vector<uint64_t> window = WindowConfig{config.past, config.future}.windowFor(t);
+        // One exclusion rule for forced AND automatically detected
+        // boundaries; a neighbor is excluded when any cut lies strictly
+        // between it and the target, in both temporal directions.
         auto crossesCut = [&](uint64_t a, uint64_t b) {
             const uint64_t lo = std::min(a, b), hi = std::max(a, b);
             for (int64_t c : config.forcedCutFrames)
                 if (c > 0 && static_cast<uint64_t>(c) > lo && static_cast<uint64_t>(c) <= hi)
+                    return true;
+            for (int64_t c : autoCuts)
+                if (static_cast<uint64_t>(c) > lo && static_cast<uint64_t>(c) <= hi)
                     return true;
             return false;
         };
@@ -430,7 +532,7 @@ RunResult runPipeline(const RunConfig& config) {
             if (crossesCut(t, s)) {
                 excluded.push_back(std::to_string(s) + " reason=cut_boundary");
                 m.events.push_back({s, "window_reset",
-                                    "excluded across forced cut boundary"});
+                                    "excluded across scene-cut boundary"});
                 continue;
             }
             neighbors.push_back(s);
@@ -445,38 +547,13 @@ RunResult runPipeline(const RunConfig& config) {
             const fs::path wP = dumpPath(StageId::WindowSelect, t, "window.txt");
             if (writeTextFile(wP, content)) recordDump(wP);
         }
-        // auto scene cut: mean-abs luma diff target vs previous frame
-        if (config.autoSceneCut && t > 0 && frames.count(t - 1) && !crossesCut(t, t - 1)) {
-            const Observation& prev = frames[t - 1];
-            if (prev.width == width && prev.height == height && !target.plane[0].empty()) {
-                uint64_t sad = 0;
-                for (int y = 0; y < height; ++y)
-                    for (int x = 0; x < width; ++x)
-                        {
-                            const int bt=target.color.bitDepth>8?2:1,bp=prev.color.bitDepth>8?2:1;
-                            const size_t ot=size_t(y)*target.linesize[0]+size_t(x)*bt;
-                            const size_t op=size_t(y)*prev.linesize[0]+size_t(x)*bp;
-                            const uint32_t tv=bt==1?target.plane[0][ot]:
-                                uint32_t(target.plane[0][ot])|(uint32_t(target.plane[0][ot+1])<<8);
-                            const uint32_t pv=bp==1?prev.plane[0][op]:
-                                uint32_t(prev.plane[0][op])|(uint32_t(prev.plane[0][op+1])<<8);
-                            const uint32_t tm=target.color.bitDepth>=16?65535u:((1u<<std::max(1,target.color.bitDepth))-1u);
-                            const uint32_t pm=prev.color.bitDepth>=16?65535u:((1u<<std::max(1,prev.color.bitDepth))-1u);
-                            sad+=static_cast<uint64_t>(std::llround(
-                                std::abs(double(tv)/std::max(1u,tm)-double(pv)/std::max(1u,pm))*255.0));
-                        }
-                const double meanDiff = double(sad) / double(width * height);
-                if (meanDiff > config.autoCutThreshold)
-                    m.events.push_back({t, "scene_cut",
-                                        "auto: mean luma diff " + std::to_string(meanDiff)});
-            }
-        }
         addTiming(m, StageId::WindowSelect, elapsedNs(winStart));
 
-        // correspondence per neighbor
+        // correspondence per neighbor (flow + block normalization only;
+        // visibility is timed separately below)
         const Clock::time_point corrStart = Clock::now();
         std::vector<FlowField> flows;
-        std::vector<std::vector<Visibility>> visMasks;
+        std::vector<std::vector<uint8_t>> coverages;
         std::vector<std::vector<BlockMotion>> neighborBlocks;
         std::vector<uint64_t> neighborOrder;
         std::string corrSourceUsed = config.correspondenceMode;
@@ -522,14 +599,25 @@ RunResult runPipeline(const RunConfig& config) {
                 blocks.clear();
                 corrSourceUsed = "none";
             }
+            std::vector<uint8_t> coverage;
             FlowField flow = buildFlowField(width, height, blocks,
-                                            static_cast<int64_t>(s));
+                                            static_cast<int64_t>(s), &coverage);
             flows.push_back(std::move(flow));
+            coverages.push_back(std::move(coverage));
             neighborBlocks.push_back(std::move(blocks));
             neighborOrder.push_back(s);
+        }
+        rec.correspondenceSource = corrSourceUsed;
+        addTiming(m, StageId::Correspondence, elapsedNs(corrStart));
 
-            // visibility: oracle replaces; default valid, minus unproven
-            // correspondence coverage (unknown provenance is never applied).
+        // visibility per neighbor, timed independently: oracle replaces;
+        // otherwise default valid, minus pixels WITHOUT proven correspondence
+        // coverage. Coverage distinguishes genuinely measured zero motion
+        // (covered, valid) from unavailable correspondence (uncovered,
+        // invalid) — placeholder zero-flow never enters accumulation.
+        const Clock::time_point visStart = Clock::now();
+        std::vector<std::vector<Visibility>> visMasks;
+        for (size_t i = 0; i < neighbors.size(); ++i) {
             std::vector<Visibility> vis(static_cast<size_t>(width) * height,
                                         Visibility::Valid);
             if (config.visibilityMode == "oracle") {
@@ -541,19 +629,13 @@ RunResult runPipeline(const RunConfig& config) {
                 }
                 vis = std::move(*ov);
                 m.events.push_back({t, "oracle_used", "visibility"});
-            } else if (config.correspondenceMode == "codec") {
-                // mark pixels without proven correspondence as invalid
-                for (int y = 0; y < height; ++y)
-                    for (int x = 0; x < width; ++x) {
-                        const size_t i = size_t(y) * width + x;
-                        if (flows.back()[i * 2] == 0.0f && flows.back()[i * 2 + 1] == 0.0f)
-                            vis[i] = Visibility::Invalid;
-                    }
+            } else if (!coverages[i].empty()) {
+                for (size_t j = 0; j < vis.size(); ++j)
+                    if (!coverages[i][j]) vis[j] = Visibility::Invalid;
             }
             visMasks.push_back(std::move(vis));
         }
-        rec.correspondenceSource = corrSourceUsed;
-        addTiming(m, StageId::Correspondence, elapsedNs(corrStart));
+        addTiming(m, StageId::Visibility, elapsedNs(visStart));
 
         // sample geometry
         const Clock::time_point geoStart = Clock::now();
@@ -656,7 +738,11 @@ RunResult runPipeline(const RunConfig& config) {
         if (ws.state == WorkingSpaceResult::State::converted) {
             std::vector<uint8_t> rgb;
             int stride = 0;
-            if (convertToRgb(acc.frame, rgb, stride)) {
+            // The actual YUV->RGB transform belongs to the color stage.
+            const Clock::time_point convStart = Clock::now();
+            const bool converted = convertToRgb(acc.frame, rgb, stride);
+            addTiming(m, StageId::ColorConvert, elapsedNs(convStart));
+            if (converted) {
                 outP = fs::path(config.outputDir) / ("frame_" + std::to_string(t) + ".ppm");
                 if (writePpm(outP.string(), width, height, rgb.data(), stride)) {
                     result.outputFiles.push_back(outP.string());
@@ -690,6 +776,22 @@ RunResult runPipeline(const RunConfig& config) {
             if(outP.empty()){result.error="no output plane available for frame "+std::to_string(t);return result;}
         }
         addTiming(m, StageId::Output, elapsedNs(outStart));
+        // Structured color metadata: source space as decoded, output space
+        // as actually written. RGB output carries full range, RGB matrix and
+        // the source primaries/transfer (no transfer conversion is ever
+        // performed); chroma siting is not applicable to packed RGB.
+        rec.colorSource = colorFieldsOf(target.color);
+        if (!outP.empty() && outP.string().ends_with(".ppm")) {
+            rec.colorOutput.range = "full";
+            rec.colorOutput.primaries = rec.colorSource.primaries;
+            rec.colorOutput.transfer = rec.colorSource.transfer;
+            rec.colorOutput.matrix = "rgb";
+            rec.colorOutput.chromaLocation = "not_applicable";
+            rec.colorOutput.pixelFormat = "rgb24";
+            rec.colorOutput.bitDepth = 8;
+        } else {
+            rec.colorOutput = rec.colorSource;
+        }
         m.frames.push_back(rec);
 
         if (!dumpBase.empty() && stageDumpable(config.dumpStages, StageId::Correspondence)) {

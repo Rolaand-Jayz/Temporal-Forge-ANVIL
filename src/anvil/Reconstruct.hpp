@@ -37,8 +37,14 @@ struct AccumulateResult {
 // unknown reference identity are rejected (never silently applied).
 using FlowField = std::vector<float>; // 2 floats per pixel (dx, dy)
 
+// When `coverageOut` is provided it receives 1 byte per pixel: 1 where a
+// PROVEN block covers the pixel (including genuinely measured zero motion),
+// 0 where no proven correspondence exists. Uncovered pixels must be treated
+// as Visibility::Invalid by callers — zero-valued flow there is a
+// placeholder, not measured motion.
 FlowField buildFlowField(int width, int height, const std::vector<BlockMotion>& blocks,
-                         int64_t refFrameIndex);
+                         int64_t refFrameIndex,
+                         std::vector<uint8_t>* coverageOut = nullptr);
 
 AccumulateResult accumulate(const Observation& target,
                             const std::vector<Observation>& neighbors,

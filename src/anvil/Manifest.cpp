@@ -43,10 +43,18 @@ std::optional<std::string> detectGitSha() {
     char buf[64] = {};
     const bool ok = std::fgets(buf, sizeof(buf), p) != nullptr;
     pclose(p);
-    if (!ok || buf[0] != static_cast<char>('0')) return std::nullopt; // not a sha
+    if (!ok) return std::nullopt;
     std::string s(buf);
     while (!s.empty() && (s.back() == '\n' || s.back() == '\r')) s.pop_back();
+    // A Git SHA is exactly 40 hexadecimal characters; any leading character
+    // is valid. The previous '0'-prefix check silently discarded valid SHAs
+    // (e.g. every head starting '1'-'f').
     if (s.size() != 40) return std::nullopt;
+    for (char c : s) {
+        const bool hex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')
+            || (c >= 'A' && c <= 'F');
+        if (!hex) return std::nullopt;
+    }
     return s;
 }
 
@@ -119,7 +127,7 @@ std::string Manifest::toJson() const {
     w.array("stage_timings");
     for (const auto& t : stageTimings) {
         w.beginObject();
-        w.kv("stage", stageName(t.stage));
+        w.kv("stage", std::string(stageName(t.stage))); // std::string: const char* would bind to the bool overload
         w.kv("nanoseconds", t.nanoseconds);
         w.endObject();
     }
@@ -166,16 +174,32 @@ std::string Manifest::toJson() const {
     w.endArray();
 
     w.array("frames");
+    auto writeColor = [&w](const char* key, const Manifest::FrameRecord::ColorFields& c) {
+        w.object(key);
+        w.kv("range", c.range);
+        w.kv("primaries", c.primaries);
+        w.kv("transfer", c.transfer);
+        w.kv("matrix", c.matrix);
+        w.kv("chroma_location", c.chromaLocation);
+        w.kv("pixel_format", c.pixelFormat);
+        w.kv("bit_depth", c.bitDepth);
+        w.kv("hdr_mastering_display_present", c.hasMasteringDisplay);
+        w.kv("hdr_content_light_level_present", c.hasContentLightLevel);
+        w.endObject();
+    };
     for (const auto& fr : frames) {
         w.beginObject();
         w.kv("frame_index", fr.frameIndex);
         w.kv("pts_us", fr.ptsUs);
         w.kv("side_info_state", fr.sideInfoState);
         w.kv("codec_mv_count", fr.codecMvCount);
+        w.kv("codec_mv_usable_count", fr.codecMvUsableCount);
         w.kv("correspondence_source", fr.correspondenceSource);
         w.kv("geometry_state", fr.geometryState);
         w.kv("color_conversion", fr.colorConversion);
         w.kv("has_ground_truth", fr.hasGroundTruth);
+        writeColor("color_source", fr.colorSource);
+        writeColor("color_output", fr.colorOutput);
         w.kv("valid_samples", fr.validSamples);
         w.kv("total_samples", fr.totalSamples);
         w.endObject();

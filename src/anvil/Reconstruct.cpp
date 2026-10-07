@@ -80,14 +80,21 @@ std::vector<BlockMotion> estimateCorrespondence(const Observation& target,
     std::vector<BlockMotion> out;
     if (target.plane[0].empty() || obs.plane[0].empty()) return out;
     const int bw = blockSize;
-    for (int by = 0; by + bw <= target.height; by += bw) {
-        for (int bx = 0; bx + bw <= target.width; bx += bw) {
+    // Tile the frame in blockSize steps with CLIPPED edge tiles: a 66x65
+    // frame still yields 2-wide right-column tiles and 1-tall bottom-row
+    // tiles, and 1920x1080 yields 8-tall bottom-row tiles. Skipping partial
+    // tiles left edge pixels without correspondence, which previously
+    // degenerated into fabricated zero-motion blending.
+    for (int by = 0; by < target.height; by += bw) {
+        const int bh = std::min(bw, target.height - by);
+        for (int bx = 0; bx < target.width; bx += bw) {
+            const int bwl = std::min(bw, target.width - bx);
             uint32_t bestSad = ~0u;
             int bestDx = 0, bestDy = 0;
             for (int dy = -searchRadius; dy <= searchRadius; ++dy) {
                 for (int dx = -searchRadius; dx <= searchRadius; ++dx) {
                     const uint32_t sad =
-                        blockSad(target, bx, by, obs, bx + dx, by + dy, bw, bw);
+                        blockSad(target, bx, by, obs, bx + dx, by + dy, bwl, bh);
                     if (sad < bestSad) {
                         bestSad = sad;
                         bestDx = dx;
@@ -95,7 +102,7 @@ std::vector<BlockMotion> estimateCorrespondence(const Observation& target,
                     }
                 }
             }
-            if (bestSad == ~0u) continue; // block unreachable in obs
+            if (bestSad == ~0u) continue; // no in-bounds candidate for this tile
             BlockMotion m;
             m.frameIndex = target.frameIndex;
             m.refFrameIndex = static_cast<int64_t>(obs.frameIndex);
@@ -105,8 +112,8 @@ std::vector<BlockMotion> estimateCorrespondence(const Observation& target,
                                                  : RefDirection::Future;
             m.dstX = static_cast<int16_t>(bx);
             m.dstY = static_cast<int16_t>(by);
-            m.blockW = static_cast<uint16_t>(bw);
-            m.blockH = static_cast<uint16_t>(bw);
+            m.blockW = static_cast<uint16_t>(bwl);
+            m.blockH = static_cast<uint16_t>(bh);
             m.mvX = static_cast<float>(bestDx);
             m.mvY = static_cast<float>(bestDy);
             m.precision = MotionPrecision::Integer;
@@ -119,8 +126,9 @@ std::vector<BlockMotion> estimateCorrespondence(const Observation& target,
 }
 
 FlowField buildFlowField(int width, int height, const std::vector<BlockMotion>& blocks,
-                         int64_t refFrameIndex) {
+                         int64_t refFrameIndex, std::vector<uint8_t>* coverageOut) {
     FlowField flow(static_cast<size_t>(width) * height * 2, 0.0f);
+    if (coverageOut) coverageOut->assign(static_cast<size_t>(width) * height, 0);
     for (const BlockMotion& b : blocks) {
         // Reference identity must be proven for the vector to enter
         // reconstruction. Ambiguous codec vectors are rejected here.
@@ -132,6 +140,7 @@ FlowField buildFlowField(int width, int height, const std::vector<BlockMotion>& 
                 const size_t i = (static_cast<size_t>(y) * width + x) * 2;
                 flow[i] = b.mvX;
                 flow[i + 1] = b.mvY;
+                if (coverageOut) (*coverageOut)[i / 2] = 1;
             }
         }
     }
