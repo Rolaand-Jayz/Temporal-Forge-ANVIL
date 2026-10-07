@@ -158,6 +158,27 @@ static void testIncompatibleNeighborCannotEnterAccumulation() {
     CHECK(rc.frame.plane[0] == target.plane[0]);
 }
 
+static void testRelativeSampleGeometryAdjustsOnlyCoveredFlow() {
+    FlowField flow(8, 0.0f); // 2x2 pixels, xy pairs
+    std::vector<uint8_t> coverage = {1, 0, 1, 1};
+    SampleGeometry target;
+    target.state = SampleGeometryState::Known;
+    target.phaseX = 0.75f;
+    target.phaseY = 0.50f;
+    SampleGeometry neighbor;
+    neighbor.state = SampleGeometryState::Known;
+    neighbor.phaseX = 0.25f;
+    neighbor.phaseY = 0.75f;
+    CHECK(applyRelativeSampleGeometry(flow, coverage, 2, 2, target, neighbor));
+    CHECK(flow[0] == 0.5f && flow[1] == -0.25f);
+    CHECK(flow[2] == 0.0f && flow[3] == 0.0f);
+    CHECK(flow[4] == 0.5f && flow[5] == -0.25f);
+    CHECK(flow[6] == 0.5f && flow[7] == -0.25f);
+
+    SampleGeometry unknown;
+    CHECK(!applyRelativeSampleGeometry(flow, coverage, 2, 2, unknown, neighbor));
+}
+
 static void testExtremeFlowAndMalformedEvidenceFailClosed() {
     Observation target = makeObs(0, 32, 32, 100);
     Observation obs = makeObs(1, 32, 32, 200);
@@ -470,6 +491,7 @@ int main() {
     testManifestRoundTripNames();
     testEstimatorIsLabeledAndCorrect();
     testIncompatibleNeighborCannotEnterAccumulation();
+    testRelativeSampleGeometryAdjustsOnlyCoveredFlow();
     testExtremeFlowAndMalformedEvidenceFailClosed();
     testAccumulateSingleFrameIsIdentity();
     testAccumulateIncludesTargetSample();
