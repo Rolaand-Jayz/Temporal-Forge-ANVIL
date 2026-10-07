@@ -261,6 +261,22 @@ def test_unconverted_packed_pixel_format_fails_closed(packed_rgb_clip, tmp_path)
     assert not (out / "manifest.json").exists()
 
 
+def test_git_provenance_is_independent_of_runtime_cwd(sdr_clip, tmp_path):
+    out = tmp_path / "cwd_independent"
+    unrelated = tmp_path / "unrelated_cwd"
+    unrelated.mkdir()
+    cmd = [RUNNER, "--output-dir", str(out), "--input", str(sdr_clip),
+           "--frame-count", "1"]
+    proc = subprocess.run(cmd, cwd=unrelated, capture_output=True, text=True)
+    assert proc.returncode == 0, proc.stderr
+    manifest = load_manifest(out)
+    expected = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, check=True,
+        capture_output=True, text=True).stdout.strip()
+    assert manifest["provenance"]["git_sha"] == expected
+    assert manifest["provenance"]["git_dirty"] in ("true", "false")
+
+
 def test_codec_capability_matrix_explicit(sdr_clip, tmp_path):
     out = tmp_path / "codec"
     proc = run_runner(out, "--input", sdr_clip, "--frame-count", 1)
@@ -1401,4 +1417,4 @@ def test_missing_input_graceful_error(tmp_path):
                       "--frame-count", 1)
     assert proc.returncode == 1
     assert "error" in proc.stderr.lower()
-    assert not (out / "manifest.json").exists() or True  # no crash is the contract
+    assert not (out / "manifest.json").exists()
