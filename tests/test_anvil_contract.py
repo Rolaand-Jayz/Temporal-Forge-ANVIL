@@ -81,6 +81,20 @@ def unsupported_matrix_clip(tmp_path_factory):
 
 
 @pytest.fixture(scope="module")
+def packed_rgb_clip(tmp_path_factory):
+    """Packed RGB source used to prove raw-plane fallback fails closed."""
+    out = tmp_path_factory.mktemp("fx") / "anvil_packed_rgb.mkv"
+    cmd = [
+        FFMPEG, "-y", "-loglevel", "error",
+        "-f", "lavfi", "-i", "testsrc=size=64x64:rate=10:duration=0.4",
+        "-c:v", "ffv1", "-pix_fmt", "bgr0",
+        str(out),
+    ]
+    subprocess.run(cmd, check=True)
+    return out
+
+
+@pytest.fixture(scope="module")
 def twoscene_clip(tmp_path_factory):
     """32x32 hard cut black->white at frame 6 (6+6 frames @10fps)."""
     out = tmp_path_factory.mktemp("fx") / "anvil_twoscene.mp4"
@@ -238,6 +252,15 @@ def test_manifest_schema_and_provenance(sdr_clip, tmp_path):
     assert cfg["deterministic_no_random_components"] is True
 
 
+def test_unconverted_packed_pixel_format_fails_closed(packed_rgb_clip, tmp_path):
+    out = tmp_path / "packed_rgb"
+    proc = run_runner(out, "--input", packed_rgb_clip, "--frame-count", 1,
+                      "--no-color-convert")
+    assert proc.returncode == 1
+    assert "cannot serialize unconverted pixel format" in proc.stderr
+    assert not (out / "manifest.json").exists()
+
+
 def test_codec_capability_matrix_explicit(sdr_clip, tmp_path):
     out = tmp_path / "codec"
     proc = run_runner(out, "--input", sdr_clip, "--frame-count", 1)
@@ -246,8 +269,12 @@ def test_codec_capability_matrix_explicit(sdr_clip, tmp_path):
     for codec in ("h264", "hevc", "av1"):
         assert codec in caps, f"codec {codec} missing from capability matrix"
         c = caps[codec]
-        # truthfulness: proven MV export requires observed probe frames
+        # Truthfulness: a successful decode probe must decode the complete
+        # 8-frame synthetic stream; MV proof additionally needs observed side data.
+        if c["decode_probe_passed"]:
+            assert c["probe_total_frames"] == 8
         if c["mv_export_proven"]:
+            assert c["decode_probe_passed"]
             assert c["probe_mv_frames"] > 0
         else:
             assert c["note"], "unsupported codec must carry a truthful note"

@@ -325,7 +325,10 @@ RunResult runPipeline(const RunConfig& config) {
         }
         if (pkt.isFlush) decoder.flush();
         if (pkt.av && pkt.streamIndex == demuxer.info().videoIndex) {
-            decoder.sendPacket(pkt.av);
+            if (!decoder.sendPacket(pkt.av)) {
+                result.error = "video decoder rejected an input packet";
+                return result;
+            }
         }
         temporal_forge::DecodedVideoFrame d;
         while (decoder.receiveFrame(d)) {
@@ -1103,18 +1106,30 @@ RunResult runPipeline(const RunConfig& config) {
             const Clock::time_point convStart = Clock::now();
             const bool converted = convertToRgb(acc.frame, rgb, stride);
             addTiming(m, StageId::ColorConvert, elapsedNs(convStart));
-            if (converted) {
-                outP = fs::path(config.outputDir) / ("frame_" + std::to_string(t) + ".ppm");
-                if (!writePpm(outP.string(), width, height, rgb.data(), stride)) {
-                    result.error = "failed to write output frame " + outP.string();
-                    return result;
-                }
-                result.outputFiles.push_back(outP.string());
-                m.outputFiles.push_back(
-                    fs::relative(outP, config.outputDir, fsEc).string());
+            if (!converted) {
+                result.error = "explicit color conversion failed for frame "
+                    + std::to_string(t) + "; refusing to relabel preserved "
+                      "source planes as converted output";
+                return result;
             }
+            outP = fs::path(config.outputDir) / ("frame_" + std::to_string(t) + ".ppm");
+            if (!writePpm(outP.string(), width, height, rgb.data(), stride)) {
+                result.error = "failed to write output frame " + outP.string();
+                return result;
+            }
+            result.outputFiles.push_back(outP.string());
+            m.outputFiles.push_back(
+                fs::relative(outP, config.outputDir, fsEc).string());
         }
         if (outP.empty()) {
+            if (!temporalReconstructionFormatSupported(acc.frame)) {
+                const char* fmt = av_get_pix_fmt_name(
+                    static_cast<AVPixelFormat>(acc.frame.avPixelFormat));
+                result.error = "cannot serialize unconverted pixel format "
+                    + std::string(fmt ? fmt : "unknown")
+                    + " as planar PGM evidence";
+                return result;
+            }
             const AVPixFmtDescriptor* desc=av_pix_fmt_desc_get(
                 static_cast<AVPixelFormat>(acc.frame.avPixelFormat));
             const char* suffix[4]={"y","u","v","p3"};
