@@ -109,7 +109,7 @@ int swsCoefficientsFor(int matrix) {
         case AVCOL_SPC_BT2020_CL: return SWS_CS_BT2020;
         case AVCOL_SPC_FCC: return SWS_CS_FCC;
         case AVCOL_SPC_SMPTE240M: return SWS_CS_SMPTE240M;
-        default: return SWS_CS_DEFAULT;
+        default: return -1;
     }
 }
 
@@ -119,15 +119,21 @@ int swsCoefficientsFor(int matrix) {
 // chroma_location is carried in the manifest so the assumption is auditable.
 bool convertToRgb(const Observation& o, std::vector<uint8_t>& rgb, int& stride) {
     if (!o.color.conversionFullySpecified()) return false;
+    const int coefficients = swsCoefficientsFor(o.color.matrix);
+    if (coefficients < 0) return false;
     SwsContext* sws = sws_getContext(o.width, o.height,
                                      static_cast<AVPixelFormat>(o.avPixelFormat),
                                      o.width, o.height, AV_PIX_FMT_RGB24,
                                      SWS_BILINEAR | SWS_FULL_CHR_H_INT | SWS_ACCURATE_RND,
                                      nullptr, nullptr, nullptr);
     if (!sws) return false;
-    const int* table = sws_getCoefficients(swsCoefficientsFor(o.color.matrix));
-    sws_setColorspaceDetails(sws, table, o.color.range == AVCOL_RANGE_JPEG ? 1 : 0,
-                             table, 1, 0, 1 << 16, 1 << 16);
+    const int* table = sws_getCoefficients(coefficients);
+    if (!table || sws_setColorspaceDetails(
+            sws, table, o.color.range == AVCOL_RANGE_JPEG ? 1 : 0,
+            table, 1, 0, 1 << 16, 1 << 16) < 0) {
+        sws_freeContext(sws);
+        return false;
+    }
     stride = o.width * 3;
     rgb.assign(static_cast<size_t>(stride) * o.height, 0);
     const uint8_t* src[4] = {o.plane[0].data(), o.plane[1].data(), o.plane[2].data(), nullptr};
@@ -184,6 +190,14 @@ Manifest::FrameRecord::ColorFields colorFieldsOf(const ColorMeta& c) {
     return f;
 }
 
+bool checkedAddInt64(int64_t a, int64_t b, int64_t& out) {
+    if ((b > 0 && a > std::numeric_limits<int64_t>::max() - b)
+        || (b < 0 && a < std::numeric_limits<int64_t>::min() - b))
+        return false;
+    out = a + b;
+    return true;
+}
+
 bool writeTextFile(const fs::path& p, const std::string& content) {
     std::error_code ec;
     fs::create_directories(p.parent_path(), ec);
@@ -199,9 +213,31 @@ RunResult runPipeline(const RunConfig& config) {
     RunResult result;
     Manifest& m = result.manifest;
 
-    if (config.past < 0 || config.future < 0 || config.frameCount < 1) {
+    if (config.past < 0 || config.future < 0 || config.frameCount < 1
+        || config.startFrame < 0) {
         result.error = "invalid window/frame-count parameters";
         return result;
+    }
+    if (config.refinementMode != "none" && config.refinementMode != "local") {
+        result.error = "invalid refinement mode";
+        return result;
+    }
+    if (config.confidenceMode != "unit" && config.confidenceMode != "estimate"
+        && config.confidenceMode != "oracle") {
+        result.error = "invalid confidence mode";
+        return result;
+    }
+    if (config.geometryMode != "unknown" && config.geometryMode != "oracle") {
+        result.error = "geometry estimate requested but no geometry estimator is implemented";
+        return result;
+    }
+    int64_t targetEnd = 0, windowEnd = 0;
+    if (!config.startPtsUs) {
+        if (!checkedAddInt64(config.startFrame, config.frameCount - 1, targetEnd)
+            || !checkedAddInt64(targetEnd, static_cast<int64_t>(config.future), windowEnd)) {
+            result.error = "frame/window bounds overflow int64";
+            return result;
+        }
     }
 
     // --- config + provenance ---
@@ -212,8 +248,11 @@ RunResult runPipeline(const RunConfig& config) {
     m.config.past = config.past;
     m.config.future = config.future;
     m.config.correspondenceMode = config.correspondenceMode;
+    m.config.refinementMode = config.refinementMode;
     m.config.visibilityMode = config.visibilityMode;
+    m.config.confidenceMode = config.confidenceMode;
     m.config.geometryMode = config.geometryMode;
+    m.config.excludedNeighbors = config.excludedNeighbors;
     m.config.accumulateEnabled = config.accumulateEnabled;
     m.config.colorConvertEnabled = config.colorConvertEnabled;
     m.config.forcedCutFrames = config.forcedCutFrames;
@@ -259,7 +298,7 @@ RunResult runPipeline(const RunConfig& config) {
     // is covered.
     const int64_t lastNeeded = config.startPtsUs
         ? std::numeric_limits<int64_t>::max()
-        : config.startFrame + config.frameCount - 1 + config.future;
+        : windowEnd;
     std::map<uint64_t, Observation> frames;
     bool decodeFailed = false;
     std::string decodeError;
@@ -353,6 +392,32 @@ RunResult runPipeline(const RunConfig& config) {
             return result;
         }
     }
+    std::set<std::string> recordedOraclePaths;
+    auto recordOracleArtifact = [&](const std::string& path, const std::string& type,
+                                    uint64_t target,
+                                    std::optional<int64_t> reference) -> bool {
+        if (recordedOraclePaths.count(path)) return true;
+        Manifest::OracleArtifact a;
+        a.type = type;
+        a.targetFrame = target;
+        a.referenceFrame = reference;
+        a.path = path;
+        if (!sha256FileHex(path, a.sha256)) {
+            result.error = "failed to hash consumed oracle artifact " + path;
+            return false;
+        }
+        std::error_code oec;
+        a.sizeBytes = static_cast<uint64_t>(fs::file_size(path, oec));
+        if (oec) {
+            result.error = "failed to stat consumed oracle artifact " + path
+                + ": " + oec.message();
+            return false;
+        }
+        recordedOraclePaths.insert(path);
+        m.oracleArtifacts.push_back(std::move(a));
+        return true;
+    };
+
     auto dumpPath = [&](StageId stage, uint64_t frame, const char* tag) {
         return dumpBase / (std::string(stageName(stage)) + "_f" + std::to_string(frame)
                            + "_" + tag);
@@ -565,6 +630,16 @@ RunResult runPipeline(const RunConfig& config) {
                 excluded.push_back(std::to_string(s) + " reason=not_decoded");
                 continue;
             }
+            const bool ablated = std::find(config.excludedNeighbors.begin(),
+                config.excludedNeighbors.end(),
+                std::make_pair(static_cast<int64_t>(t), static_cast<int64_t>(s)))
+                != config.excludedNeighbors.end();
+            if (ablated) {
+                excluded.push_back(std::to_string(s) + " reason=ablation");
+                m.events.push_back({t, "neighbor_ablation",
+                                    "excluded reference " + std::to_string(s)});
+                continue;
+            }
             if (crossesCut(t, s)) {
                 excluded.push_back(std::to_string(s) + " reason=cut_boundary");
                 m.events.push_back({s, "window_reset",
@@ -589,23 +664,24 @@ RunResult runPipeline(const RunConfig& config) {
         }
         addTiming(m, StageId::WindowSelect, elapsedNs(winStart));
 
-        // correspondence per neighbor (flow + block normalization only;
-        // visibility is timed separately below)
+        // Coarse correspondence per neighbor.
         const Clock::time_point corrStart = Clock::now();
-        std::vector<FlowField> flows;
-        std::vector<std::vector<uint8_t>> coverages;
-        std::vector<std::vector<BlockMotion>> neighborBlocks;
+        std::vector<std::vector<BlockMotion>> coarseNeighborBlocks;
         std::vector<uint64_t> neighborOrder;
         std::string corrSourceUsed = config.correspondenceMode;
         for (uint64_t s : neighbors) {
             const Observation& obs = frames[s];
             std::vector<BlockMotion> blocks;
             if (config.correspondenceMode == "oracle") {
+                const std::string oraclePath = config.oracleDir + "/correspondence_"
+                    + std::to_string(t) + ".txt";
                 if (!oracleFileExists(config.oracleDir, t)) {
                     result.error = "oracle correspondence missing for frame "
                                  + std::to_string(t);
                     return result;
                 }
+                if (!recordOracleArtifact(oraclePath, "correspondence", t, std::nullopt))
+                    return result;
                 std::string oracleError;
                 auto ob = loadOracleCorrespondence(config.oracleDir, t, &oracleError);
                 if (!ob) {
@@ -613,10 +689,6 @@ RunResult runPipeline(const RunConfig& config) {
                                  + std::to_string(t) + ": " + oracleError;
                     return result;
                 }
-                // Oracle lines may address all window frames at once; keep
-                // only proven references to this neighbor. Geometry must fit
-                // the decoded target frame: ground truth that exceeds the
-                // frame is invalid, never clipped or coerced.
                 for (const BlockMotion& b : *ob) {
                     if (b.refFrameIndex != static_cast<int64_t>(s)) continue;
                     if (b.dstX < 0 || b.dstY < 0
@@ -646,7 +718,6 @@ RunResult runPipeline(const RunConfig& config) {
                     m.events.push_back({t, "side_info_ambiguous",
                                         "codec MV reference identity unproven; "
                                         "not applied to reconstruction"});
-                // only proven entries may enter the flow field
                 std::vector<BlockMotion> proven;
                 for (const BlockMotion& b : blocks)
                     if (!b.ambiguous && b.refFrameIndex == static_cast<int64_t>(s))
@@ -656,16 +727,33 @@ RunResult runPipeline(const RunConfig& config) {
                 blocks.clear();
                 corrSourceUsed = "none";
             }
-            std::vector<uint8_t> coverage;
-            FlowField flow = buildFlowField(width, height, blocks,
-                                            static_cast<int64_t>(s), &coverage);
-            flows.push_back(std::move(flow));
-            coverages.push_back(std::move(coverage));
-            neighborBlocks.push_back(std::move(blocks));
+            coarseNeighborBlocks.push_back(std::move(blocks));
             neighborOrder.push_back(s);
         }
         rec.correspondenceSource = corrSourceUsed;
         addTiming(m, StageId::Correspondence, elapsedNs(corrStart));
+
+        const Clock::time_point refineStart = Clock::now();
+        std::vector<std::vector<BlockMotion>> neighborBlocks = coarseNeighborBlocks;
+        if (config.refinementMode == "local") {
+            for (size_t i = 0; i < neighbors.size(); ++i) {
+                if (config.correspondenceMode == "oracle"
+                    || config.correspondenceMode == "none") continue;
+                neighborBlocks[i] = refineCorrespondence(
+                    target, frames[neighbors[i]], coarseNeighborBlocks[i], 1);
+            }
+        }
+        std::vector<FlowField> flows;
+        std::vector<std::vector<uint8_t>> coverages;
+        for (size_t i = 0; i < neighbors.size(); ++i) {
+            std::vector<uint8_t> coverage;
+            FlowField flow = buildFlowField(width, height, neighborBlocks[i],
+                                            static_cast<int64_t>(neighbors[i]),
+                                            &coverage);
+            flows.push_back(std::move(flow));
+            coverages.push_back(std::move(coverage));
+        }
+        addTiming(m, StageId::CorrespondenceRefinement, elapsedNs(refineStart));
 
         // visibility per neighbor, timed independently: oracle replaces;
         // otherwise default valid, minus pixels WITHOUT proven correspondence
@@ -679,6 +767,12 @@ RunResult runPipeline(const RunConfig& config) {
                                         Visibility::Valid);
             if (config.visibilityMode == "oracle") {
                 std::string visError;
+                const std::string visPath = config.oracleDir + "/visibility_"
+                    + std::to_string(t) + "_ref" + std::to_string(neighbors[i])
+                    + ".pgm";
+                if (!recordOracleArtifact(visPath, "visibility", t,
+                                          static_cast<int64_t>(neighbors[i])))
+                    return result;
                 auto ov = loadOracleVisibility(config.oracleDir, t,
                                                static_cast<int64_t>(neighbors[i]),
                                                width, height, &visError);
@@ -691,7 +785,8 @@ RunResult runPipeline(const RunConfig& config) {
                 }
                 vis = std::move(*ov);
                 m.events.push_back({t, "oracle_used", "visibility"});
-            } else if (!coverages[i].empty()) {
+            }
+            if (!coverages[i].empty()) {
                 for (size_t j = 0; j < vis.size(); ++j)
                     if (!coverages[i][j]) vis[j] = Visibility::Invalid;
             }
@@ -699,14 +794,51 @@ RunResult runPipeline(const RunConfig& config) {
         }
         addTiming(m, StageId::Visibility, elapsedNs(visStart));
 
+        const Clock::time_point confidenceStart = Clock::now();
+        std::vector<ConfidenceField> confidenceFields;
+        rec.confidenceSource = config.confidenceMode;
+        for (size_t i = 0; i < neighbors.size(); ++i) {
+            ConfidenceField confidence(static_cast<size_t>(width) * height, 1.0f);
+            if (config.confidenceMode == "estimate") {
+                confidence = estimateConfidence(target, frames[neighbors[i]],
+                                                flows[i], coverages[i]);
+            } else if (config.confidenceMode == "oracle") {
+                const std::string confPath = config.oracleDir + "/confidence_"
+                    + std::to_string(t) + "_ref" + std::to_string(neighbors[i])
+                    + ".pgm";
+                if (!recordOracleArtifact(confPath, "confidence", t,
+                                          static_cast<int64_t>(neighbors[i])))
+                    return result;
+                std::string confError;
+                auto oc = loadOracleConfidence(config.oracleDir, t,
+                                               static_cast<int64_t>(neighbors[i]),
+                                               width, height, &confError);
+                if (!oc) {
+                    result.error = "oracle confidence rejected for frame "
+                        + std::to_string(t) + " reference "
+                        + std::to_string(neighbors[i]) + ": " + confError;
+                    return result;
+                }
+                confidence = std::move(*oc);
+                m.events.push_back({t, "oracle_used", "confidence"});
+            }
+            confidenceFields.push_back(std::move(confidence));
+        }
+        addTiming(m, StageId::Confidence, elapsedNs(confidenceStart));
+
         // sample geometry
         const Clock::time_point geoStart = Clock::now();
         SampleGeometry geo;
         if (config.geometryMode == "oracle") {
-            auto og = loadOracleGeometry(config.oracleDir, t);
+            const std::string geoPath = config.oracleDir + "/geometry_"
+                + std::to_string(t) + ".txt";
+            if (!recordOracleArtifact(geoPath, "geometry", t, std::nullopt))
+                return result;
+            std::string geoError;
+            auto og = loadOracleGeometry(config.oracleDir, t, &geoError);
             if (!og) {
-                result.error = "oracle geometry missing/invalid for frame "
-                             + std::to_string(t);
+                result.error = "oracle geometry rejected for frame "
+                             + std::to_string(t) + ": " + geoError;
                 return result;
             }
             geo = *og;
@@ -731,6 +863,13 @@ RunResult runPipeline(const RunConfig& config) {
         if (!config.colorConvertEnabled) {
             ws.state = WorkingSpaceResult::State::identityKnown;
             ws.description = "color_convert disabled; source space preserved";
+        } else if (target.color.matrixKnown()
+                   && !target.color.matrixConversionSupported()) {
+            ws.state = WorkingSpaceResult::State::unknownMetadata;
+            ws.description = "known but unsupported color matrix ("
+                + ColorMeta::matrixName(target.color.matrix)
+                + "); no conversion performed";
+            m.events.push_back({t, "color_unsupported_matrix", ws.description});
         } else if (target.color.conversionFullySpecified()) {
             if (target.color.isHdrTransfer()) {
                 ws.state = WorkingSpaceResult::State::identityKnown;
@@ -790,7 +929,7 @@ RunResult runPipeline(const RunConfig& config) {
                 nbFlows.push_back(flows[i]);
                 nbVis.push_back(visMasks[i]);
             }
-            acc = accumulate(target, nb, nbFlows, nbVis);
+            acc = accumulate(target, nb, nbFlows, nbVis, confidenceFields);
         }
         rec.validSamples = acc.validSamples;
         rec.totalSamples = acc.totalSamples;
@@ -873,10 +1012,10 @@ RunResult runPipeline(const RunConfig& config) {
             // Actual correspondence values with provenance, per neighbor.
             std::string content = "frame " + std::to_string(t)
                                 + " source=" + corrSourceUsed + "\n";
-            for (size_t i = 0; i < neighborBlocks.size(); ++i) {
+            for (size_t i = 0; i < coarseNeighborBlocks.size(); ++i) {
                 content += "neighbor " + std::to_string(neighborOrder[i]) + " blocks "
-                         + std::to_string(neighborBlocks[i].size()) + "\n";
-                for (const BlockMotion& b : neighborBlocks[i]) {
+                         + std::to_string(coarseNeighborBlocks[i].size()) + "\n";
+                for (const BlockMotion& b : coarseNeighborBlocks[i]) {
                     content += "block " + std::to_string(b.dstX) + " "
                          + std::to_string(b.dstY) + " " + std::to_string(b.blockW)
                          + " " + std::to_string(b.blockH) + " mv "
@@ -894,6 +1033,54 @@ RunResult runPipeline(const RunConfig& config) {
                 return result;
             }
             recordDump(cP);
+        }
+        if (!dumpBase.empty() && stageDumpable(config.dumpStages, StageId::CorrespondenceRefinement)) {
+            std::string content = "frame " + std::to_string(t)
+                + " mode=" + config.refinementMode + "\n";
+            for (size_t i = 0; i < neighborBlocks.size(); ++i) {
+                content += "neighbor " + std::to_string(neighborOrder[i]) + " blocks "
+                    + std::to_string(neighborBlocks[i].size()) + "\n";
+                for (const BlockMotion& b : neighborBlocks[i]) {
+                    content += "block " + std::to_string(b.dstX) + " "
+                        + std::to_string(b.dstY) + " " + std::to_string(b.blockW)
+                        + " " + std::to_string(b.blockH) + " mv "
+                        + std::to_string(b.mvX) + " " + std::to_string(b.mvY)
+                        + " ref " + std::to_string(b.refFrameIndex) + "\n";
+                }
+            }
+            const fs::path rP = dumpPath(StageId::CorrespondenceRefinement, t,
+                                         "refined.txt");
+            if (!writeTextFile(rP, content)) {
+                result.error = "failed to write correspondence refinement dump "
+                    + rP.string();
+                return result;
+            }
+            recordDump(rP);
+        }
+        if (!dumpBase.empty() && stageDumpable(config.dumpStages, StageId::Confidence)) {
+            if (confidenceFields.empty()) {
+                const fs::path cP = dumpPath(StageId::Confidence, t, "none.txt");
+                if (!writeTextFile(cP, "frame " + std::to_string(t)
+                                    + " state=no_neighbors\n")) {
+                    result.error = "failed to write confidence dump " + cP.string();
+                    return result;
+                }
+                recordDump(cP);
+            } else {
+                for (size_t i = 0; i < confidenceFields.size(); ++i) {
+                    std::vector<uint8_t> bytes(confidenceFields[i].size());
+                    for (size_t j = 0; j < bytes.size(); ++j)
+                        bytes[j] = static_cast<uint8_t>(std::lround(
+                            std::clamp(confidenceFields[i][j], 0.0f, 1.0f) * 255.0f));
+                    const fs::path cP = dumpPath(StageId::Confidence, t,
+                        ("i" + std::to_string(i) + ".pgm").c_str());
+                    if (!writePgm(cP.string(), width, height, bytes.data(), width, 8)) {
+                        result.error = "failed to write confidence dump " + cP.string();
+                        return result;
+                    }
+                    recordDump(cP);
+                }
+            }
         }
         if (!dumpBase.empty() && stageDumpable(config.dumpStages, StageId::Visibility)) {
             if (visMasks.empty()) {

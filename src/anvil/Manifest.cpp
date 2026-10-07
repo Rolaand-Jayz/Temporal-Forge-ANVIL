@@ -14,7 +14,9 @@ const char* stageName(StageId id) {
         case StageId::Decode: return "decode";
         case StageId::WindowSelect: return "window_select";
         case StageId::Correspondence: return "correspondence";
+        case StageId::CorrespondenceRefinement: return "correspondence_refinement";
         case StageId::Visibility: return "visibility";
+        case StageId::Confidence: return "confidence";
         case StageId::SampleGeometryStage: return "sample_geometry";
         case StageId::ColorConvert: return "color_convert";
         case StageId::Accumulate: return "accumulate";
@@ -28,7 +30,9 @@ StageId stageFromName(const std::string& name, bool& ok) {
     if (name == "decode") return StageId::Decode;
     if (name == "window_select") return StageId::WindowSelect;
     if (name == "correspondence") return StageId::Correspondence;
+    if (name == "correspondence_refinement") return StageId::CorrespondenceRefinement;
     if (name == "visibility") return StageId::Visibility;
+    if (name == "confidence") return StageId::Confidence;
     if (name == "sample_geometry") return StageId::SampleGeometryStage;
     if (name == "color_convert") return StageId::ColorConvert;
     if (name == "accumulate") return StageId::Accumulate;
@@ -81,8 +85,18 @@ std::string Manifest::toJson() const {
     w.kv("past", config.past);
     w.kv("future", config.future);
     w.kv("correspondence_mode", config.correspondenceMode);
+    w.kv("refinement_mode", config.refinementMode);
     w.kv("visibility_mode", config.visibilityMode);
+    w.kv("confidence_mode", config.confidenceMode);
     w.kv("geometry_mode", config.geometryMode);
+    w.array("excluded_neighbors");
+    for (const auto& [target, reference] : config.excludedNeighbors) {
+        w.beginObject();
+        w.kv("target", target);
+        w.kv("reference", reference);
+        w.endObject();
+    }
+    w.endArray();
     w.kv("accumulate_enabled", config.accumulateEnabled);
     w.kv("color_convert_enabled", config.colorConvertEnabled);
     w.array("forced_cut_frames");
@@ -167,6 +181,20 @@ std::string Manifest::toJson() const {
     }
     w.endArray();
 
+    w.array("oracle_artifacts");
+    for (const auto& a : oracleArtifacts) {
+        w.beginObject();
+        w.kv("type", a.type);
+        w.kv("target_frame", a.targetFrame);
+        if (a.referenceFrame) w.kv("reference_frame", *a.referenceFrame);
+        else w.key("reference_frame"), w.null();
+        w.kv("path", a.path);
+        w.kv("sha256", a.sha256);
+        w.kv("size_bytes", a.sizeBytes);
+        w.endObject();
+    }
+    w.endArray();
+
     w.array("output_files");
     for (const auto& o : outputFiles) w.value(o);
     w.endArray();
@@ -197,6 +225,7 @@ std::string Manifest::toJson() const {
         w.kv("codec_mv_count", fr.codecMvCount);
         w.kv("codec_mv_usable_count", fr.codecMvUsableCount);
         w.kv("correspondence_source", fr.correspondenceSource);
+        w.kv("confidence_source", fr.confidenceSource);
         w.kv("geometry_state", fr.geometryState);
         w.kv("color_conversion", fr.colorConversion);
         w.kv("has_ground_truth", fr.hasGroundTruth);

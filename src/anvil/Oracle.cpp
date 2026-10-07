@@ -4,6 +4,8 @@
 #include <charconv>
 #include <cmath>
 #include <cstdio>
+#include <fstream>
+#include <limits>
 
 #include "Pnm.hpp"
 
@@ -111,8 +113,44 @@ std::optional<std::vector<BlockMotion>> loadOracleCorrespondence(
         // Range/semantic invariants — checked before any narrowing cast.
         if (ref < -1) { reason = "refFrameIndex < -1"; ok = false; break; }
         if (dirInt < 0 || dirInt > 1) { reason = "direction must be 0 or 1"; ok = false; break; }
-        if (dist != 0) {
-            // sign(dist) must match direction; 0 = unspecified distance.
+        if (dist < std::numeric_limits<int>::min()
+            || dist > std::numeric_limits<int>::max()) {
+            reason = "temporalDistance out of int range";
+            ok = false;
+            break;
+        }
+        if (ref >= 0) {
+            if (frameIndex > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
+                reason = "target frame index not representable as int64";
+                ok = false;
+                break;
+            }
+            const int64_t target = static_cast<int64_t>(frameIndex);
+            if (ref == target) {
+                reason = "reference frame must differ from target frame";
+                ok = false;
+                break;
+            }
+            const __int128 expected128 = static_cast<__int128>(ref)
+                                       - static_cast<__int128>(target);
+            if (expected128 < std::numeric_limits<int>::min()
+                || expected128 > std::numeric_limits<int>::max()) {
+                reason = "reference-target distance out of int range";
+                ok = false;
+                break;
+            }
+            const int expected = static_cast<int>(expected128);
+            if (dist != expected) {
+                reason = "temporalDistance disagrees with refFrameIndex-targetFrameIndex";
+                ok = false;
+                break;
+            }
+            if ((expected < 0 && dirInt != 0) || (expected > 0 && dirInt != 1)) {
+                reason = "direction disagrees with known reference";
+                ok = false;
+                break;
+            }
+        } else if (dist != 0) {
             if (dirInt == 0 && dist > 0) { reason = "past reference with positive temporalDistance"; ok = false; break; }
             if (dirInt == 1 && dist < 0) { reason = "future reference with negative temporalDistance"; ok = false; break; }
         }
@@ -180,26 +218,97 @@ std::optional<std::vector<Visibility>> loadOracleVisibility(
     }
     std::vector<Visibility> vis(pix.size());
     for (size_t i = 0; i < pix.size(); ++i) {
-        vis[i] = pix[i] == 0   ? Visibility::Invalid
-               : pix[i] == 255 ? Visibility::Valid
-                               : Visibility::Unknown;
+        if (pix[i] == 0) vis[i] = Visibility::Invalid;
+        else if (pix[i] == 128) vis[i] = Visibility::Unknown;
+        else if (pix[i] == 255) vis[i] = Visibility::Valid;
+        else {
+            if (error) *error = path + ": noncanonical visibility value "
+                + std::to_string(pix[i]) + " at sample " + std::to_string(i)
+                + " (allowed: 0,128,255)";
+            return std::nullopt;
+        }
     }
     return vis;
 }
 
+std::optional<std::vector<float>> loadOracleConfidence(
+    const std::string& dir, uint64_t frameIndex, int64_t refFrameIndex,
+    int expectedW, int expectedH, std::string* error) {
+    const std::string path = dir + "/confidence_" + std::to_string(frameIndex)
+        + "_ref" + std::to_string(refFrameIndex) + ".pgm";
+    int w = 0, h = 0;
+    std::vector<uint8_t> pix;
+    if (!readPgm(path, w, h, pix)) {
+        if (error) *error = "cannot read per-neighbor confidence oracle " + path;
+        return std::nullopt;
+    }
+    if (w != expectedW || h != expectedH) {
+        if (error) *error = path + ": dimensions " + std::to_string(w) + "x"
+            + std::to_string(h) + " do not match frame "
+            + std::to_string(expectedW) + "x" + std::to_string(expectedH);
+        return std::nullopt;
+    }
+    std::vector<float> confidence(pix.size(), 0.0f);
+    for (size_t i = 0; i < pix.size(); ++i)
+        confidence[i] = static_cast<float>(pix[i]) / 255.0f;
+    return confidence;
+}
+
 std::optional<SampleGeometry> loadOracleGeometry(const std::string& dir,
-                                                 uint64_t frameIndex) {
-    FILE* f = std::fopen(pathFor(dir, "geometry", frameIndex, ".txt").c_str(), "r");
-    if (!f) return std::nullopt;
-    int state = -1;
-    float px = 0, py = 0;
-    const int n = std::fscanf(f, "%d %f %f", &state, &px, &py);
-    std::fclose(f);
-    if (n != 3 || state < 0 || state > 2) return std::nullopt;
+                                                 uint64_t frameIndex,
+                                                 std::string* error) {
+    const std::string path = pathFor(dir, "geometry", frameIndex, ".txt");
+    std::ifstream f(path);
+    if (!f) {
+        if (error) *error = "cannot open " + path;
+        return std::nullopt;
+    }
+    std::string line;
+    bool haveData = false;
     SampleGeometry g;
-    g.state = static_cast<SampleGeometryState>(state);
-    g.phaseX = px;
-    g.phaseY = py;
+    uint64_t lineNo = 0;
+    while (std::getline(f, line)) {
+        ++lineNo;
+        std::string_view sv(line);
+        if (sv.empty() || sv[0] == '#') continue;
+        if (haveData) {
+            if (error) *error = path + " line " + std::to_string(lineNo)
+                + ": unexpected trailing data";
+            return std::nullopt;
+        }
+        const auto fields = splitFields(sv);
+        if (fields.size() != 3) {
+            if (error) *error = path + " line " + std::to_string(lineNo)
+                + ": expected exactly 3 fields";
+            return std::nullopt;
+        }
+        long long state = -1;
+        float px = 0.0f, py = 0.0f;
+        if (!parseIntStrict(fields[0], state) || !parseMotion(fields[1], px)
+            || !parseMotion(fields[2], py)) {
+            if (error) *error = path + " line " + std::to_string(lineNo)
+                + ": malformed or non-finite geometry value";
+            return std::nullopt;
+        }
+        if (state < 0 || state > 2) {
+            if (error) *error = path + " line " + std::to_string(lineNo)
+                + ": geometry state must be 0,1,2";
+            return std::nullopt;
+        }
+        if (px < 0.0f || px >= 1.0f || py < 0.0f || py >= 1.0f) {
+            if (error) *error = path + " line " + std::to_string(lineNo)
+                + ": phase must be finite and in [0,1)";
+            return std::nullopt;
+        }
+        g.state = static_cast<SampleGeometryState>(state);
+        g.phaseX = px;
+        g.phaseY = py;
+        haveData = true;
+    }
+    if (!haveData) {
+        if (error) *error = path + ": no geometry record";
+        return std::nullopt;
+    }
     return g;
 }
 

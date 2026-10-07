@@ -21,6 +21,11 @@ std::vector<BlockMotion> estimateCorrespondence(const Observation& target,
                                                 int blockSize = 16,
                                                 int searchRadius = 8);
 
+std::vector<BlockMotion> refineCorrespondence(const Observation& target,
+                                              const Observation& obs,
+                                              const std::vector<BlockMotion>& coarse,
+                                              int residualRadius = 1);
+
 // Confidence-weighted aligned-average reconstruction of the target frame
 // from the window observations. Fully deterministic, CPU-only, no random
 // components. Confidence weighting: target frame weight 1; neighbors weight
@@ -36,6 +41,7 @@ struct AccumulateResult {
 // (source Oracle or ImageEstimate, or unambiguous CodecMv). Blocks with
 // unknown reference identity are rejected (never silently applied).
 using FlowField = std::vector<float>; // 2 floats per pixel (dx, dy)
+using ConfidenceField = std::vector<float>; // one value per target pixel [0,1]
 
 // When `coverageOut` is provided it receives 1 byte per pixel: 1 where a
 // PROVEN block covers the pixel (including genuinely measured zero motion),
@@ -45,6 +51,17 @@ using FlowField = std::vector<float>; // 2 floats per pixel (dx, dy)
 FlowField buildFlowField(int width, int height, const std::vector<BlockMotion>& blocks,
                          int64_t refFrameIndex,
                          std::vector<uint8_t>* coverageOut = nullptr);
+
+ConfidenceField estimateConfidence(const Observation& target,
+                                   const Observation& neighbor,
+                                   const FlowField& flow,
+                                   const std::vector<uint8_t>& coverage);
+
+AccumulateResult accumulate(const Observation& target,
+                            const std::vector<Observation>& neighbors,
+                            const std::vector<FlowField>& neighborFlows,
+                            const std::vector<std::vector<Visibility>>& neighborVisibility,
+                            const std::vector<ConfidenceField>& neighborConfidence);
 
 AccumulateResult accumulate(const Observation& target,
                             const std::vector<Observation>& neighbors,

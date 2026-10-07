@@ -12,6 +12,7 @@
 #include <cstring>
 #include <filesystem>
 #include <iostream>
+#include <limits>
 #include <optional>
 #include <string>
 #include <vector>
@@ -78,8 +79,11 @@ void usage() {
         << "  --past N                 past window size (default 0 = single-frame control)\n"
         << "  --future N               future window size (default 0)\n"
         << "  --correspondence MODE    codec | estimate | oracle | none (default estimate)\n"
+        << "  --refinement MODE        none | local (default none)\n"
         << "  --visibility MODE        valid | oracle (default valid)\n"
-        << "  --geometry MODE          unknown | estimate | oracle (default unknown)\n"
+        << "  --confidence MODE        unit | estimate | oracle (default unit)\n"
+        << "  --geometry MODE          unknown | oracle (estimate rejected until implemented)\n"
+        << "  --exclude-neighbor T:R   ablate exact target/reference pair (repeatable)\n"
         << "  --no-accumulate          bypass the accumulate stage (passthrough)\n"
         << "  --no-color-convert       bypass explicit working-space conversion\n"
         << "  --cut-frames LIST        comma-separated forced scene-cut frame indices\n"
@@ -130,6 +134,8 @@ int main(int argc, char** argv) {
             unsigned long long n = 0;
             if (!next(v) || !parseUintStrict(v, n))
                 return configError("--start-pts-us requires a non-negative integer");
+            if (n > static_cast<unsigned long long>(std::numeric_limits<int64_t>::max()))
+                return configError("--start-pts-us exceeds int64 range");
             haveStartPts = true;
             cfg.startPtsUs = static_cast<int64_t>(n);
         } else if (arg == "--frame-count") {
@@ -141,30 +147,55 @@ int main(int argc, char** argv) {
         } else if (arg == "--past") {
             std::string v;
             long long n = 0;
-            if (!next(v) || !parseIntStrict(v, n) || n < 0)
-                return configError("--past requires a non-negative integer");
+            if (!next(v) || !parseIntStrict(v, n) || n < 0
+                || n > std::numeric_limits<int>::max())
+                return configError("--past requires a non-negative integer within int range");
             cfg.past = static_cast<int>(n);
         } else if (arg == "--future") {
             std::string v;
             long long n = 0;
-            if (!next(v) || !parseIntStrict(v, n) || n < 0)
-                return configError("--future requires a non-negative integer");
+            if (!next(v) || !parseIntStrict(v, n) || n < 0
+                || n > std::numeric_limits<int>::max())
+                return configError("--future requires a non-negative integer within int range");
             cfg.future = static_cast<int>(n);
         } else if (arg == "--correspondence") {
             if (!next(cfg.correspondenceMode)) return configError("--correspondence requires a value");
             if (!isKnownMode(cfg.correspondenceMode, {"codec", "estimate", "oracle", "none"}))
                 return configError("unknown correspondence mode '" + cfg.correspondenceMode
                                    + "' (codec | estimate | oracle | none)");
+        } else if (arg == "--refinement") {
+            if (!next(cfg.refinementMode)) return configError("--refinement requires a value");
+            if (!isKnownMode(cfg.refinementMode, {"none", "local"}))
+                return configError("unknown refinement mode '" + cfg.refinementMode
+                                   + "' (none | local)");
         } else if (arg == "--visibility") {
             if (!next(cfg.visibilityMode)) return configError("--visibility requires a value");
             if (!isKnownMode(cfg.visibilityMode, {"valid", "oracle"}))
                 return configError("unknown visibility mode '" + cfg.visibilityMode
                                    + "' (valid | oracle)");
+        } else if (arg == "--confidence") {
+            if (!next(cfg.confidenceMode)) return configError("--confidence requires a value");
+            if (!isKnownMode(cfg.confidenceMode, {"unit", "estimate", "oracle"}))
+                return configError("unknown confidence mode '" + cfg.confidenceMode
+                                   + "' (unit | estimate | oracle)");
         } else if (arg == "--geometry") {
             if (!next(cfg.geometryMode)) return configError("--geometry requires a value");
-            if (!isKnownMode(cfg.geometryMode, {"unknown", "estimate", "oracle"}))
-                return configError("unknown geometry mode '" + cfg.geometryMode
-                                   + "' (unknown | estimate | oracle)");
+            if (!isKnownMode(cfg.geometryMode, {"unknown", "oracle"}))
+                return configError("unknown/unsupported geometry mode '" + cfg.geometryMode
+                                   + "' (unknown | oracle; estimate is not implemented)");
+        } else if (arg == "--exclude-neighbor") {
+            std::string v;
+            if (!next(v)) return configError("--exclude-neighbor requires TARGET:REFERENCE");
+            const size_t colon = v.find(':');
+            if (colon == std::string::npos || colon == 0 || colon + 1 >= v.size()
+                || v.find(':', colon + 1) != std::string::npos)
+                return configError("--exclude-neighbor expects TARGET:REFERENCE");
+            long long target = 0, reference = 0;
+            if (!parseIntStrict(v.substr(0, colon), target)
+                || !parseIntStrict(v.substr(colon + 1), reference)
+                || target < 0 || reference < 0 || target == reference)
+                return configError("--exclude-neighbor requires distinct non-negative TARGET:REFERENCE");
+            cfg.excludedNeighbors.emplace_back(target, reference);
         } else if (arg == "--no-accumulate") {
             cfg.accumulateEnabled = false;
         } else if (arg == "--no-color-convert") {

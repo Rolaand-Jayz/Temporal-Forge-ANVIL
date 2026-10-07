@@ -45,6 +45,21 @@ bool ColorMeta::matrixKnown() const {
     return matrix != AVCOL_SPC_UNSPECIFIED && matrix != AVCOL_SPC_RESERVED;
 }
 
+bool ColorMeta::matrixConversionSupported() const {
+    switch (matrix) {
+        case AVCOL_SPC_BT709:
+        case AVCOL_SPC_BT470BG:
+        case AVCOL_SPC_SMPTE170M:
+        case AVCOL_SPC_BT2020_NCL:
+        case AVCOL_SPC_BT2020_CL:
+        case AVCOL_SPC_FCC:
+        case AVCOL_SPC_SMPTE240M:
+            return true;
+        default:
+            return false;
+    }
+}
+
 bool ColorMeta::rangeKnown() const {
     return range == AVCOL_RANGE_MPEG || range == AVCOL_RANGE_JPEG;
 }
@@ -54,8 +69,9 @@ bool ColorMeta::isHdrTransfer() const {
 }
 
 bool ColorMeta::conversionFullySpecified() const {
-    return transferKnown() && matrixKnown() && rangeKnown()
-        && primaries != AVCOL_PRI_UNSPECIFIED && pixelFormat != AV_PIX_FMT_NONE;
+    return transferKnown() && matrixKnown() && matrixConversionSupported()
+        && rangeKnown() && primaries != AVCOL_PRI_UNSPECIFIED
+        && pixelFormat != AV_PIX_FMT_NONE;
 }
 
 std::string ColorMeta::rangeName(int range) {

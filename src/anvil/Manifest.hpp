@@ -21,7 +21,9 @@ enum class StageId : uint8_t {
     Decode = 0,
     WindowSelect,
     Correspondence,
+    CorrespondenceRefinement,
     Visibility,
+    Confidence,
     SampleGeometryStage,
     ColorConvert,
     Accumulate,
@@ -59,8 +61,11 @@ public:
         int past = 0;
         int future = 0;
         std::string correspondenceMode; // codec | estimate | oracle | none
-        std::string visibilityMode;     // estimate | oracle | none
-        std::string geometryMode;       // unknown | estimate | oracle
+        std::string refinementMode;     // none | local
+        std::string visibilityMode;     // valid | oracle
+        std::string confidenceMode;     // unit | estimate | oracle
+        std::string geometryMode;       // unknown | oracle
+        std::vector<std::pair<int64_t, int64_t>> excludedNeighbors;
         bool accumulateEnabled = true;
         bool colorConvertEnabled = true;
         std::vector<int64_t> forcedCutFrames;
@@ -102,6 +107,16 @@ public:
     };
     std::vector<GroundTruthEntry> groundTruth;
 
+    struct OracleArtifact {
+        std::string type;
+        uint64_t targetFrame = 0;
+        std::optional<int64_t> referenceFrame;
+        std::string path;
+        std::string sha256;
+        uint64_t sizeBytes = 0;
+    };
+    std::vector<OracleArtifact> oracleArtifacts;
+
     // --- results ---
     std::vector<std::string> outputFiles;
     std::vector<StageTiming> stageTimings;
@@ -114,6 +129,7 @@ public:
         size_t codecMvCount = 0;
         size_t codecMvUsableCount = 0; // entries with PROVEN reference identity
         std::string correspondenceSource; // which source actually used
+        std::string confidenceSource;     // unit | estimate | oracle
         std::string geometryState;
         std::string colorConversion;      // WorkingSpaceResult description
         bool hasGroundTruth = false;

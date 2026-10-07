@@ -125,6 +125,44 @@ std::vector<BlockMotion> estimateCorrespondence(const Observation& target,
     return out;
 }
 
+std::vector<BlockMotion> refineCorrespondence(const Observation& target,
+                                              const Observation& obs,
+                                              const std::vector<BlockMotion>& coarse,
+                                              int residualRadius) {
+    std::vector<BlockMotion> out = coarse;
+    if (target.plane[0].empty() || obs.plane[0].empty()) return out;
+    residualRadius = std::max(0, residualRadius);
+    for (BlockMotion& b : out) {
+        if (b.ambiguous || b.refFrameIndex != static_cast<int64_t>(obs.frameIndex))
+            continue;
+        const int baseDx = static_cast<int>(std::lround(b.mvX));
+        const int baseDy = static_cast<int>(std::lround(b.mvY));
+        uint32_t bestSad = blockSad(target, b.dstX, b.dstY, obs,
+                                    b.dstX + baseDx, b.dstY + baseDy,
+                                    b.blockW, b.blockH);
+        int bestDx = baseDx, bestDy = baseDy;
+        for (int oy = -residualRadius; oy <= residualRadius; ++oy) {
+            for (int ox = -residualRadius; ox <= residualRadius; ++ox) {
+                const int dx = baseDx + ox, dy = baseDy + oy;
+                const uint32_t sad = blockSad(target, b.dstX, b.dstY, obs,
+                                              b.dstX + dx, b.dstY + dy,
+                                              b.blockW, b.blockH);
+                if (sad < bestSad) {
+                    bestSad = sad;
+                    bestDx = dx;
+                    bestDy = dy;
+                }
+            }
+        }
+        if (bestSad != ~0u) {
+            b.mvX = static_cast<float>(bestDx);
+            b.mvY = static_cast<float>(bestDy);
+            b.precision = MotionPrecision::Integer;
+        }
+    }
+    return out;
+}
+
 FlowField buildFlowField(int width, int height, const std::vector<BlockMotion>& blocks,
                          int64_t refFrameIndex, std::vector<uint8_t>* coverageOut) {
     FlowField flow(static_cast<size_t>(width) * height * 2, 0.0f);
@@ -166,10 +204,31 @@ inline float bilinear(const Observation& o, float fx, float fy) {
 }
 } // namespace
 
+ConfidenceField estimateConfidence(const Observation& target,
+                                   const Observation& neighbor,
+                                   const FlowField& flow,
+                                   const std::vector<uint8_t>& coverage) {
+    const int w = target.width, h = target.height;
+    ConfidenceField out(static_cast<size_t>(std::max(0, w)) * std::max(0, h), 0.0f);
+    if (w <= 0 || h <= 0 || flow.size() < out.size() * 2) return out;
+    const float scale = std::max(1.0f, static_cast<float>(maxSample(target)) / 16.0f);
+    for (int y = 0; y < h; ++y) for (int x = 0; x < w; ++x) {
+        const size_t i = static_cast<size_t>(y) * w + x;
+        if (!coverage.empty() && !coverage[i]) continue;
+        const float warped = bilinear(neighbor, x + flow[i * 2], y + flow[i * 2 + 1]);
+        const float truth = lumaAt(target, x, y);
+        if (std::isnan(warped) || std::isnan(truth)) continue;
+        const float residual = std::abs(warped - truth);
+        out[i] = 1.0f / (1.0f + residual / scale);
+    }
+    return out;
+}
+
 AccumulateResult accumulate(const Observation& target,
                             const std::vector<Observation>& neighbors,
                             const std::vector<FlowField>& neighborFlows,
-                            const std::vector<std::vector<Visibility>>& neighborVisibility) {
+                            const std::vector<std::vector<Visibility>>& neighborVisibility,
+                            const std::vector<ConfidenceField>& neighborConfidence) {
     AccumulateResult res; res.frame=target;
     const int w=target.width,h=target.height;
     if(w<=0||h<=0||target.plane[0].empty())return res;
@@ -198,19 +257,25 @@ AccumulateResult accumulate(const Observation& target,
         const FlowField& flow=neighborFlows[n];
         if(flow.size()<static_cast<size_t>(w)*h*2)continue;
         const std::vector<Visibility> none;
+        const ConfidenceField noConfidence;
         const auto& vis=n<neighborVisibility.size()?neighborVisibility[n]:none;
+        const auto& conf=n<neighborConfidence.size()?neighborConfidence[n]:noConfidence;
         for(int y=0;y<h;++y)for(int x=0;x<w;++x){
             const size_t i=static_cast<size_t>(y)*w+x; ++res.totalSamples;
-            if(!vis.empty()&&vis[i]==Visibility::Invalid)continue;
-            const float s=bilinear(o,x+flow[i*2],y+flow[i*2+1]);
-            if(std::isnan(s))continue;
-            accY[i]+=s; accW[i]+=1.0f; ++res.validSamples;
+            if(!vis.empty()&&vis[i]!=Visibility::Valid)continue;
+            const float weight=conf.empty()?1.0f:std::clamp(conf[i],0.0f,1.0f);
+            if(weight<=0.0f)continue;
+            const float sample=bilinear(o,x+flow[i*2],y+flow[i*2+1]);
+            if(std::isnan(sample))continue;
+            accY[i]+=sample*weight; accW[i]+=weight; ++res.validSamples;
         }
         if(p420&&isPlanar420(o)){
             for(int y=0;y<ch;++y)for(int x=0;x<cw;++x){
                 const size_t i=static_cast<size_t>(y)*cw+x;
                 const size_t fy=static_cast<size_t>(std::min(y*2,h-1))*w+std::min(x*2,w-1);
-                if(!vis.empty()&&vis[fy]==Visibility::Invalid)continue;
+                if(!vis.empty()&&vis[fy]!=Visibility::Valid)continue;
+                const float weight=conf.empty()?1.0f:std::clamp(conf[fy],0.0f,1.0f);
+                if(weight<=0.0f)continue;
                 const float fx=static_cast<float>(x)+flow[fy*2]*0.5f;
                 const float fyy=static_cast<float>(y)+flow[fy*2+1]*0.5f;
                 const int x0=static_cast<int>(std::floor(fx)),y0=static_cast<int>(std::floor(fyy));
@@ -222,7 +287,7 @@ AccumulateResult accumulate(const Observation& target,
                 const float v=bilinearBlend(planeAt(o,2,x0,y0,cw,ch),planeAt(o,2,x1,y0,cw,ch),
                     planeAt(o,2,x0,y1,cw,ch),planeAt(o,2,x1,y1,cw,ch),tx,ty);
                 if(std::isnan(u)||std::isnan(v))continue;
-                accU[i]+=u;accV[i]+=v;accCW[i]+=1.0f;
+                accU[i]+=u*weight;accV[i]+=v*weight;accCW[i]+=weight;
             }
         }
     }
@@ -236,6 +301,13 @@ AccumulateResult accumulate(const Observation& target,
         planeSet(res.frame,2,x,y,accV[i]/accCW[i],cw,ch);
     }
     return res;
+}
+
+AccumulateResult accumulate(const Observation& target,
+                            const std::vector<Observation>& neighbors,
+                            const std::vector<FlowField>& neighborFlows,
+                            const std::vector<std::vector<Visibility>>& neighborVisibility) {
+    return accumulate(target, neighbors, neighborFlows, neighborVisibility, {});
 }
 
 } // namespace anvil
