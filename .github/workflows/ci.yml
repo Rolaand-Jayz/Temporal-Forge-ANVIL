@@ -97,7 +97,7 @@ jobs:
             -pthread -o build-py/anvil_runner
           ./build-py/anvil_runner --help > /dev/null
 
-      - name: Run PR #7 contract suite + ANVIL contract suite
+      - name: Run historical + ANVIL contract suites
         run: |
           python3 -m pytest -q \
             tests/test_all_candidate_matrix.py \
