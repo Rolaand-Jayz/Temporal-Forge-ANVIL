@@ -406,30 +406,50 @@ def test_auto_scene_cut_blocks_cross_cut_accumulation(twoscene_clip, tmp_path):
 def test_exact_pts_selection_on_vfr(vfr_clip, tmp_path):
     """Exact-timestamp selection: exact match on a VFR stream, no nearest
     fallback, and hard failure on no-match (review 4202852907)."""
-    # anchor: select the 25-fps segment's second frame by its exact PTS
+    # Fixture PTS values are read from the container so the test does not
+    # depend on FFmpeg-version-specific timebase rounding. The stream is
+    # VFR by construction (10 fps segment then 25 fps segment).
+    ffprobe = shutil.which("ffprobe")
+    assert ffprobe, "ffprobe required for PTS introspection"
+    probe = subprocess.run(
+        [ffprobe, "-v", "quiet", "-select_streams", "v:0",
+         "-show_entries", "frame=pts_time", "-of", "csv=p=0", str(vfr_clip)],
+        capture_output=True, text=True)
+    assert probe.returncode == 0
+    pts_us = sorted({
+        int(round(float(line.strip().rstrip(',')) * 1_000_000))
+        for line in probe.stdout.splitlines() if line.strip()
+    })
+    assert len(pts_us) >= 5 and pts_us[4] - pts_us[3] != pts_us[1] - pts_us[0], \
+        "fixture is not VFR"
+    anchor = pts_us[4]  # a frame in the 25 fps segment
+
+    # exact match: the anchor is selected by its precise timestamp
     out = tmp_path / "pts"
-    proc = run_runner(out, "--input", vfr_clip, "--start-pts-us", 340000,
+    proc = run_runner(out, "--input", vfr_clip, "--start-pts-us", anchor,
                       "--frame-count", 2, "--past", 1)
     assert proc.returncode == 0, proc.stderr
     m = load_manifest(out)
-    assert m["config"]["start_pts_us"] == 340000
+    assert m["config"]["start_pts_us"] == anchor
     fr = m["frames"]
-    assert fr[0]["frame_index"] == 4          # 10fps*3 + 1
-    assert fr[0]["pts_us"] == 340000          # exact, not nearest
-    assert fr[1]["pts_us"] == 380000
+    assert fr[0]["frame_index"] == 4
+    assert fr[0]["pts_us"] == anchor          # exact, not nearest
+    assert fr[1]["pts_us"] == pts_us[5]
 
     # no-match: exact-match semantics never fall back to the nearest frame
+    gap = (pts_us[3] + pts_us[4]) // 2
+    nomatch = gap if gap not in pts_us else pts_us[-1] + 1_000
     out2 = tmp_path / "pts_nomatch"
-    proc = run_runner(out2, "--input", vfr_clip, "--start-pts-us", 350000,
+    proc = run_runner(out2, "--input", vfr_clip, "--start-pts-us", nomatch,
                       "--frame-count", 1)
     assert proc.returncode == 1
-    assert "no frame with exact pts_us=350000" in proc.stderr
+    assert f"no frame with exact pts_us={nomatch}" in proc.stderr
     assert not (out2 / "manifest.json").exists(), \
         "failed selection must not emit experiment output"
 
     # mutual exclusion of selection controls
     proc = run_runner(tmp_path / "pts_both", "--input", vfr_clip,
-                      "--start-frame", 1, "--start-pts-us", 340000,
+                      "--start-frame", 1, "--start-pts-us", anchor,
                       "--frame-count", 1)
     assert proc.returncode == 2
     assert "mutually exclusive" in proc.stderr
