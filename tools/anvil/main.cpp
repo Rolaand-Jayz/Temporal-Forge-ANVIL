@@ -47,6 +47,14 @@ bool parseUintStrict(const std::string& s, unsigned long long& out) {
 }
 
 // Strict float parse: whole token, finite (NaN/Inf are not configurations).
+bool checkedAddInt64(int64_t a, int64_t b, int64_t& out) {
+    if ((b > 0 && a > std::numeric_limits<int64_t>::max() - b)
+        || (b < 0 && a < std::numeric_limits<int64_t>::min() - b))
+        return false;
+    out = a + b;
+    return true;
+}
+
 bool parseDoubleStrict(const std::string& s, double& out) {
     if (s.empty()) return false;
     const char* b = s.data();
@@ -282,6 +290,13 @@ int main(int argc, char** argv) {
     }
     if (haveStartFrame && haveStartPts)
         return configError("--start-frame and --start-pts-us are mutually exclusive");
+
+    if (!cfg.startPtsUs) {
+        int64_t targetEnd = 0, windowEnd = 0;
+        if (!checkedAddInt64(cfg.startFrame, cfg.frameCount - 1, targetEnd)
+            || !checkedAddInt64(targetEnd, static_cast<int64_t>(cfg.future), windowEnd))
+            return configError("frame/window bounds overflow int64");
+    }
 
     const anvil::RunResult res = anvil::runPipeline(cfg);
     if (!res.ok) {
