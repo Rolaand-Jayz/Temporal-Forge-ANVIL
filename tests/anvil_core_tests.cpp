@@ -377,6 +377,11 @@ static void testKnownUnsupportedColorMatrixIsRejectedForConversion() {
     CHECK(!c.matrixConversionSupported());
     CHECK(!c.conversionFullySpecified());
 
+    c.matrix = AVCOL_SPC_BT2020_CL;
+    CHECK(c.matrixKnown());
+    CHECK(!c.matrixConversionSupported());
+    CHECK(!c.conversionFullySpecified());
+
     c.matrix = AVCOL_SPC_CHROMA_DERIVED_NCL;
     CHECK(c.matrixKnown());
     CHECK(!c.matrixConversionSupported());

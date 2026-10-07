@@ -120,7 +120,7 @@ int main(int argc, char** argv) {
         f << "# oracle: identity correspondence for frame 1\n";
         for (int by = 0; by < 64; by += 16)
             for (int bx = 0; bx < 64; bx += 16)
-                f << "1 0 0 " << bx << " " << by << " 16 16 0 0 3 P 0 0\n";
+                f << "0 0 -1 " << bx << " " << by << " 16 16 0 0 3 P 0 0\n";
     }
     // per-neighbor visibility fixtures (refs 0 and 2 of target 1)
     {
@@ -257,7 +257,9 @@ int main(int argc, char** argv) {
     const std::string mcap = slurp(tmp / "cap" / "manifest.json");
     for (const char* artifact :
          {"decode_f2_y.pgm", "decode_f2_mvs.txt", "window_select_f2_window.txt",
-          "correspondence_f2_correspondence.txt", "visibility_f2_i0.pgm",
+          "correspondence_f2_correspondence.txt",
+          "correspondence_refinement_f2_refined.txt",
+          "visibility_f2_i0.pgm", "confidence_f2_i0.pgm",
           "sample_geometry_f2_geometry.txt", "color_convert_f2_color.txt",
           "accumulate_f2_y.pgm", "decode_f3_y.pgm", "decode_f3_mvs.txt"}) {
         CHECK(fileExists(tmp / "capdumps" / artifact));

@@ -102,7 +102,7 @@ std::optional<std::vector<BlockMotion>> loadOracleCorrespondence(
             && parseIntStrict(fields[3], dstX) && parseIntStrict(fields[4], dstY)
             && parseIntStrict(fields[5], bw) && parseIntStrict(fields[6], bh)
             && parseMotion(fields[7], mvX) && parseMotion(fields[8], mvY)
-            && parseIntStrict(fields[9], precInt) && !fields[10].empty()
+            && parseIntStrict(fields[9], precInt) && fields[10].size() == 1
             && parseIntStrict(fields[11], intraInt)
             && parseIntStrict(fields[12], skipInt);
         if (!lineOk) {
@@ -165,6 +165,13 @@ std::optional<std::vector<BlockMotion>> loadOracleCorrespondence(
             break;
         }
         if (precInt < 0 || precInt > 4) { reason = "precision out of range"; ok = false; break; }
+        const char frameType = fields[10][0];
+        if (frameType != 'I' && frameType != 'P' && frameType != 'B'
+            && frameType != '?') {
+            reason = "frameType must be one of I/P/B/?";
+            ok = false;
+            break;
+        }
         if (intraInt < 0 || intraInt > 1 || skipInt < 0 || skipInt > 1) {
             reason = "intra/skip must be 0 or 1";
             ok = false;
@@ -204,10 +211,14 @@ std::optional<std::vector<Visibility>> loadOracleVisibility(
     // never shared silently across temporal neighbors.
     std::string path = dir + "/visibility_" + std::to_string(frameIndex)
         + "_ref" + std::to_string(refFrameIndex) + ".pgm";
-    int w = 0, h = 0;
+    int w = 0, h = 0, maxval = 0;
     std::vector<uint8_t> pix;
-    if (!readPgm(path, w, h, pix)) {
-        if (error) *error = "cannot read per-neighbor visibility oracle " + path;
+    if (!readPgm(path, w, h, pix, &maxval)) {
+        if (error) *error = "cannot read strict per-neighbor visibility oracle " + path;
+        return std::nullopt;
+    }
+    if (maxval != 255) {
+        if (error) *error = path + ": visibility oracle maxval must be 255";
         return std::nullopt;
     }
     if (w != expectedW || h != expectedH) {
@@ -236,10 +247,14 @@ std::optional<std::vector<float>> loadOracleConfidence(
     int expectedW, int expectedH, std::string* error) {
     const std::string path = dir + "/confidence_" + std::to_string(frameIndex)
         + "_ref" + std::to_string(refFrameIndex) + ".pgm";
-    int w = 0, h = 0;
+    int w = 0, h = 0, maxval = 0;
     std::vector<uint8_t> pix;
-    if (!readPgm(path, w, h, pix)) {
-        if (error) *error = "cannot read per-neighbor confidence oracle " + path;
+    if (!readPgm(path, w, h, pix, &maxval)) {
+        if (error) *error = "cannot read strict per-neighbor confidence oracle " + path;
+        return std::nullopt;
+    }
+    if (maxval != 255) {
+        if (error) *error = path + ": confidence oracle maxval must be 255";
         return std::nullopt;
     }
     if (w != expectedW || h != expectedH) {

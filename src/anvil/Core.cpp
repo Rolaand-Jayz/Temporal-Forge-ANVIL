@@ -1,6 +1,8 @@
 // Core.cpp — ANVIL core type implementation.
 #include "Core.hpp"
 
+#include <climits>
+
 extern "C" {
 #include <libavutil/frame.h>
 #include <libavutil/pixfmt.h>
@@ -39,8 +41,13 @@ const char* sampleGeometryStateName(SampleGeometryState s) {
 
 std::vector<uint64_t> WindowConfig::windowFor(uint64_t target) const {
     std::vector<uint64_t> out;
+    if (target > static_cast<uint64_t>(INT64_MAX)) return out;
     const int64_t t = static_cast<int64_t>(target);
-    for (int d = -past; d <= future; ++d) {
+    for (int64_t d = -static_cast<int64_t>(past);
+         d <= static_cast<int64_t>(future); ++d) {
+        if ((d > 0 && t > INT64_MAX - d)
+            || (d < 0 && t < INT64_MIN - d))
+            continue;
         const int64_t idx = t + d;
         if (idx >= 0) out.push_back(static_cast<uint64_t>(idx));
     }
