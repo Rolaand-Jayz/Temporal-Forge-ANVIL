@@ -100,6 +100,9 @@ public:
     //            final packet. Blocking unless requestAbort() was called.
     // Notes:     out.isFlush is set on flush packets emitted after a seek.
     bool readPacket(Packet& out);
+    // Last libavformat read status: 0 after a successful read, AVERROR_EOF on
+    // clean end-of-stream, another negative value on failure/abort.
+    [[nodiscard]] int lastReadError() const { return lastReadError_; }
 
     // seekUs: seek to targetUs microseconds (stream-agnostic via AV_TIME_BASE).
     //
@@ -124,6 +127,7 @@ private:
     AVFormatContext* ctx_ = nullptr;
     MediaInfo info_;
     std::atomic<bool> abort_{false};
+    int lastReadError_ = 0;
 };
 
 } // namespace temporal_forge

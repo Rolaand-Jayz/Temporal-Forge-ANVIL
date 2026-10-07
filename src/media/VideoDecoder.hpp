@@ -155,6 +155,7 @@ public:
     // Returns:   number of frames produced (0 or 1 typically; B-frames may
     //            delay output until later packets).
     int sendPacket(AVPacket* pkt);
+    [[nodiscard]] int lastSendError() const { return lastSendError_; }
 
     // receiveFrame: pull the next decoded frame (with YUV planes + motion vectors).
     //
@@ -163,6 +164,7 @@ public:
     //            into DecodedVideoFrame::motionVectors when present.
     // Returns:   false if no frame is ready yet (caller feeds more packets).
     bool receiveFrame(DecodedVideoFrame& out);
+    [[nodiscard]] int lastReceiveError() const { return lastReceiveError_; }
 
     // drainComplete: true once avcodec_receive_frame reported AVERROR_EOF —
     //                the decoder has emitted every frame of the stream and
@@ -197,6 +199,8 @@ private:
     bool hwaccelEnabled_ = false;
     bool motionMetadataRequested_ = false;
     bool drainComplete_ = false;
+    int lastSendError_ = 0;
+    int lastReceiveError_ = 0;
 };
 
 } // namespace temporal_forge

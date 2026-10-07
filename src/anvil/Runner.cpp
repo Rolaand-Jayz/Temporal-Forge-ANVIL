@@ -2,6 +2,7 @@
 #include "Runner.hpp"
 
 #include <algorithm>
+#include <cerrno>
 #include <chrono>
 #include <cmath>
 #include <filesystem>
@@ -218,8 +219,28 @@ RunResult runPipeline(const RunConfig& config) {
         result.error = "invalid window/frame-count parameters";
         return result;
     }
+    if (config.inputPath.empty() || config.outputDir.empty()) {
+        result.error = "inputPath and outputDir are required";
+        return result;
+    }
+    if (config.correspondenceMode != "codec"
+        && config.correspondenceMode != "estimate"
+        && config.correspondenceMode != "oracle"
+        && config.correspondenceMode != "none") {
+        result.error = "invalid correspondence mode";
+        return result;
+    }
     if (config.refinementMode != "none" && config.refinementMode != "local") {
         result.error = "invalid refinement mode";
+        return result;
+    }
+    if (config.refinementMode == "local"
+        && config.correspondenceMode != "estimate") {
+        result.error = "local refinement currently requires estimate correspondence";
+        return result;
+    }
+    if (config.visibilityMode != "valid" && config.visibilityMode != "oracle") {
+        result.error = "invalid visibility mode";
         return result;
     }
     if (config.confidenceMode != "unit" && config.confidenceMode != "estimate"
@@ -230,6 +251,23 @@ RunResult runPipeline(const RunConfig& config) {
     if (config.geometryMode != "unknown" && config.geometryMode != "oracle") {
         result.error = "geometry estimate requested but no geometry estimator is implemented";
         return result;
+    }
+    if (!std::isfinite(config.autoCutThreshold)
+        || config.autoCutThreshold < 0.0 || config.autoCutThreshold > 255.0) {
+        result.error = "auto scene-cut threshold must be finite and within [0,255]";
+        return result;
+    }
+    for (int64_t f : config.forcedCutFrames) {
+        if (f < 0) {
+            result.error = "forced cut frame indices must be non-negative";
+            return result;
+        }
+    }
+    for (const auto& [target, reference] : config.excludedNeighbors) {
+        if (target < 0 || reference < 0 || target == reference) {
+            result.error = "excluded neighbor pairs must contain distinct non-negative indices";
+            return result;
+        }
     }
     int64_t targetEnd = 0, windowEnd = 0;
     if (!config.startPtsUs) {
@@ -316,7 +354,14 @@ RunResult runPipeline(const RunConfig& config) {
            || frames.rbegin()->first < static_cast<uint64_t>(lastNeeded)) {
         temporal_forge::Packet pkt;
         if (!demuxer.readPacket(pkt)) {
-            decoder.sendPacket(nullptr); // EOF: flush delayed decoder frames
+            if (demuxer.lastReadError() != AVERROR_EOF) {
+                char errbuf[128] = {};
+                av_strerror(demuxer.lastReadError(), errbuf, sizeof(errbuf));
+                result.error = "demux read failed before clean EOF: "
+                    + std::string(errbuf);
+                return result;
+            }
+            decoder.sendPacket(nullptr); // clean EOF: flush delayed decoder frames
             break;
         }
         if (pkt.isEof) {
@@ -337,12 +382,29 @@ RunResult runPipeline(const RunConfig& config) {
             frames.emplace(idx, std::move(o));
             d = temporal_forge::DecodedVideoFrame{};
         }
+        const int receiveErr = decoder.lastReceiveError();
+        if (receiveErr < 0 && receiveErr != AVERROR(EAGAIN)
+            && receiveErr != AVERROR_EOF) {
+            char errbuf[128] = {};
+            av_strerror(receiveErr, errbuf, sizeof(errbuf));
+            result.error = "video decode failed: " + std::string(errbuf);
+            return result;
+        }
         if (decoder.drainComplete()) break;
     }
     // final drain in case the decoder still holds delayed frames
     while (!decoder.drainComplete()) {
         temporal_forge::DecodedVideoFrame d;
-        if (!decoder.receiveFrame(d)) break;
+        if (!decoder.receiveFrame(d)) {
+            const int receiveErr = decoder.lastReceiveError();
+            if (receiveErr == AVERROR_EOF) break;
+            char errbuf[128] = {};
+            av_strerror(receiveErr, errbuf, sizeof(errbuf));
+            result.error = receiveErr == AVERROR(EAGAIN)
+                ? "video decoder requested more input after end-of-stream flush"
+                : "video decode failed during final drain: " + std::string(errbuf);
+            return result;
+        }
         Observation o = observationFromDecoded(d);
         frames.emplace(o.frameIndex, std::move(o));
     }
