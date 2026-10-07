@@ -66,8 +66,10 @@ uint32_t blockSad(const Observation& a, int ax, int ay, const Observation& b,
         for (int x = 0; x < bw; ++x) {
             const int axi = ax + x, bxi = bx + x;
             if (axi < 0 || axi >= a.width || bxi < 0 || bxi >= b.width) return ~0u;
-            const int d=static_cast<int>(lumaAt(a,axi,ayi))
-                       -static_cast<int>(lumaAt(b,bxi,byi));
+            const float av = lumaAt(a, axi, ayi);
+            const float bv = lumaAt(b, bxi, byi);
+            if (!std::isfinite(av) || !std::isfinite(bv)) return ~0u;
+            const int d = static_cast<int>(av) - static_cast<int>(bv);
             sad+=static_cast<uint32_t>(d<0?-d:d);
         }
     }
@@ -276,7 +278,10 @@ ConfidenceField estimateConfidence(const Observation& target,
                                    const std::vector<uint8_t>& coverage) {
     const int w = target.width, h = target.height;
     ConfidenceField out(static_cast<size_t>(std::max(0, w)) * std::max(0, h), 0.0f);
-    if (w <= 0 || h <= 0 || flow.size() < out.size() * 2) return out;
+    if (w <= 0 || h <= 0 || flow.size() < out.size() * 2
+        || (!coverage.empty() && coverage.size() != out.size())
+        || !reconstructionSpaceCompatible(target, neighbor))
+        return out;
     const float scale = std::max(1.0f, static_cast<float>(maxSample(target)) / 16.0f);
     for (int y = 0; y < h; ++y) for (int x = 0; x < w; ++x) {
         const size_t i = static_cast<size_t>(y) * w + x;
