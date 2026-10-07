@@ -221,6 +221,35 @@ set_target_properties(temporal_forge_player PROPERTIES
 )
 
 # --- ANVIL successor (non-FSR, Qt-free, Vulkan-free, deterministic) ---
+# Capture source identity at configure time so provenance remains correct even
+# when anvil_runner is launched outside the repository working directory.
+execute_process(
+    COMMAND git rev-parse HEAD
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    RESULT_VARIABLE ANVIL_GIT_SHA_RC
+    OUTPUT_VARIABLE ANVIL_GIT_SHA
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET)
+if(NOT ANVIL_GIT_SHA_RC EQUAL 0 OR NOT ANVIL_GIT_SHA MATCHES "^[0-9A-Fa-f]{40}$")
+    set(ANVIL_GIT_SHA "")
+endif()
+execute_process(
+    COMMAND git status --porcelain
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    RESULT_VARIABLE ANVIL_GIT_DIRTY_RC
+    OUTPUT_VARIABLE ANVIL_GIT_STATUS
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET)
+if(ANVIL_GIT_DIRTY_RC EQUAL 0)
+    if(ANVIL_GIT_STATUS STREQUAL "")
+        set(ANVIL_GIT_DIRTY "false")
+    else()
+        set(ANVIL_GIT_DIRTY "true")
+    endif()
+else()
+    set(ANVIL_GIT_DIRTY "")
+endif()
+
 file(GLOB ANVIL_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/anvil/*.cpp")
 # Reused historical decode shell: justified independently of FSR (FFmpeg
@@ -236,7 +265,9 @@ target_include_directories(anvil_lib PUBLIC
 target_compile_features(anvil_lib PUBLIC cxx_std_23)
 target_compile_definitions(anvil_lib PRIVATE
     ANVIL_BUILD_TYPE="${CMAKE_BUILD_TYPE}"
-    ANVIL_COMPILER_ID="${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+    ANVIL_COMPILER_ID="${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}"
+    ANVIL_GIT_SHA="${ANVIL_GIT_SHA}"
+    ANVIL_GIT_DIRTY="${ANVIL_GIT_DIRTY}")
 foreach(lib ${FFMPEG_LIBRARIES})
     target_link_libraries(anvil_lib PUBLIC ${lib})
 endforeach()

@@ -83,9 +83,13 @@ jobs:
       - name: Build anvil_runner (ANVIL contract binary)
         run: |
           mkdir -p build-py
+          GIT_SHA="$(git rev-parse HEAD)"
+          if [ -n "$(git status --porcelain)" ]; then GIT_DIRTY=true; else GIT_DIRTY=false; fi
           g++ -std=c++23 -O2 -Isrc \
             -DANVIL_BUILD_TYPE="\"g++-direct\"" \
             -DANVIL_COMPILER_ID="\"g++ $(g++ -dumpversion)\"" \
+            -DANVIL_GIT_SHA="\"$GIT_SHA\"" \
+            -DANVIL_GIT_DIRTY="\"$GIT_DIRTY\"" \
             tools/anvil/main.cpp \
             src/anvil/*.cpp \
             src/media/Demuxer.cpp src/media/VideoDecoder.cpp src/util/Log.cpp \
