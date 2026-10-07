@@ -52,6 +52,7 @@ AVFrame* makeSyntheticFrame(int width, int height, int frameIdx) {
 
 struct EncodedPackets {
     std::vector<AVPacket*> packets; // ref-counted; caller frees
+    int expectedFrames = 0;
     bool ok = false;
 };
 
@@ -101,6 +102,7 @@ EncodedPackets encodeSynthetic(const AVCodec* encoder, int width, int height, in
         if (ok && !drainPackets()) ok = false;
     }
     avcodec_free_context(&c);
+    out.expectedFrames = frames;
     out.ok = ok && !out.packets.empty();
     return out;
 }
@@ -158,7 +160,10 @@ DecodeProbeResult decodeProbe(const AVCodec* decoder, const EncodedPackets& enc)
         if (flushRc < 0 && flushRc != AVERROR_EOF) ok = false;
         if (ok && !drainFrames()) ok = false;
     }
-    out.decodedOk = ok && out.totalFrames > 0;
+    // A capability probe is valid only if the synthetic stream decoded
+    // completely. Partial decode must not be reported as "decoded ok".
+    out.decodedOk = ok && enc.expectedFrames > 0
+        && out.totalFrames == enc.expectedFrames;
     av_frame_free(&f);
     avcodec_free_context(&c);
     return out;

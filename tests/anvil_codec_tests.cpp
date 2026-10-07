@@ -34,7 +34,7 @@ int main() {
         CHECK(!c.note.empty() || c.mvExportProven);
         // Truthfulness invariant: mv_export_proven=true requires an observed
         // probe frame carrying MV side data.
-        if (c.decodeProbePassed) CHECK(c.probeTotalFrames > 0);
+        if (c.decodeProbePassed) CHECK(c.probeTotalFrames == 8);
         if (c.mvExportProven) {
             CHECK(c.decodeProbePassed);
             CHECK(c.probeMvFrames > 0 && c.probeTotalFrames > 0);
