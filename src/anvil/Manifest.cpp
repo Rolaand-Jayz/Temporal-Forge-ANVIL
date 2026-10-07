@@ -78,6 +78,7 @@ std::string Manifest::toJson() const {
 
     w.object("config");
     w.kv("input_path", config.inputPath);
+    w.kv("output_dir", config.outputDir);
     w.kv("start_frame", config.startFrame);
     if (config.startPtsUs) w.kv("start_pts_us", *config.startPtsUs);
     else w.key("start_pts_us"), w.null();

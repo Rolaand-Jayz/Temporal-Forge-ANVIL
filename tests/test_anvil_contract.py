@@ -225,6 +225,7 @@ def test_manifest_schema_and_provenance(sdr_clip, tmp_path):
                 "events", "dump_files", "frames"):
         assert key in m, f"manifest missing section {key}"
     cfg = m["config"]
+    assert cfg["output_dir"] == str(out)
     assert cfg["start_frame"] == 0 and cfg["frame_count"] == 2
     assert cfg["past"] == 0 and cfg["future"] == 0
     prov = m["provenance"]
@@ -258,11 +259,14 @@ def test_deterministic_replay_byte_equality(sdr_clip, tmp_path):
     assert run_runner(out1, *args).returncode == 0
     assert run_runner(out2, *args).returncode == 0
     m1, m2 = load_manifest(out1), load_manifest(out2)
-    # deterministic fields: config + events + frames must be identical;
-    # stage timings are wall-clock and excluded by contract.
+    # The destination directory is serialized as exact execution config and
+    # intentionally differs between these two replay locations. Normalize
+    # only that environmental destination plus wall-clock timings.
     m1 = dict(m1, stage_timings=None)
     m2 = dict(m2, stage_timings=None)
-    assert m1 == m2, "manifest (minus timings) differs across identical runs"
+    m1["config"] = dict(m1["config"], output_dir="<normalized>")
+    m2["config"] = dict(m2["config"], output_dir="<normalized>")
+    assert m1 == m2, "manifest (minus timings/location) differs across identical runs"
     for f in ("frame_1.ppm", "frame_2.ppm", "frame_3.ppm"):
         a = (out1 / f).read_bytes()
         b = (out2 / f).read_bytes()
@@ -1023,6 +1027,10 @@ def test_strict_cli_configuration_matrix(sdr_clip, tmp_path):
         "future_destination_overflow": ["--future", "4294967296"],
         "pts_destination_overflow": ["--start-pts-us", "18446744073709551615"],
         "geometry_estimate_noop_forbidden": ["--geometry", "estimate"],
+        "oracle_refinement_false_arm": [
+            "--correspondence", "oracle", "--refinement", "local"],
+        "none_refinement_false_arm": [
+            "--correspondence", "none", "--refinement", "local"],
     }
     for name, extra in cases.items():
         out = tmp_path / name

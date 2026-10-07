@@ -56,6 +56,7 @@ public:
     // --- configuration (serialized verbatim) ---
     struct Config {
         std::string inputPath;
+        std::string outputDir;
         int64_t startFrame = 0;
         std::optional<int64_t> startPtsUs; // nullopt = frame-index selection
         int64_t frameCount = 1;
