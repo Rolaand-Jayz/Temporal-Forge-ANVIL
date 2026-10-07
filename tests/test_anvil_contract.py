@@ -133,7 +133,7 @@ def vfr_clip(tmp_path_factory):
         "-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0",
         # keep the uneven segment timestamps: some FFmpeg builds would
         # otherwise re-time the concat output to CFR
-        "-vsync", "passthrough",
+        "-fps_mode", "passthrough",
         "-c:v", "libx264", "-pix_fmt", "yuv420p",
         "-x264-params", "keyint=10:bframes=0",
         str(out),
