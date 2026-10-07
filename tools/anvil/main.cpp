@@ -297,10 +297,10 @@ int main(int argc, char** argv) {
     if (haveStartFrame && haveStartPts)
         return configError("--start-frame and --start-pts-us are mutually exclusive");
     if (cfg.refinementMode == "local"
-        && (cfg.correspondenceMode == "oracle"
-            || cfg.correspondenceMode == "none"))
-        return configError("--refinement local requires estimate or codec correspondence; "
-                           "oracle truth and none are not refinable arms");
+        && cfg.correspondenceMode != "estimate")
+        return configError("--refinement local currently requires estimate correspondence; "
+                           "codec references are unproven and oracle/none are not "
+                           "refinable arms");
 
     if (!cfg.startPtsUs) {
         int64_t targetEnd = 0, windowEnd = 0;
