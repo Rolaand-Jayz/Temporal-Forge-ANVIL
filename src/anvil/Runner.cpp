@@ -257,6 +257,38 @@ RunResult runPipeline(const RunConfig& config) {
         result.error = "auto scene-cut threshold must be finite and within [0,255]";
         return result;
     }
+    const bool anyOracle = config.correspondenceMode == "oracle"
+        || config.visibilityMode == "oracle"
+        || config.confidenceMode == "oracle"
+        || config.geometryMode == "oracle";
+    if (anyOracle && config.oracleDir.empty()) {
+        result.error = "oracle modes require oracleDir";
+        return result;
+    }
+    if (!config.dumpStages.empty() && config.dumpDir.empty()) {
+        result.error = "dumpStages requires dumpDir";
+        return result;
+    }
+    if (!config.dumpStages.empty()) {
+        size_t pos = 0;
+        while (pos <= config.dumpStages.size()) {
+            const size_t comma = config.dumpStages.find(',', pos);
+            const std::string token = config.dumpStages.substr(
+                pos, comma == std::string::npos ? std::string::npos : comma - pos);
+            bool known = token == "all";
+            if (!known) {
+                bool parsed = false;
+                stageFromName(token, parsed);
+                known = parsed;
+            }
+            if (!known) {
+                result.error = "invalid dump stage '" + token + "'";
+                return result;
+            }
+            if (comma == std::string::npos) break;
+            pos = comma + 1;
+        }
+    }
     for (int64_t f : config.forcedCutFrames) {
         if (f < 0) {
             result.error = "forced cut frame indices must be non-negative";

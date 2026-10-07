@@ -7,7 +7,26 @@ extern "C" {
 #include <libavutil/ffversion.h>
 }
 
+#ifndef ANVIL_GIT_SHA
+#define ANVIL_GIT_SHA ""
+#endif
+#ifndef ANVIL_GIT_DIRTY
+#define ANVIL_GIT_DIRTY ""
+#endif
+
 namespace anvil {
+
+namespace {
+bool validGitSha(const std::string& s) {
+    if (s.size() != 40) return false;
+    for (char c : s) {
+        const bool hex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')
+            || (c >= 'A' && c <= 'F');
+        if (!hex) return false;
+    }
+    return true;
+}
+}
 
 const char* stageName(StageId id) {
     switch (id) {
@@ -42,6 +61,8 @@ StageId stageFromName(const std::string& name, bool& ok) {
 }
 
 std::optional<std::string> detectGitSha() {
+    const std::string builtSha = ANVIL_GIT_SHA;
+    if (validGitSha(builtSha)) return builtSha;
     FILE* p = popen("git rev-parse HEAD 2>/dev/null", "r");
     if (!p) return std::nullopt;
     char buf[64] = {};
@@ -50,19 +71,13 @@ std::optional<std::string> detectGitSha() {
     if (!ok) return std::nullopt;
     std::string s(buf);
     while (!s.empty() && (s.back() == '\n' || s.back() == '\r')) s.pop_back();
-    // A Git SHA is exactly 40 hexadecimal characters; any leading character
-    // is valid. The previous '0'-prefix check silently discarded valid SHAs
-    // (e.g. every head starting '1'-'f').
-    if (s.size() != 40) return std::nullopt;
-    for (char c : s) {
-        const bool hex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')
-            || (c >= 'A' && c <= 'F');
-        if (!hex) return std::nullopt;
-    }
+    if (!validGitSha(s)) return std::nullopt;
     return s;
 }
 
 std::optional<std::string> detectGitDirty() {
+    const std::string builtDirty = ANVIL_GIT_DIRTY;
+    if (builtDirty == "true" || builtDirty == "false") return builtDirty;
     FILE* p = popen("git status --porcelain 2>/dev/null", "r");
     if (!p) return std::nullopt;
     char buf[256];

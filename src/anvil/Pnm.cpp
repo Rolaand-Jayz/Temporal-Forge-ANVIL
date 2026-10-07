@@ -2,6 +2,7 @@
 #include "Pnm.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <string>
 
@@ -66,7 +67,12 @@ bool readPgm(std::string_view path, int& width, int& height,
     if(std::fscanf(f,"P5 %d %d %d",&w,&h,&maxval)!=3||w<=0||h<=0||maxval<=0||maxval>255){
         std::fclose(f);return false;
     }
-    if(std::fgetc(f)!='\n'){std::fclose(f);return false;}
+    const int sep=std::fgetc(f);
+    if(sep==EOF||!std::isspace(static_cast<unsigned char>(sep))){std::fclose(f);return false;}
+    if(sep=='\r'){
+        const int next=std::fgetc(f);
+        if(next!='\n'&&next!=EOF)std::ungetc(next,f);
+    }
     pixels.resize(static_cast<size_t>(w)*h);
     const size_t n=std::fread(pixels.data(),1,pixels.size(),f);
     const int trailing=std::fgetc(f);

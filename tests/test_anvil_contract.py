@@ -1081,7 +1081,10 @@ def test_strict_cli_configuration_matrix(sdr_clip, tmp_path):
         "nan_threshold": ["--auto-cut-threshold", "nan"],
         "negative_threshold": ["--auto-cut-threshold", "-1"],
         "threshold_above_luma_range": ["--auto-cut-threshold", "255.0001"],
-        "unknown_dump_stage": ["--dump-stages", "accumlate"],
+        "unknown_dump_stage": ["--dump-dir", str(tmp_path / "bad_dump"),
+                               "--dump-stages", "accumlate"],
+        "dump_stage_without_dir": ["--dump-stages", "accumulate"],
+        "oracle_mode_without_dir": ["--correspondence", "oracle"],
         "missing_value": ["--frame-count"],
         "mutually_exclusive": ["--start-frame", "1", "--start-pts-us", "5"],
         "seed_overflow": ["--seed", "99999999999999999999999"],
@@ -1227,6 +1230,18 @@ def test_visibility_oracle_rejects_noncanonical_and_unknown_is_excluded(
                       "--correspondence", "oracle", "--visibility", "oracle",
                       "--oracle-dir", trailing)
     assert proc.returncode == 1
+
+    crlf = tmp_path / "vis_crlf"
+    crlf.mkdir()
+    (crlf / "correspondence_2.txt").write_text(rows)
+    (crlf / "visibility_2_ref1.pgm").write_bytes(
+        b"P5\r\n64 64\r\n255\r\n" + b"\xff" * (64 * 64))
+    out_crlf = tmp_path / "vis_crlf_out"
+    proc = run_runner(out_crlf, "--input", sdr_clip, "--start-frame", 2,
+                      "--frame-count", 1, "--past", 1,
+                      "--correspondence", "oracle", "--visibility", "oracle",
+                      "--oracle-dir", crlf)
+    assert proc.returncode == 0, proc.stderr
 
     unknown = tmp_path / "vis_unknown"
     unknown.mkdir()

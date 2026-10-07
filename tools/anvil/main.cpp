@@ -294,6 +294,14 @@ int main(int argc, char** argv) {
     }
     if (haveStartFrame && haveStartPts)
         return configError("--start-frame and --start-pts-us are mutually exclusive");
+    const bool anyOracle = cfg.correspondenceMode == "oracle"
+        || cfg.visibilityMode == "oracle"
+        || cfg.confidenceMode == "oracle"
+        || cfg.geometryMode == "oracle";
+    if (anyOracle && cfg.oracleDir.empty())
+        return configError("oracle modes require --oracle-dir");
+    if (!cfg.dumpStages.empty() && cfg.dumpDir.empty())
+        return configError("--dump-stages requires --dump-dir");
     if (cfg.refinementMode == "local"
         && cfg.correspondenceMode != "estimate")
         return configError("--refinement local currently requires estimate correspondence; "
