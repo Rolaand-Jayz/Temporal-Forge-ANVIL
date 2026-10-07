@@ -74,6 +74,21 @@ uint32_t blockSad(const Observation& a, int ax, int ay, const Observation& b,
 }
 } // namespace
 
+bool reconstructionSpaceCompatible(const Observation& a,
+                                   const Observation& b) {
+    return a.width == b.width
+        && a.height == b.height
+        && a.avPixelFormat == b.avPixelFormat
+        && a.planeCount == b.planeCount
+        && a.color.range == b.color.range
+        && a.color.primaries == b.color.primaries
+        && a.color.transfer == b.color.transfer
+        && a.color.matrix == b.color.matrix
+        && a.color.chromaLocation == b.color.chromaLocation
+        && a.color.pixelFormat == b.color.pixelFormat
+        && a.color.bitDepth == b.color.bitDepth;
+}
+
 std::vector<BlockMotion> estimateCorrespondence(const Observation& target,
                                                 const Observation& obs,
                                                 int blockSize, int searchRadius) {
@@ -254,6 +269,7 @@ AccumulateResult accumulate(const Observation& target,
 
     for(size_t n=0;n<neighbors.size()&&n<neighborFlows.size();++n){
         const Observation& o=neighbors[n];
+        if (!reconstructionSpaceCompatible(target, o)) continue;
         const FlowField& flow=neighborFlows[n];
         if(flow.size()<static_cast<size_t>(w)*h*2)continue;
         const std::vector<Visibility> none;
