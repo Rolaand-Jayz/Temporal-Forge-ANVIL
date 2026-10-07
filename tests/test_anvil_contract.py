@@ -65,6 +65,22 @@ def sdr_clip(tmp_path_factory):
 
 
 @pytest.fixture(scope="module")
+def unsupported_matrix_clip(tmp_path_factory):
+    """SDR clip tagged with a known matrix ANVIL deliberately cannot convert."""
+    out = tmp_path_factory.mktemp("fx") / "anvil_ycgco.mp4"
+    cmd = [
+        FFMPEG, "-y", "-loglevel", "error",
+        "-f", "lavfi", "-i", "testsrc2=size=64x64:rate=10:duration=0.4",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p",
+        "-x264-params",
+        "keyint=10:bframes=0:colorprim=bt709:transfer=bt709:colorrange=tv:colormatrix=ycgco",
+        str(out),
+    ]
+    subprocess.run(cmd, check=True)
+    return out
+
+
+@pytest.fixture(scope="module")
 def twoscene_clip(tmp_path_factory):
     """32x32 hard cut black->white at frame 6 (6+6 frames @10fps)."""
     out = tmp_path_factory.mktemp("fx") / "anvil_twoscene.mp4"
@@ -340,6 +356,21 @@ def test_sdr_explicit_conversion_hdr_preserved(sdr_clip, hdr_clip, tmp_path):
     assert not (hdr_out / "frame_0.ppm").exists()
     # HDR color metadata is tracked, not guessed
     assert m["frames"][0] is not None
+
+
+def test_known_unsupported_color_matrix_never_falls_back_to_rgb(
+        unsupported_matrix_clip, tmp_path):
+    out = tmp_path / "unsupported_matrix"
+    proc = run_runner(out, "--input", unsupported_matrix_clip, "--frame-count", 1)
+    assert proc.returncode == 0, proc.stderr
+    m = load_manifest(out)
+    fr = m["frames"][0]
+    assert fr["color_source"]["matrix"] == "ycgco"
+    assert "known but unsupported color matrix" in fr["color_conversion"]
+    assert "color_unsupported_matrix" in [e["type"] for e in m["events"]]
+    assert not (out / "frame_0.ppm").exists(), (
+        "unsupported matrix silently fell through to RGB conversion")
+    assert (out / "frame_0_y.pgm").is_file()
 
 
 def test_unspecified_color_metadata_preserved(tmp_path_factory, sdr_clip):
