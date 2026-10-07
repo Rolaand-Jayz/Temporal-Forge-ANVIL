@@ -306,6 +306,9 @@ anvil_add_test(anvil_core_tests
             ../src/anvil/Manifest.cpp
             ../src/anvil/Reconstruct.cpp
             ../src/anvil/Sha256.cpp)
+# git-provenance regression runs inside the checkout so detectGitSha() can
+# be compared against `git rev-parse HEAD`.
+set_tests_properties(anvil_core_tests PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 if(NOT FFMPEG_ANVIL_FOUND)
     set_tests_properties(anvil_core_tests PROPERTIES DISABLED ON)
 endif()

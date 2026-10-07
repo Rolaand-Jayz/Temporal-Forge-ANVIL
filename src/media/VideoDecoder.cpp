@@ -186,6 +186,10 @@ Timebase VideoDecoder::timebase() const {
             static_cast<int>(codec_->pkt_timebase.den)};
 }
 
+const char* VideoDecoder::codecName() const {
+    return codec_ ? avcodec_get_name(codec_->codec_id) : nullptr;
+}
+
 int VideoDecoder::sendPacket(AVPacket* pkt) {
     if (!codec_) return 0;
     int err = avcodec_send_packet(codec_, pkt);
@@ -289,6 +293,12 @@ bool VideoDecoder::receiveFrame(DecodedVideoFrame& out) {
     out.chromaLocation = sourceFrame->chroma_location != AVCHROMA_LOC_UNSPECIFIED
                              ? sourceFrame->chroma_location
                              : codec_->chroma_sample_location;
+    out.hasMasteringDisplay =
+        av_frame_get_side_data(const_cast<AVFrame*>(sourceFrame),
+                               AV_FRAME_DATA_MASTERING_DISPLAY_METADATA) != nullptr;
+    out.hasContentLightLevel =
+        av_frame_get_side_data(const_cast<AVFrame*>(sourceFrame),
+                               AV_FRAME_DATA_CONTENT_LIGHT_LEVEL) != nullptr;
     const AVPixFmtDescriptor *sourceDesc =
         av_pix_fmt_desc_get(static_cast<AVPixelFormat>(sourceFrame->format));
     out.bitDepth = sourceDesc && sourceDesc->comp[0].depth > 0

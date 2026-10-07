@@ -188,6 +188,108 @@ static void testProvenanceDetection() {
     if (dirty) CHECK(*dirty == "true" || *dirty == "false");
 }
 
+static void testGitShaAcceptsAnyHex() {
+    // Regression (review 4202350957): a valid 40-hex SHA whose first char is
+    // not '0' must be accepted. In a git checkout, detectGitSha() must equal
+    // `git rev-parse HEAD` exactly. Outside a checkout it stays nullopt.
+    auto sha = detectGitSha();
+    if (!sha) {
+        std::printf("note: not a git checkout; git-sha test skipped\n");
+        return;
+    }
+    CHECK(sha->size() == 40);
+    for (char c : *sha) {
+        const bool hex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')
+            || (c >= 'A' && c <= 'F');
+        CHECK(hex);
+    }
+    FILE* p = popen("git rev-parse HEAD", "r");
+    CHECK(p != nullptr);
+    if (p) {
+        char buf[64] = {};
+        const bool ok = std::fgets(buf, sizeof(buf), p) != nullptr;
+        pclose(p);
+        if (ok) {
+            std::string expected(buf);
+            while (!expected.empty()
+                   && (expected.back() == '\n' || expected.back() == '\r'))
+                expected.pop_back();
+            CHECK(*sha == expected); // manifest SHA == git rev-parse HEAD
+        }
+    }
+}
+
+static Observation makeObsWxH(uint64_t idx, int w, int h, uint8_t fill,
+                              int shiftX = 0) {
+    return makeObs(idx, w, h, fill, shiftX);
+}
+
+static void testPartialEdgeTilesAreCovered() {
+    // Regression (review 4202350977): partial 16x16 edge tiles must be
+    // estimated with clipped geometry instead of leaving pixels uncovered
+    // (which degenerated into fabricated zero-motion blending).
+    // 66x65: right column tiles are 2 wide, bottom row tiles 1 tall.
+    Observation target = makeObs(0, 66, 65, 100);
+    for (int y = 0; y < 16; ++y)
+        for (int x = 40; x < 56; ++x)
+            target.plane[0][size_t(y) * 66 + x] = 250;
+    Observation obs = target;
+    obs.frameIndex = 1;
+    std::vector<uint8_t> shifted(size_t(66) * 65, 60);
+    for (int y = 0; y < 65; ++y)
+        for (int x = 4; x < 66; ++x)
+            shifted[size_t(y) * 66 + x] = target.plane[0][size_t(y) * 66 + (x - 4)];
+    obs.plane[0] = shifted;
+
+    auto blocks = estimateCorrespondence(target, obs);
+    CHECK(!blocks.empty());
+    bool sawClippedW = false, sawClippedH = false;
+    for (const BlockMotion& b : blocks) {
+        if (b.blockW < 16) sawClippedW = true;
+        if (b.blockH < 16) sawClippedH = true;
+    }
+    CHECK(sawClippedW); // 66 % 16 == 2
+    CHECK(sawClippedH); // 65 % 16 == 1
+
+    std::vector<uint8_t> covered;
+    buildFlowField(66, 65, blocks, 1, &covered);
+    size_t uncovered = 0;
+    for (uint8_t c : covered) if (!c) ++uncovered;
+    CHECK(uncovered == 0); // every pixel has proven correspondence
+
+    // The bright block's clipped interior is recovered exactly.
+    std::vector<BlockMotion> bright;
+    for (const BlockMotion& b : blocks)
+        if (b.dstY < 16 && b.dstX + int(b.blockW) > 40 && b.dstX < 56)
+            bright.push_back(b);
+    auto flow = buildFlowField(66, 65, bright, 1);
+    auto res = accumulate(target, {obs}, {flow}, {});
+    bool brightOk = true;
+    for (int y = 0; y < 16 && brightOk; ++y)
+        for (int x = 44; x < 52; ++x)
+            if (res.frame.plane[0][size_t(y) * 66 + x] != 250) { brightOk = false; break; }
+    CHECK(brightOk);
+}
+
+static void testEdgeTilesOn1920x1080() {
+    // Regression (review 4202350977): 1920x1080 leaves 8-row bottom tiles;
+    // they must be estimated and covered, not dropped.
+    const int w = 1920, h = 1080;
+    Observation target = makeObs(0, w, h, 100);
+    Observation obs = target;
+    obs.frameIndex = 1;
+    auto blocks = estimateCorrespondence(target, obs);
+    bool sawBottomRow = false;
+    for (const BlockMotion& b : blocks)
+        if (b.dstY == h - 8 && b.blockH == 8) sawBottomRow = true;
+    CHECK(sawBottomRow);
+    std::vector<uint8_t> covered;
+    buildFlowField(w, h, blocks, 1, &covered);
+    size_t uncovered = 0;
+    for (uint8_t c : covered) if (!c) ++uncovered;
+    CHECK(uncovered == 0);
+}
+
 static void testSha256KnownAnswers() {
     // FIPS 180-4 vectors — provenance hashes must be real SHA-256.
     CHECK(sha256Hex(nullptr, 0)
@@ -216,6 +318,9 @@ int main() {
     testAccumulateAverageWithOracleFlow();
     testAmbiguousBlocksNeverEnterFlow();
     testProvenanceDetection();
+    testGitShaAcceptsAnyHex();
+    testPartialEdgeTilesAreCovered();
+    testEdgeTilesOn1920x1080();
     testSha256KnownAnswers();
     if (failures) {
         std::printf("%d check(s) FAILED\n", failures);

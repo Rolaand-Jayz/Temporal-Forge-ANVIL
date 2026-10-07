@@ -62,6 +62,11 @@ struct DecodedVideoFrame {
     // PlaybackEngine uses this marker for the integrated causal-history guard.
     bool bFrame = false;
     int hwFrameFormat = -1;     // AVPixelFormat for the hardware frame, if any
+    // HDR side-data presence carried through from the decoded AVFrame so
+    // downstream consumers can reflect actual source evidence (never
+    // inferred from container or codec defaults).
+    bool hasMasteringDisplay = false;
+    bool hasContentLightLevel = false;
     // Retains mapped DRM PRIME descriptors and their DMA-BUF file descriptors
     // until the Vulkan uploader has imported the frame.
     std::shared_ptr<AVFrame> hwFrameOwner;
@@ -138,6 +143,10 @@ public:
     [[nodiscard]] bool gpuFriendlyFormat() const;
     [[nodiscard]] Timebase timebase() const;
     [[nodiscard]] bool hwaccelEnabled() const { return hwaccelEnabled_; }
+    // Codec name of the opened decoder (e.g. "h264", "hevc", "av1"), or
+    // nullptr when no codec is open. Lets callers derive per-codec capability
+    // instead of applying the global probe matrix to any input.
+    [[nodiscard]] const char* codecName() const;
 
     // sendPacket: feed one demuxed packet to the decoder.
     //
