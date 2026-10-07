@@ -36,12 +36,14 @@ src/anvil/
                             evidence only (never fed to reconstruction)
   CodecProbe.hpp/.cpp       per-codec MEASURED capability probe
                             (H.264 / HEVC / AV1 MV-export reality)
-  Reconstruct.hpp/.cpp      deterministic block-SAD estimator (always labeled
-                            image_estimate) + confidence-weighted aligned
-                            average accumulator
+  Reconstruct.hpp/.cpp      deterministic block-SAD coarse estimator,
+                            local residual correspondence refinement,
+                            photometric confidence estimator, sample-geometry
+                            flow adjustment + confidence-weighted accumulator
   Runner.hpp/.cpp           pipeline integration: decode -> window ->
-                            correspondence -> visibility -> geometry ->
-                            color -> accumulate -> output
+                            correspondence -> refinement -> visibility ->
+                            confidence -> geometry -> color -> accumulate ->
+                            output; exact per-neighbor ablation
   (reused, Qt-free): ../media/Demuxer, ../media/VideoDecoder, ../util/Log
 ```
 
@@ -50,33 +52,42 @@ CMake filter; `anvil_lib` contains no Qt, Vulkan, or FSR code.
 
 ## Pipeline stages (each: selectable, bypassable, timed, dumpable)
 
-decode → window_select → correspondence → visibility → sample_geometry →
-color_convert → accumulate → output
+decode → window_select → correspondence → correspondence_refinement →
+visibility → confidence → sample_geometry → color_convert → accumulate →
+output
 
 ## Run manifest
 
 `manifest.json` (deterministic serialization; stage timings are wall-clock
 and excluded from replay equality):
 
-- `config` — every runner parameter, including `deterministic_no_random_components: true`
+- `config` — every runner parameter, including refinement/confidence modes,
+  exact PTS selection, exact neighbor exclusions and
+  `deterministic_no_random_components: true`
 - `ground_truth[]` — HR ground-truth attachments: frame association, SHA-256,
   size, width/height, maxval, format, usage note (reference evidence only)
+- `oracle_artifacts[]` — every consumed correspondence/visibility/confidence/
+  sample-geometry oracle input with SHA-256, size, type, target and optional
+  reference consumption role
 - `output_files[]` — final artifact inventory (paths relative to the output dir)
-- `provenance` — git SHA/dirty (null when unavailable), FFmpeg version,
-  build type, compiler, input SHA-256 + size, decode mode
+- `provenance` — git SHA/dirty, FFmpeg version, build type, compiler,
+  input SHA-256 + size, decode mode
 - `codec_capabilities` — measured H.264/HEVC/AV1 matrix
-- `stage_timings[]`, `events[]` (scene_cut, window_reset, fallback,
-  side_info_unsupported, side_info_ambiguous, color_unknown_metadata,
-  oracle_used), `dump_files[]`, `frames[]` (per-frame side-info state,
-  correspondence source, geometry state, color conversion, sample counts)
+- `stage_timings[]`, `events[]`, `dump_files[]`, `frames[]` — side-info
+  state, correspondence source, geometry/color state and sample counts
 
 ## CLI
 
 ```
 anvil_runner --input FILE --output-dir DIR
-    [--start-frame N] [--frame-count N] [--past N] [--future N]
+    [--start-frame N | --start-pts-us US] [--frame-count N]
+    [--past N] [--future N]
     [--correspondence codec|estimate|oracle|none]
-    [--visibility valid|oracle] [--geometry unknown|oracle]
+    [--refinement none|local]
+    [--visibility valid|oracle]
+    [--confidence unit|estimate|oracle]
+    [--geometry unknown|oracle]
+    [--exclude-neighbor TARGET:REFERENCE ...]
     [--no-accumulate] [--no-color-convert]
     [--cut-frames 3,17] [--auto-scene-cut] [--auto-cut-threshold X]
     [--oracle-dir DIR] [--dump-dir DIR] [--dump-stages all|stage,list]
@@ -90,18 +101,24 @@ match observation resolution or be genuinely higher resolution; observation
 dimensions and scale_x/scale_y are recorded so controlled HR→LR fixtures are
 not forced into a false same-resolution contract.
 
-With `--dump-stages all`, the captured artifact set per target frame is:
-`decode_f<N>_y.pgm` (source planes), `decode_f<N>_mvs.txt` (raw codec MV
-entries as delivered, or explicit `state=none`), `window_select_f<N>_window.txt`
-(selection + exclusions), `correspondence_f<N>_correspondence.txt` (actual
-block/vector values with provenance), `visibility_f<N>_i<I>.pgm` (actual
-masks; `visibility_f<N>_none.txt` for the single-frame control),
-`sample_geometry_f<N>_geometry.txt`, `color_convert_f<N>_color.txt` (metadata
-+ working-space decision), `accumulate_f<N>_y.pgm` (reconstructed data).
-Per-pixel confidence capture is N/A (a fixed scalar exists; no per-pixel
-estimator is implemented); there is no distinct backend-input stage. All
-inventory paths are recorded relative to their base directory for
-deterministic replay.
+With `--dump-stages all`, the captured artifact set per target frame includes
+decoded source/MV evidence, window selection and ablation exclusions, coarse
+`correspondence`, `correspondence_refinement`, per-neighbor `visibility`
+and `confidence` PGM fields, sample geometry, color metadata/decision,
+accumulated reconstruction and final outputs. Single-frame/no-neighbor states
+are explicit. All dump inventory paths are recorded relative to their base
+directory for deterministic replay.
+
+Oracle files are strict evidence inputs: correspondence records are
+range/relationship validated; visibility accepts only 0/128/255; geometry
+requires exactly three finite fields with phase in [0,1); every consumed
+oracle artifact is hashed and recorded in `oracle_artifacts[]`. Oracle
+visibility is still gated by proven correspondence coverage, so it cannot
+manufacture usable motion.
+
+`--geometry estimate` is intentionally unsupported at this gate and is
+rejected as a configuration error. The representation retains the Estimated
+state for a future genuine estimator.
 
 Planar 4:2:0 temporal reconstruction is sample-depth aware: 8-bit uses one
 byte/sample while 10/12/16-bit little-endian inputs use complete two-byte
@@ -113,7 +130,8 @@ Example (deterministic offline run):
 
 ```
 anvil_runner --input clip.mp4 --output-dir out --start-frame 5 \
-  --frame-count 4 --past 2 --future 2 --correspondence estimate
+  --frame-count 4 --past 2 --future 2 --correspondence estimate \
+  --refinement local --confidence estimate
 # -> out/manifest.json, out/frame_5.ppm ... out/frame_8.ppm
 ```
 
@@ -142,4 +160,4 @@ suites. The ANVIL targets themselves need only FFmpeg.
 - `tests/anvil_codec_tests.cpp` — measured codec capability truthfulness
 - `tests/anvil_runner_tests.cpp` — end-to-end CLI on generated fixtures
   (SDR full-metadata, PQ-HDR, unspecified-metadata)
-- `tests/test_anvil_contract.py` — 16 python contract tests over the CLI
+- `tests/test_anvil_contract.py` — 46 python contract tests over the CLI
