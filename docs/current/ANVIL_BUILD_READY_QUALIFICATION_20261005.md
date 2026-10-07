@@ -41,7 +41,7 @@ adversarial campaign.
 | Oracle sample geometry/phase replaces estimates | PASS | `--geometry oracle` (`geometry_1.txt`; `geometry_state == "known"`). |
 | HR ground truth attachable to synthetic fixtures | PASS | Repeatable `--ground-truth FRAME=PATH` accepts same-resolution reference truth or genuinely higher-resolution truth. References smaller than the LR observation in either axis are rejected. Manifest `ground_truth[]` records frame association, SHA-256, size, truth dimensions/maxval/bytes-per-sample, observation dimensions, scale_x/scale_y, resolution relation, format, and the fixed reference-only usage note; `frames[].has_ground_truth` marks association. Evidence: `test_ground_truth_attachment_and_provenance` (SHA-256 verified against an independent `hashlib` digest), `anvil_runner_tests` scenario 7d. Contamination guard: pixel data is never loaded into the pipeline; `test_ground_truth_never_contaminates_reconstruction` and runner-test scenario 7d prove byte-identical reconstruction with and without GT attached. Clean rejection (exit 1, named reason): missing, malformed, dimension mismatch, out-of-range frame, duplicate mapping — all tested. **Corrected 2026-10-06:** the earlier PASS row cited only synthetic-pattern knowledge and hypothetical later-campaign use, which is not attachment; that evidence was rejected and replaced by the mechanism above. |
 | Stochastic components seeded or disabled | PASS | N/A-strength PASS: no stochastic component exists (`config.deterministic_no_random_components: true` asserted in tests); `--seed` recorded for future use. |
-| Scene cut/reset observable and controllable | PASS | `--cut-frames` (forced, `window_reset` events) + `--auto-scene-cut` (deterministic luma SAD threshold, `scene_cut` events); `test_scene_cut_observable_and_controllable`. |
+| Scene cut/reset observable and controllable | PASS | `--cut-frames` (forced) + `--auto-scene-cut` (deterministic luma SAD threshold). Repair 63580a7a: detected boundaries are canonicalized in a pre-pass BEFORE windows are built and share one exclusion rule with forced cuts, in both temporal directions — reconstruction cannot sample across a detected cut. `test_auto_scene_cut_blocks_cross_cut_accumulation` asserts the detected cut frame, excluded neighbor IDs per side, window contents, and no cross-scene neighbors; `test_scene_cut_observable_and_controllable` covers forced cuts. |
 
 ## Mandatory codec conditions (H.264 / HEVC / AV1)
 
@@ -53,7 +53,7 @@ FFmpeg build: in-process synthetic encode → software decode with
 | Item | Verdict | Evidence (this host, ffmpeg n9.0.2, MEASURED) |
 |---|---|---|
 | Capability detected explicitly | PASS | Per-codec matrix in every manifest: encoder name, encoder/decoder availability, MV-export proven flag, probe frame counts, note. |
-| Encoded-MV availability proven or marked unsupported | PASS | **H.264: MV export PROVEN (7/8 probe frames carry MV side data).** **HEVC: decodes fine, 0/8 frames export MVs → recorded unsupported with truthful note.** **AV1: decodes fine, 0/8 frames → recorded unsupported with truthful note.** |
+| Encoded-MV availability proven or marked unsupported | PASS | **H.264: MV export PROVEN (7/8 probe frames carry MV side data).** **HEVC: decodes fine, 0/8 frames export MVs → recorded unsupported with truthful note.** **AV1: decodes fine, 0/8 frames → recorded unsupported with truthful note.** Repair 63580a7a: per-frame manifest state is derived from the ACTUAL input codec (no cross-codec leakage): H.264 I-frames → `estimator_only`; H.264 P-frames with exported-but-unproven references → `ambiguous` with `codec_mv_usable_count=0` (matching the reconstruction behavior that rejects them); HEVC/AV1 inputs → `unsupported` even when the host also proves H.264. Regressions: `test_codec_side_info_state_is_per_codec_and_truthful` (H.264 I/P + HEVC). |
 | Precision/scale/partition/reference semantics normalized where available | PASS | `BlockMotion` preserves direction, block geometry (x,y,w,h), MV in source-pixel units, precision, frame type, intra/skip; codec entries carry `refFrameIndex = -1` because the exported side data does not prove reference identity (documented in `normalizeCodecMv`). |
 | Ambiguous reference data cannot silently enter reconstruction | PASS | `buildFlowField` rejects entries with `ambiguous` or unproven `refFrameIndex`; codec-mode visibility marks unproven coverage invalid; unit test `test_ambiguous_blocks_never_enter_flow`. |
 | Hardware/software decode separately documented | PASS | Successor forces software decode when motion metadata is requested (`VideoDecoder::setMotionMetadataRequested`, decoded log line "hardware decode disabled…"); manifest `provenance.decode_mode == "software"`. Hardware decode MV export is NOT claimed (guardrail). |
@@ -88,6 +88,40 @@ Codec support/limitation matrix (this host — re-probed per run):
 | Graceful fallback/error tested | PASS | Missing input → exit 1 with message; missing oracle → explicit error; absent encoders → capability notes; unknown color metadata → recorded unknown state. |
 | Deterministic replay reproduces artifacts | PASS | Byte-equal frame outputs across identical runs (`test_deterministic_replay_byte_equality` + C++ replay checks); manifests equal excluding wall-clock timings (documented exclusion). |
 | Clean-clone instructions sufficient | PASS | Instructions in `docs/current/ANVIL_SUCCESSOR_ARCHITECTURE.md`; verified by cloning `successor/anvil-build-ready` from GitHub and building/testing fresh (CTEST green, runner tests pass), 2026-10-06. |
+
+## Repair addendum — independent review of PR #1 (2026-10-06)
+
+All seven review findings (4202350954/957/960/964/968/973/977) were repaired
+in commit `63580a7a` with the regression tests named above and in the PR
+thread replies; CI run `37566726205` (Arch build + CTest, Python contract
+suite) is green on that head. Additional repair-phase evidence:
+
+- Structured per-frame color metadata (`color_source`/`color_output` with
+  range, primaries, transfer, matrix, chroma_location, pixel_format,
+  bit_depth, HDR side-data presence; explicit `unspecified` preserved) is
+  now in every manifest without debug dumps —
+  `test_per_frame_structured_color_metadata` (SDR, PQ, missing-tag, genuine
+  HDR10 side data).
+- HDR side-data presence flows AVFrame → `DecodedVideoFrame` → `Observation`
+  → manifest; verified with a genuine x265 HDR10 SEI fixture. On this FFmpeg
+  build the h264 decoder does not export mastering-display frame side data,
+  so such inputs truthfully report absent — recorded, not fabricated.
+- Stage timings: `visibility` is recorded independently; the actual
+  `sws_scale` YUV→RGB transform is attributed to `color_convert`; output
+  covers serialization only; stage names serialize as strings (a
+  `const char*`→`bool` JsonWriter overload corruption is fixed) —
+  `test_stage_timing_attribution`.
+- Partial-edge-tile estimation with a coverage mask (66x65 and 1920x1080
+  regressions; measured zero motion is valid, uncovered pixels are
+  Visibility::Invalid); correspondence-mode `none` truthfully contributes
+  nothing — the 10-bit depth-safety test was corrected to this
+  contract-correct passthrough semantics and now also proves estimate-mode
+  full coverage.
+- Git provenance accepts any 40-hex SHA and equals `git rev-parse HEAD`
+  (`test_git_sha_matches_rev_parse`, `testGitShaAcceptsAnyHex`).
+
+Test counts at `63580a7a`: CTest 26/26; ANVIL python suite 22 passed;
+historical python suite 68 passed, 39 subtests.
 
 ## Command evidence
 
