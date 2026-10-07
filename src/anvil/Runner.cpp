@@ -896,6 +896,84 @@ RunResult runPipeline(const RunConfig& config) {
         }
         addTiming(m, StageId::Visibility, elapsedNs(visStart));
 
+        // Sample geometry is per observation. In oracle mode the target and
+        // every selected neighbor must provide known phase. Relative phase is
+        // applied to proven flow before confidence estimation/accumulation.
+        const Clock::time_point geoStart = Clock::now();
+        SampleGeometry geo;
+        std::vector<SampleGeometry> neighborGeometry(neighbors.size());
+        if (config.geometryMode == "oracle") {
+            const std::string geoPath = config.oracleDir + "/geometry_"
+                + std::to_string(t) + ".txt";
+            if (!recordOracleArtifact(geoPath, "sample_geometry", t, std::nullopt))
+                return result;
+            std::string geoError;
+            auto og = loadOracleGeometry(config.oracleDir, t, &geoError);
+            if (!og || og->state != SampleGeometryState::Known) {
+                result.error = "oracle geometry rejected for frame "
+                    + std::to_string(t) + ": "
+                    + (og ? std::string("state must be known (2)") : geoError);
+                return result;
+            }
+            geo = *og;
+            m.events.push_back({t, "oracle_used", "sample_geometry"});
+
+            for (size_t i = 0; i < neighbors.size(); ++i) {
+                const uint64_t refFrame = neighbors[i];
+                const std::string refPath = config.oracleDir + "/geometry_"
+                    + std::to_string(refFrame) + ".txt";
+                if (!recordOracleArtifact(refPath, "sample_geometry", t,
+                                          static_cast<int64_t>(refFrame)))
+                    return result;
+                std::string refError;
+                auto rg = loadOracleGeometry(config.oracleDir, refFrame, &refError);
+                if (!rg || rg->state != SampleGeometryState::Known) {
+                    result.error = "oracle geometry rejected for reference "
+                        + std::to_string(refFrame) + " of target "
+                        + std::to_string(t) + ": "
+                        + (rg ? std::string("state must be known (2)") : refError);
+                    return result;
+                }
+                neighborGeometry[i] = *rg;
+                if (!applyRelativeSampleGeometry(flows[i], coverages[i],
+                                                 width, height, geo, *rg)) {
+                    result.error = "failed to apply relative sample geometry "
+                        "for target " + std::to_string(t) + " reference "
+                        + std::to_string(refFrame);
+                    return result;
+                }
+            }
+        }
+        rec.geometryState = sampleGeometryStateName(geo.state);
+        if (!dumpBase.empty()
+            && stageDumpable(config.dumpStages, StageId::SampleGeometryStage)) {
+            const fs::path p = dumpPath(StageId::SampleGeometryStage, t,
+                                        "geometry.txt");
+            std::string content = "target " + std::to_string(t) + " "
+                + std::to_string(int(geo.state)) + " "
+                + std::to_string(geo.phaseX) + " "
+                + std::to_string(geo.phaseY) + "\n";
+            for (size_t i = 0; i < neighbors.size(); ++i) {
+                content += "neighbor " + std::to_string(neighbors[i]) + " "
+                    + std::to_string(int(neighborGeometry[i].state)) + " "
+                    + std::to_string(neighborGeometry[i].phaseX) + " "
+                    + std::to_string(neighborGeometry[i].phaseY);
+                if (config.geometryMode == "oracle") {
+                    content += " relative_offset "
+                        + std::to_string(geo.phaseX - neighborGeometry[i].phaseX)
+                        + " "
+                        + std::to_string(geo.phaseY - neighborGeometry[i].phaseY);
+                }
+                content += "\n";
+            }
+            if (!writeTextFile(p, content)) {
+                result.error = "failed to write geometry dump " + p.string();
+                return result;
+            }
+            recordDump(p);
+        }
+        addTiming(m, StageId::SampleGeometryStage, elapsedNs(geoStart));
+
         const Clock::time_point confidenceStart = Clock::now();
         std::vector<ConfidenceField> confidenceFields;
         rec.confidenceSource = config.confidenceMode;
@@ -927,43 +1005,6 @@ RunResult runPipeline(const RunConfig& config) {
             confidenceFields.push_back(std::move(confidence));
         }
         addTiming(m, StageId::Confidence, elapsedNs(confidenceStart));
-
-        // sample geometry
-        const Clock::time_point geoStart = Clock::now();
-        SampleGeometry geo;
-        if (config.geometryMode == "oracle") {
-            const std::string geoPath = config.oracleDir + "/geometry_"
-                + std::to_string(t) + ".txt";
-            if (!recordOracleArtifact(geoPath, "geometry", t, std::nullopt))
-                return result;
-            std::string geoError;
-            auto og = loadOracleGeometry(config.oracleDir, t, &geoError);
-            if (!og) {
-                result.error = "oracle geometry rejected for frame "
-                             + std::to_string(t) + ": " + geoError;
-                return result;
-            }
-            if (og->state != SampleGeometryState::Known) {
-                result.error = "oracle geometry for frame " + std::to_string(t)
-                    + " must declare known state (2), not "
-                    + sampleGeometryStateName(og->state);
-                return result;
-            }
-            geo = *og;
-            m.events.push_back({t, "oracle_used", "sample_geometry"});
-        }
-        rec.geometryState = sampleGeometryStateName(geo.state);
-        if (!dumpBase.empty() && stageDumpable(config.dumpStages, StageId::SampleGeometryStage)) {
-            const fs::path p = dumpPath(StageId::SampleGeometryStage, t, "geometry.txt");
-            const std::string content = std::to_string(int(geo.state)) + " "
-                + std::to_string(geo.phaseX) + " " + std::to_string(geo.phaseY) + "\n";
-            if (!writeTextFile(p, content)) {
-                result.error = "failed to write geometry dump " + p.string();
-                return result;
-            }
-            recordDump(p);
-        }
-        addTiming(m, StageId::SampleGeometryStage, elapsedNs(geoStart));
 
         // color stage: explicit working-space decision
         const Clock::time_point colorStart = Clock::now();

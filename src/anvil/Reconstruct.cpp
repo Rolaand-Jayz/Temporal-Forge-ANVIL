@@ -217,6 +217,35 @@ FlowField buildFlowField(int width, int height, const std::vector<BlockMotion>& 
     return flow;
 }
 
+bool applyRelativeSampleGeometry(FlowField& flow,
+                                 const std::vector<uint8_t>& coverage,
+                                 int width, int height,
+                                 const SampleGeometry& targetGeometry,
+                                 const SampleGeometry& neighborGeometry) {
+    if (width <= 0 || height <= 0
+        || targetGeometry.state == SampleGeometryState::Unknown
+        || neighborGeometry.state == SampleGeometryState::Unknown
+        || !std::isfinite(targetGeometry.phaseX)
+        || !std::isfinite(targetGeometry.phaseY)
+        || !std::isfinite(neighborGeometry.phaseX)
+        || !std::isfinite(neighborGeometry.phaseY)
+        || targetGeometry.phaseX < 0.0f || targetGeometry.phaseX >= 1.0f
+        || targetGeometry.phaseY < 0.0f || targetGeometry.phaseY >= 1.0f
+        || neighborGeometry.phaseX < 0.0f || neighborGeometry.phaseX >= 1.0f
+        || neighborGeometry.phaseY < 0.0f || neighborGeometry.phaseY >= 1.0f)
+        return false;
+    const size_t pixels = static_cast<size_t>(width) * height;
+    if (flow.size() != pixels * 2 || coverage.size() != pixels) return false;
+    const float dx = targetGeometry.phaseX - neighborGeometry.phaseX;
+    const float dy = targetGeometry.phaseY - neighborGeometry.phaseY;
+    for (size_t i = 0; i < pixels; ++i) {
+        if (!coverage[i]) continue;
+        flow[i * 2] += dx;
+        flow[i * 2 + 1] += dy;
+    }
+    return true;
+}
+
 namespace {
 inline float bilinear(const Observation& o, float fx, float fy) {
     if (!std::isfinite(fx) || !std::isfinite(fy)

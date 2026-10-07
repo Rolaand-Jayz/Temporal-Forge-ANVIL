@@ -61,6 +61,14 @@ FlowField buildFlowField(int width, int height, const std::vector<BlockMotion>& 
                          int64_t refFrameIndex,
                          std::vector<uint8_t>* coverageOut = nullptr);
 
+// Apply relative per-observation sampling-grid phase to proven flow:
+// neighbor_index = target_index + motion + target_phase - neighbor_phase.
+bool applyRelativeSampleGeometry(FlowField& flow,
+                                 const std::vector<uint8_t>& coverage,
+                                 int width, int height,
+                                 const SampleGeometry& targetGeometry,
+                                 const SampleGeometry& neighborGeometry);
+
 ConfidenceField estimateConfidence(const Observation& target,
                                    const Observation& neighbor,
                                    const FlowField& flow,

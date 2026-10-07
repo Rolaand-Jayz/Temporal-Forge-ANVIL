@@ -316,8 +316,9 @@ def test_oracle_injection_replaces_estimates(sdr_clip, tmp_path):
         b"P5\n64 64\n255\n" + b"\xff" * (64 * 64))
     (oracle_dir / "visibility_1_ref2.pgm").write_bytes(
         b"P5\n64 64\n255\n" + b"\xff" * (64 * 64))
-    # geometry oracle: known zero phase
-    (oracle_dir / "geometry_1.txt").write_text("2 0.0 0.0\n")
+    # Geometry oracle is per observation: target and selected neighbors.
+    for idx in (0, 1, 2):
+        (oracle_dir / f"geometry_{idx}.txt").write_text("2 0.0 0.0\n")
 
     out = tmp_path / "oracle_out"
     proc = run_runner(out, "--input", sdr_clip, "--start-frame", 1,
@@ -331,6 +332,38 @@ def test_oracle_injection_replaces_estimates(sdr_clip, tmp_path):
     fr = m["frames"][0]
     assert fr["correspondence_source"] == "oracle"
     assert fr["geometry_state"] == "known"
+
+
+def test_geometry_oracle_changes_sampling_and_is_provenanced(sdr_clip, tmp_path):
+    def prepare(directory: Path, target_phase: str):
+        directory.mkdir()
+        (directory / "correspondence_2.txt").write_text(
+            "\n".join(_identity_oracle_lines(2, [1])) + "\n")
+        (directory / "geometry_2.txt").write_text(f"2 {target_phase} 0.0\n")
+        (directory / "geometry_1.txt").write_text("2 0.0 0.0\n")
+
+    zero = tmp_path / "geo_zero"
+    shifted = tmp_path / "geo_shifted"
+    prepare(zero, "0.0")
+    prepare(shifted, "0.5")
+
+    out0 = tmp_path / "geo_zero_out"
+    out1 = tmp_path / "geo_shifted_out"
+    common = ["--input", sdr_clip, "--start-frame", 2, "--frame-count", 1,
+              "--past", 1, "--correspondence", "oracle",
+              "--geometry", "oracle"]
+    p0 = run_runner(out0, *common, "--oracle-dir", zero)
+    p1 = run_runner(out1, *common, "--oracle-dir", shifted)
+    assert p0.returncode == 0, p0.stderr
+    assert p1.returncode == 0, p1.stderr
+    assert (out0 / "frame_2.ppm").read_bytes() != (out1 / "frame_2.ppm").read_bytes(), \
+        "nonzero sample phase must affect reconstruction, not only metadata"
+
+    artifacts = load_manifest(out1)["oracle_artifacts"]
+    geometry = [a for a in artifacts if a["type"] == "sample_geometry"]
+    paths = {Path(a["path"]).name for a in geometry}
+    assert {"geometry_2.txt", "geometry_1.txt"} <= paths
+    assert all(len(a["sha256"]) == 64 for a in geometry)
 
 
 def test_scene_cut_observable_and_controllable(sdr_clip, tmp_path):
