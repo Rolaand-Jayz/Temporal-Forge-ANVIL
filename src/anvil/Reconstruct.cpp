@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <limits>
 
 namespace anvil {
 
@@ -93,7 +94,20 @@ std::vector<BlockMotion> estimateCorrespondence(const Observation& target,
                                                 const Observation& obs,
                                                 int blockSize, int searchRadius) {
     std::vector<BlockMotion> out;
-    if (target.plane[0].empty() || obs.plane[0].empty()) return out;
+    if (target.plane[0].empty() || obs.plane[0].empty()
+        || blockSize <= 0 || searchRadius < 0
+        || target.width <= 0 || target.height <= 0
+        || target.width > 32768 || target.height > 32768)
+        return out;
+    if (target.frameIndex > static_cast<uint64_t>(INT64_MAX)
+        || obs.frameIndex > static_cast<uint64_t>(INT64_MAX))
+        return out;
+    const int64_t distance64 = static_cast<int64_t>(obs.frameIndex)
+                             - static_cast<int64_t>(target.frameIndex);
+    if (distance64 == 0 || distance64 < std::numeric_limits<int>::min()
+        || distance64 > std::numeric_limits<int>::max())
+        return out;
+    const int temporalDistance = static_cast<int>(distance64);
     const int bw = blockSize;
     // Tile the frame in blockSize steps with CLIPPED edge tiles: a 66x65
     // frame still yields 2-wide right-column tiles and 1-tall bottom-row
@@ -121,9 +135,8 @@ std::vector<BlockMotion> estimateCorrespondence(const Observation& target,
             BlockMotion m;
             m.frameIndex = target.frameIndex;
             m.refFrameIndex = static_cast<int64_t>(obs.frameIndex);
-            m.temporalDistance = static_cast<int>(obs.frameIndex)
-                               - static_cast<int>(target.frameIndex);
-            m.direction = m.temporalDistance < 0 ? RefDirection::Past
+            m.temporalDistance = temporalDistance;
+            m.direction = temporalDistance < 0 ? RefDirection::Past
                                                  : RefDirection::Future;
             m.dstX = static_cast<int16_t>(bx);
             m.dstY = static_cast<int16_t>(by);
@@ -202,6 +215,11 @@ FlowField buildFlowField(int width, int height, const std::vector<BlockMotion>& 
 
 namespace {
 inline float bilinear(const Observation& o, float fx, float fy) {
+    if (!std::isfinite(fx) || !std::isfinite(fy)
+        || fx < 0.0f || fy < 0.0f
+        || fx > static_cast<float>(o.width - 1)
+        || fy > static_cast<float>(o.height - 1))
+        return NAN;
     const int x0 = static_cast<int>(std::floor(fx));
     const int y0 = static_cast<int>(std::floor(fy));
     const float tx = fx - x0, ty = fy - y0;
@@ -276,6 +294,10 @@ AccumulateResult accumulate(const Observation& target,
         const ConfidenceField noConfidence;
         const auto& vis=n<neighborVisibility.size()?neighborVisibility[n]:none;
         const auto& conf=n<neighborConfidence.size()?neighborConfidence[n]:noConfidence;
+        const size_t pixelCount=static_cast<size_t>(w)*h;
+        if ((!vis.empty() && vis.size() != pixelCount)
+            || (!conf.empty() && conf.size() != pixelCount))
+            continue;
         for(int y=0;y<h;++y)for(int x=0;x<w;++x){
             const size_t i=static_cast<size_t>(y)*w+x; ++res.totalSamples;
             if(!vis.empty()&&vis[i]!=Visibility::Valid)continue;
@@ -294,8 +316,11 @@ AccumulateResult accumulate(const Observation& target,
                 if(weight<=0.0f)continue;
                 const float fx=static_cast<float>(x)+flow[fy*2]*0.5f;
                 const float fyy=static_cast<float>(y)+flow[fy*2+1]*0.5f;
+                if(!std::isfinite(fx)||!std::isfinite(fyy)
+                   ||fx<0.0f||fyy<0.0f
+                   ||fx>static_cast<float>(cw-1)
+                   ||fyy>static_cast<float>(ch-1))continue;
                 const int x0=static_cast<int>(std::floor(fx)),y0=static_cast<int>(std::floor(fyy));
-                if(x0<0||y0<0||x0>=cw||y0>=ch)continue;
                 const int x1=std::min(x0+1,cw-1),y1=std::min(y0+1,ch-1);
                 const float tx=fx-x0,ty=fyy-y0;
                 const float u=bilinearBlend(planeAt(o,1,x0,y0,cw,ch),planeAt(o,1,x1,y0,cw,ch),

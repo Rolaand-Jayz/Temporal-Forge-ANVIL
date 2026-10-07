@@ -49,6 +49,9 @@ static void testConfidenceAndGeometry() {
     CHECK(!c.known);
     c = Confidence::withValue(0.75f);
     CHECK(c.known && c.value == 0.75f);
+    CHECK(!Confidence::withValue(-0.1f).known);
+    CHECK(!Confidence::withValue(1.1f).known);
+    CHECK(!Confidence::withValue(std::numeric_limits<float>::quiet_NaN()).known);
     CHECK(std::string(sideInfoStateName(SideInfoState::Unsupported)) == "unsupported");
     CHECK(std::string(sampleGeometryStateName(SampleGeometryState::Unknown)) == "unknown");
 }
@@ -153,6 +156,26 @@ static void testIncompatibleNeighborCannotEnterAccumulation() {
     auto rc = accumulate(target, {wrongColor}, {flow}, {valid});
     CHECK(rc.validSamples == 0 && rc.totalSamples == 0);
     CHECK(rc.frame.plane[0] == target.plane[0]);
+}
+
+static void testExtremeFlowAndMalformedEvidenceFailClosed() {
+    Observation target = makeObs(0, 32, 32, 100);
+    Observation obs = makeObs(1, 32, 32, 200);
+    FlowField huge(static_cast<size_t>(32 * 32 * 2), 1.0e30f);
+    std::vector<Visibility> valid(static_cast<size_t>(32 * 32), Visibility::Valid);
+    auto extreme = accumulate(target, {obs}, {huge}, {valid});
+    CHECK(extreme.validSamples == 0);
+    CHECK(extreme.frame.plane[0] == target.plane[0]);
+
+    FlowField zero(static_cast<size_t>(32 * 32 * 2), 0.0f);
+    std::vector<Visibility> shortVis(1, Visibility::Valid);
+    auto malformedVis = accumulate(target, {obs}, {zero}, {shortVis});
+    CHECK(malformedVis.validSamples == 0 && malformedVis.totalSamples == 0);
+
+    ConfidenceField shortConfidence(1, 1.0f);
+    auto malformedConf = accumulate(target, {obs}, {zero}, {valid},
+                                    {shortConfidence});
+    CHECK(malformedConf.validSamples == 0 && malformedConf.totalSamples == 0);
 }
 
 static void testAccumulateSingleFrameIsIdentity() {
@@ -447,6 +470,7 @@ int main() {
     testManifestRoundTripNames();
     testEstimatorIsLabeledAndCorrect();
     testIncompatibleNeighborCannotEnterAccumulation();
+    testExtremeFlowAndMalformedEvidenceFailClosed();
     testAccumulateSingleFrameIsIdentity();
     testAccumulateIncludesTargetSample();
     testAccumulateAverageWithOracleFlow();

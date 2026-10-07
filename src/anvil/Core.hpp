@@ -11,6 +11,7 @@
 // - Correspondence preserves provenance: codec_mv vs oracle vs image_estimate.
 //   An image-estimated vector is NEVER relabeled as a codec MV.
 #pragma once
+#include <cmath>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -128,7 +129,10 @@ struct Confidence {
     float value = 0.0f;        // [0,1] when state == Known
     bool known = false;
     static Confidence unknown() { return {}; }
-    static Confidence withValue(float v) { return {v, true}; }
+    static Confidence withValue(float v) {
+        return std::isfinite(v) && v >= 0.0f && v <= 1.0f
+            ? Confidence{v, true} : unknown();
+    }
 };
 
 // Visibility is a separate per-sample validity signal (e.g. occlusion or
