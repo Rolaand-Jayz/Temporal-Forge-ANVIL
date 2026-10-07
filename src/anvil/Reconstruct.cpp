@@ -75,6 +75,10 @@ uint32_t blockSad(const Observation& a, int ax, int ay, const Observation& b,
 }
 } // namespace
 
+bool temporalReconstructionFormatSupported(const Observation& o) {
+    return isPlanar420(o);
+}
+
 bool reconstructionSpaceCompatible(const Observation& a,
                                    const Observation& b) {
     return a.width == b.width

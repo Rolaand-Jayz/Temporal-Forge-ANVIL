@@ -17,6 +17,10 @@ namespace anvil {
 bool reconstructionSpaceCompatible(const Observation& target,
                                    const Observation& neighbor);
 
+// The current temporal sampler is deliberately scoped to planar 4:2:0
+// formats whose sample addressing is explicitly implemented and tested.
+bool temporalReconstructionFormatSupported(const Observation& observation);
+
 // Deterministic block-SAD correspondence estimate between `target` (frame t)
 // and `obs` (frame s). Blocks are 16x16 over the luma plane, integer search
 // radius around (0,0). Output blocks carry refFrameIndex = obs.frameIndex

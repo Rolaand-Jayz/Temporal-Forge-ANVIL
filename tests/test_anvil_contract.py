@@ -1056,6 +1056,17 @@ def test_checked_derived_window_bounds(sdr_clip, tmp_path):
     assert "configuration error" in proc.stderr.lower()
     assert "overflow" in proc.stderr.lower()
 
+    # Huge but arithmetically valid counts/windows must fail/bound against the
+    # decoded clip rather than constructing billions of synthetic indices.
+    proc = run_runner(tmp_path / "huge_count", "--input", sdr_clip,
+                      "--frame-count", "9223372036854775807")
+    assert proc.returncode == 1
+    assert "extends past decoded stream" in proc.stderr
+    proc = run_runner(tmp_path / "huge_window", "--input", sdr_clip,
+                      "--start-frame", 2, "--frame-count", 1,
+                      "--past", "2147483647", "--future", "2147483647")
+    assert proc.returncode == 0, proc.stderr
+
 
 def _identity_oracle_lines(target, refs):
     rows = []
@@ -1164,6 +1175,8 @@ def test_strict_geometry_oracle(sdr_clip, tmp_path):
         "inf": "2 inf 0.25\n",
         "trailing": "2 0.25 0.25 extra\n",
         "phase_oob": "2 1.0 0.25\n",
+        "oracle_unknown_state": "0 0.25 0.25\n",
+        "oracle_estimated_state": "1 0.25 0.25\n",
     }.items():
         oracle = tmp_path / ("geo_" + name)
         oracle.mkdir()
