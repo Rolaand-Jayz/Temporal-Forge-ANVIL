@@ -123,6 +123,52 @@ suite) is green on that head. Additional repair-phase evidence:
 Test counts at `63580a7a`: CTest 26/26; ANVIL python suite 22 passed;
 historical python suite 68 passed, 39 subtests.
 
+## Repair addendum — round 2 review (2026-10-07)
+
+Six further P1 findings (4202852907/4085/4270/4436/4571/5070) were repaired
+in commits `098b5225` (repairs + regressions), `5615f68e`/`fb9a7bf8` (VFR
+test portability). CI runs `37572890396` (first push; one test portability
+failure found and fixed), `37573479829`, `37573917283`, and `37574437634`
+(final head `fb9a7bf8`: Arch build + CTest green, Python contract suite
+green).
+
+- Exact timestamp selection: `--start-pts-us` (exact match, no nearest
+  fallback, hard error on no-match, ambiguity guard for duplicate PTS,
+  mutually exclusive with `--start-frame`); manifest records
+  `config.start_pts_us`. VFR regression selects from actual container PTS
+  values on an uneven 10+25 fps stream (`test_exact_pts_selection_on_vfr`).
+  Duplicate decoded PTS is not representable in a valid mp4/h264 stream
+  (the muxer monotonizes); the ambiguity guard remains defensive and is
+  documented as such.
+- Oracle correspondence is validated before any narrowing: wide integer
+  parsing, finite + float-representable motion, positive extents,
+  representable coordinates, direction/distance sign consistency,
+  ref >= -1, and runner-side frame-bounds checks; malformed fixtures fail
+  with file+line reasons (`test_malformed_oracle_rejection_matrix`,
+  C++ `testOracleCorrespondenceRejection`).
+- Mandatory evidence writes propagate failure (output dir, manifest.json,
+  every requested dump, output frames) with operation+path diagnostics;
+  regressions block each artifact class deterministically
+  (`test_mandatory_write_failure_propagation`).
+- Strict CLI configuration parsing (from_chars, whole-token, no
+  exceptions; validated mode vocabularies; strict `--cut-frames`;
+  16-case malformed matrix asserting exit 2 and no experiment output —
+  `test_strict_cli_configuration_matrix`).
+- Visibility oracles are keyed per target AND reference
+  (`visibility_<t>_ref<r>.pgm`); masks are never reused across neighbors;
+  two-neighbor independence regression shows accumulation counts respond
+  only to the changed neighbor's mask
+  (`test_two_neighbor_visibility_oracle_independence`).
+- Codec precision derives from the transported `AVMotionVector::motion_scale`
+  (1=integer, 2=half, 4=quarter, 8/16/32=sub-quarter, else Unknown); decode
+  dumps record the raw scale; h264 (scale 4) and mpeg2 (scale 2) fixture
+  regressions plus a unit matrix
+  (`test_codec_mv_precision_reflects_motion_scale`,
+  `testMotionPrecisionFromScale`).
+
+Test counts at `fb9a7bf8`: CTest 26/26; ANVIL python suite 28 passed;
+historical python suite 68 passed, 39 subtests.
+
 ## Command evidence
 
 Host run at the original qualification head (2026-10-06, pre-repair):
