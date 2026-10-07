@@ -202,8 +202,9 @@ bool writeTextFile(const fs::path& p, const std::string& content) {
     fs::create_directories(p.parent_path(), ec);
     std::ofstream f(p, std::ios::binary);
     if (!f) return false;
-    f << content;
-    return true;
+    f.write(content.data(), static_cast<std::streamsize>(content.size()));
+    f.close();
+    return !f.fail();
 }
 
 } // namespace
