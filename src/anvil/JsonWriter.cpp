@@ -100,7 +100,9 @@ void JsonWriter::value(double v) {
         std::snprintf(buf, sizeof(buf), "%.9g", v);
         out_ += buf;
     } else {
-        null(); // JSON has no NaN/Inf; explicit null beats fabricated numbers
+        // comma() already ran above; calling null() here would emit a second
+        // comma and produce invalid JSON.
+        out_ += "null";
     }
 }
 

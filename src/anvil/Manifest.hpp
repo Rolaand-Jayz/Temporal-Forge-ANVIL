@@ -155,7 +155,8 @@ public:
         std::string codec;             // h264 | hevc | av1
         std::string encoder;           // encoder used for the probe, "absent" if none
         bool encoderAvailable = false;
-        bool decoderAvailable = false;
+        bool decoderAvailable = false; // decoder implementation is present
+        bool decodeProbePassed = false; // synthetic stream decoded completely
         bool mvExportProven = false;   // MEASURED: MV side data observed on decode
         int probeMvFrames = 0;         // frames carrying MV side data in the probe
         int probeTotalFrames = 0;

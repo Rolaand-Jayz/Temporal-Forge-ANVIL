@@ -64,38 +64,44 @@ EncodedPackets encodeSynthetic(const AVCodec* encoder, int width, int height, in
     c->time_base = AVRational{1, 30};
     c->framerate = AVRational{30, 1};
     c->pix_fmt = AV_PIX_FMT_YUV420P;
-    c->gop_size = 30; // one I-frame then P-frames: maximal MV-bearing frames
+    c->gop_size = 30;
     c->max_b_frames = 0;
     if (avcodec_open2(c, encoder, nullptr) < 0) {
         avcodec_free_context(&c);
         return out;
     }
+
+    auto drainPackets = [&]() -> bool {
+        for (;;) {
+            AVPacket* pkt = av_packet_alloc();
+            if (!pkt) return false;
+            const int rc = avcodec_receive_packet(c, pkt);
+            if (rc == 0) {
+                out.packets.push_back(pkt); // transferred ownership
+                continue;
+            }
+            av_packet_free(&pkt);
+            if (rc == AVERROR(EAGAIN) || rc == AVERROR_EOF) return true;
+            return false;
+        }
+    };
+
     bool ok = true;
     for (int i = 0; i < frames && ok; ++i) {
         AVFrame* f = makeSyntheticFrame(width, height, i);
         if (!f) { ok = false; break; }
         f->pts = i;
-        if (avcodec_send_frame(c, f) < 0) ok = false;
+        const int sendRc = avcodec_send_frame(c, f);
         av_frame_free(&f);
-        if (!ok) break;
-        AVPacket* pkt = av_packet_alloc();
-        while (ok && avcodec_receive_packet(c, pkt) == 0) {
-            out.packets.push_back(pkt); // transferred ownership
-            pkt = av_packet_alloc();
-        }
-        av_packet_free(&pkt);
+        if (sendRc < 0 || !drainPackets()) ok = false;
     }
-    if (ok) { // flush
-        avcodec_send_frame(c, nullptr);
-        AVPacket* pkt = av_packet_alloc();
-        while (avcodec_receive_packet(c, pkt) == 0) {
-            out.packets.push_back(pkt);
-            pkt = av_packet_alloc();
-        }
-        av_packet_free(&pkt);
+    if (ok) {
+        const int flushRc = avcodec_send_frame(c, nullptr);
+        if (flushRc < 0 && flushRc != AVERROR_EOF) ok = false;
+        if (ok && !drainPackets()) ok = false;
     }
     avcodec_free_context(&c);
-    out.ok = ok;
+    out.ok = ok && !out.packets.empty();
     return out;
 }
 
@@ -113,30 +119,46 @@ DecodeProbeResult decodeProbe(const AVCodec* decoder, const EncodedPackets& enc)
     out.decoderAvailable = true;
     AVCodecContext* c = avcodec_alloc_context3(decoder);
     if (!c) return out;
-    c->flags2 |= AV_CODEC_FLAG2_EXPORT_MVS; // request MV export (may be ignored)
-    c->thread_count = 1;                    // determinism
+    c->flags2 |= AV_CODEC_FLAG2_EXPORT_MVS;
+    c->thread_count = 1;
     if (avcodec_open2(c, decoder, nullptr) < 0) {
         avcodec_free_context(&c);
         return out;
     }
-    out.decodedOk = true;
-    for (AVPacket* pkt : enc.packets) {
-        if (avcodec_send_packet(c, pkt) < 0) break;
-        AVFrame* f = av_frame_alloc();
-        while (avcodec_receive_frame(c, f) == 0) {
-            ++out.totalFrames;
-            if (av_frame_get_side_data(f, AV_FRAME_DATA_MOTION_VECTORS)) ++out.framesWithMv;
-            av_frame_unref(f);
-        }
-        av_frame_free(&f);
-    }
-    avcodec_send_packet(c, nullptr);
     AVFrame* f = av_frame_alloc();
-    while (avcodec_receive_frame(c, f) == 0) {
-        ++out.totalFrames;
-        if (av_frame_get_side_data(f, AV_FRAME_DATA_MOTION_VECTORS)) ++out.framesWithMv;
-        av_frame_unref(f);
+    if (!f) {
+        avcodec_free_context(&c);
+        return out;
     }
+
+    auto drainFrames = [&]() -> bool {
+        for (;;) {
+            const int rc = avcodec_receive_frame(c, f);
+            if (rc == 0) {
+                ++out.totalFrames;
+                if (av_frame_get_side_data(f, AV_FRAME_DATA_MOTION_VECTORS))
+                    ++out.framesWithMv;
+                av_frame_unref(f);
+                continue;
+            }
+            if (rc == AVERROR(EAGAIN) || rc == AVERROR_EOF) return true;
+            return false;
+        }
+    };
+
+    bool ok = true;
+    for (AVPacket* pkt : enc.packets) {
+        if (avcodec_send_packet(c, pkt) < 0 || !drainFrames()) {
+            ok = false;
+            break;
+        }
+    }
+    if (ok) {
+        const int flushRc = avcodec_send_packet(c, nullptr);
+        if (flushRc < 0 && flushRc != AVERROR_EOF) ok = false;
+        if (ok && !drainFrames()) ok = false;
+    }
+    out.decodedOk = ok && out.totalFrames > 0;
     av_frame_free(&f);
     avcodec_free_context(&c);
     return out;
@@ -193,11 +215,15 @@ std::vector<Manifest::CodecCapability> probeCodecCapabilities() {
                 DecodeProbeResult dp = decodeProbe(decoder, enc);
                 cap.probeTotalFrames = dp.totalFrames;
                 cap.probeMvFrames = dp.framesWithMv;
-                // MEASURED FACT: MV export is proven only by observation.
-                cap.mvExportProven = dp.framesWithMv > 0;
-                if (!cap.mvExportProven)
+                cap.decodeProbePassed = dp.decodedOk;
+                cap.mvExportProven = dp.decodedOk && dp.framesWithMv > 0;
+                if (!dp.decodedOk) {
+                    cap.note = "synthetic decode probe failed or produced no frames; "
+                               "MV capability unproven";
+                } else if (!cap.mvExportProven) {
                     cap.note = "decoded ok but no AV_FRAME_DATA_MOTION_VECTORS "
                                "side data observed from this software decoder";
+                }
             } else {
                 cap.note = "synthetic encode failed; capability unproven";
             }
