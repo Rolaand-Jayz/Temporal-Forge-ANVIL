@@ -331,7 +331,7 @@ static void testOracleCorrespondenceRejection() {
         std::ofstream f(dir + "/correspondence_0.txt", std::ios::binary);
         f << content;
     };
-    const std::string valid = "1 0 -1 0 0 16 16 0 0 3 P 0 0\n";
+    const std::string valid = "1 1 1 0 0 16 16 0 0 3 P 0 0\n";
 
     write(valid);
     std::string err;
@@ -342,6 +342,9 @@ static void testOracleCorrespondenceRejection() {
 
     struct Case { const char* line; const char* why; };
     const Case cases[] = {
+        {"0 0 0 0 0 16 16 0 0 3 P 0 0\n", "self reference"},
+        {"1 1 9 0 0 16 16 0 0 3 P 0 0\n", "known ref wrong distance"},
+        {"1 0 1 0 0 16 16 0 0 3 P 0 0\n", "known ref wrong direction"},
         {"1 0 -1 0 0 0 16 0 0 3 P 0 0\n", "zero extent"},          // blockW=0
         {"1 0 -1 0 0 -16 16 0 0 3 P 0 0\n", "negative extent"},    // blockW<0
         {"1 0 -1 70000 0 16 16 0 0 3 P 0 0\n", "oversized dstX"},  // > int16
@@ -361,6 +364,23 @@ static void testOracleCorrespondenceRejection() {
         CHECK(!err.empty());
     }
     fs::remove_all(dir, ec);
+}
+
+static void testKnownUnsupportedColorMatrixIsRejectedForConversion() {
+    ColorMeta c;
+    c.range = AVCOL_RANGE_MPEG;
+    c.primaries = AVCOL_PRI_BT709;
+    c.transfer = AVCOL_TRC_BT709;
+    c.matrix = AVCOL_SPC_YCGCO;
+    c.pixelFormat = AV_PIX_FMT_YUV420P;
+    CHECK(c.matrixKnown());
+    CHECK(!c.matrixConversionSupported());
+    CHECK(!c.conversionFullySpecified());
+
+    c.matrix = AVCOL_SPC_CHROMA_DERIVED_NCL;
+    CHECK(c.matrixKnown());
+    CHECK(!c.matrixConversionSupported());
+    CHECK(!c.conversionFullySpecified());
 }
 
 static void testSha256KnownAnswers() {
@@ -396,6 +416,7 @@ int main() {
     testGitShaAcceptsAnyHex();
     testPartialEdgeTilesAreCovered();
     testEdgeTilesOn1920x1080();
+    testKnownUnsupportedColorMatrixIsRejectedForConversion();
     testSha256KnownAnswers();
     if (failures) {
         std::printf("%d check(s) FAILED\n", failures);
