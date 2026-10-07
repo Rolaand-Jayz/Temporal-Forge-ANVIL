@@ -296,6 +296,18 @@ def test_codec_capability_matrix_explicit(sdr_clip, tmp_path):
             assert c["note"], "unsupported codec must carry a truthful note"
 
 
+def test_manifest_artifact_inventory_is_self_consistent(sdr_clip, tmp_path):
+    out = tmp_path / "inventory"
+    dumps = tmp_path / "inventory_dumps"
+    proc = run_runner(out, "--input", sdr_clip, "--frame-count", 1,
+                      "--dump-dir", dumps, "--dump-stages", "all")
+    assert proc.returncode == 0, proc.stderr
+    manifest = load_manifest(out)
+    assert "manifest.json" in manifest["output_files"]
+    assert all(Path(p).name == p for p in manifest["output_files"])
+    assert all(Path(p).name == p for p in manifest["dump_files"])
+
+
 def test_deterministic_replay_byte_equality(sdr_clip, tmp_path):
     args = ["--input", sdr_clip, "--start-frame", 1, "--frame-count", 3,
             "--past", 1, "--future", 1, "--correspondence", "estimate"]

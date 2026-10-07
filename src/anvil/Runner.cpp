@@ -564,12 +564,10 @@ RunResult runPipeline(const RunConfig& config) {
                            + "_" + tag);
     };
     auto recordDump = [&](const fs::path& p) {
-        // Inventory paths are recorded relative to their base directory so
-        // the manifest is deterministic across output locations.
-        std::error_code relEc;
-        const fs::path rel = fs::relative(p, config.dumpDir, relEc);
-        const std::string stored = relEc ? p.string() : rel.string();
-        m.dumpFiles.push_back(stored);
+        // dumpPath() always creates direct children of dumpBase. Store only
+        // the deterministic artifact name; filesystem-relative resolution
+        // can fail or depend on host path topology.
+        m.dumpFiles.push_back(p.filename().string());
         result.outputFiles.push_back(p.string());
     };
 
@@ -1249,8 +1247,7 @@ RunResult runPipeline(const RunConfig& config) {
                 return result;
             }
             result.outputFiles.push_back(outP.string());
-            m.outputFiles.push_back(
-                fs::relative(outP, config.outputDir, fsEc).string());
+            m.outputFiles.push_back(outP.filename().string());
         }
         if (outP.empty()) {
             if (!temporalReconstructionFormatSupported(acc.frame)) {
@@ -1279,7 +1276,7 @@ RunResult runPipeline(const RunConfig& config) {
                         +std::to_string(p)+" for frame "+std::to_string(t);return result;
                 }
                 result.outputFiles.push_back(q.string());
-                m.outputFiles.push_back(fs::relative(q,config.outputDir,fsEc).string());
+                m.outputFiles.push_back(q.filename().string());
                 if(p==0)outP=q;
             }
             if(outP.empty()){result.error="no output plane available for frame "+std::to_string(t);return result;}
@@ -1409,14 +1406,17 @@ RunResult runPipeline(const RunConfig& config) {
     if (decodeFailed) result.error = decodeError;
 
     // --- manifest ---
+    // The in-memory and on-disk manifests must describe the same inventory.
+    // Add the manifest artifact before serialization rather than mutating the
+    // returned object after the bytes have already been written.
     const fs::path manifestPath = fs::path(config.outputDir) / "manifest.json";
+    m.outputFiles.push_back("manifest.json");
     if (!writeTextFile(manifestPath, m.toJson() + "\n")) {
         result.error = "failed to write run manifest " + manifestPath.string();
         result.ok = false;
         return result;
     }
     result.outputFiles.push_back(manifestPath.string());
-    m.outputFiles.push_back("manifest.json");
     result.ok = result.error.empty();
     return result;
 }

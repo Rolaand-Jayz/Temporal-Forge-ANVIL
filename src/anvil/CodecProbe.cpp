@@ -178,7 +178,7 @@ const AVCodec* firstAvailableEncoder(AVCodecID id, std::initializer_list<const c
         }
     }
     if (const AVCodec* e = avcodec_find_encoder(id)) {
-        usedName = avcodec_get_name(id);
+        usedName = e->name ? e->name : avcodec_get_name(id);
         return e;
     }
     return nullptr;
