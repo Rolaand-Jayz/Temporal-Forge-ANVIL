@@ -36,6 +36,7 @@ struct ColorMeta {
 
     bool transferKnown() const;
     bool matrixKnown() const;
+    bool matrixConversionSupported() const;
     bool rangeKnown() const;
     bool isHdrTransfer() const;   // PQ or HLG transfer characteristic
     // True when an explicit working-space conversion is permitted. Any false

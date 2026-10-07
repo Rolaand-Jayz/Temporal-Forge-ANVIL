@@ -616,7 +616,8 @@ def test_stage_timing_attribution(sdr_clip, tmp_path):
             f"unserialized stage name: {t}"
         totals.setdefault(t["stage"], 0)
         totals[t["stage"]] += t["nanoseconds"]
-    for stage in ("decode", "window_select", "correspondence", "visibility",
+    for stage in ("decode", "window_select", "correspondence",
+                  "correspondence_refinement", "visibility", "confidence",
                   "sample_geometry", "color_convert", "accumulate", "output"):
         assert stage in totals, f"missing timing for {stage}"
         assert totals[stage] > 0, f"zero timing for {stage}"
@@ -790,8 +791,10 @@ def test_comprehensive_stage_capture_inventory(sdr_clip, tmp_path):
             dump_dir / f"decode_f{t}_y.pgm",            # decoded source planes
             dump_dir / f"decode_f{t}_mvs.txt",          # raw codec side info (or explicit none)
             dump_dir / f"window_select_f{t}_window.txt",  # window selection + exclusions
-            dump_dir / f"correspondence_f{t}_correspondence.txt",  # actual vectors
+            dump_dir / f"correspondence_f{t}_correspondence.txt",  # coarse vectors
+            dump_dir / f"correspondence_refinement_f{t}_refined.txt",
             dump_dir / f"visibility_f{t}_i0.pgm",       # actual mask values
+            dump_dir / f"confidence_f{t}_i0.pgm",       # actual confidence
             dump_dir / f"sample_geometry_f{t}_geometry.txt",
             dump_dir / f"color_convert_f{t}_color.txt",
             dump_dir / f"accumulate_f{t}_y.pgm",        # reconstructed data
@@ -968,6 +971,10 @@ def test_strict_cli_configuration_matrix(sdr_clip, tmp_path):
         "missing_value": ["--frame-count"],
         "mutually_exclusive": ["--start-frame", "1", "--start-pts-us", "5"],
         "seed_overflow": ["--seed", "99999999999999999999999"],
+        "past_destination_overflow": ["--past", "4294967296"],
+        "future_destination_overflow": ["--future", "4294967296"],
+        "pts_destination_overflow": ["--start-pts-us", "18446744073709551615"],
+        "geometry_estimate_noop_forbidden": ["--geometry", "estimate"],
     }
     for name, extra in cases.items():
         out = tmp_path / name
@@ -976,6 +983,198 @@ def test_strict_cli_configuration_matrix(sdr_clip, tmp_path):
         assert "configuration error" in proc.stderr, name
         assert not (out / "manifest.json").exists(), \
             f"{name}: malformed config must not emit experiment output"
+
+
+
+def test_checked_derived_window_bounds(sdr_clip, tmp_path):
+    proc = run_runner(tmp_path / "overflow_window", "--input", sdr_clip,
+                      "--start-frame", "9223372036854775807",
+                      "--frame-count", "2")
+    assert proc.returncode == 1
+    assert "overflow" in proc.stderr.lower()
+
+
+def _identity_oracle_lines(target, refs):
+    rows = []
+    for ref in refs:
+        direction = 0 if ref < target else 1
+        distance = ref - target
+        for by in range(0, 64, 16):
+            for bx in range(0, 64, 16):
+                rows.append(
+                    f"{ref} {direction} {distance} {bx} {by} 16 16 0 0 3 P 0 0")
+    return rows
+
+
+def test_oracle_known_reference_semantics_rejected(sdr_clip, tmp_path):
+    bad = {
+        "self_reference": "2 0 0 0 0 16 16 0 0 3 P 0 0\n",
+        "wrong_distance": "1 0 -9 0 0 16 16 0 0 3 P 0 0\n",
+        "wrong_direction": "1 1 -1 0 0 16 16 0 0 3 P 0 0\n",
+        "distance_narrowing": "1 0 -2147483649 0 0 16 16 0 0 3 P 0 0\n",
+    }
+    for name, line in bad.items():
+        oracle = tmp_path / ("ref_sem_" + name)
+        oracle.mkdir()
+        (oracle / "correspondence_2.txt").write_text(line)
+        proc = run_runner(tmp_path / ("ref_sem_out_" + name),
+                          "--input", sdr_clip, "--start-frame", 2,
+                          "--frame-count", 1, "--past", 1,
+                          "--correspondence", "oracle", "--oracle-dir", oracle)
+        assert proc.returncode == 1, name
+        assert "oracle correspondence rejected" in proc.stderr, (name, proc.stderr)
+
+
+def test_oracle_visibility_cannot_resurrect_missing_correspondence(sdr_clip, tmp_path):
+    oracle = tmp_path / "vis_no_corr"
+    oracle.mkdir()
+    (oracle / "correspondence_2.txt").write_text(
+        "\n".join(_identity_oracle_lines(2, [3])) + "\n")
+    (oracle / "visibility_2_ref1.pgm").write_bytes(
+        b"P5\n64 64\n255\n" + b"\xff" * (64 * 64))
+    out = tmp_path / "vis_no_corr_out"
+    proc = run_runner(out, "--input", sdr_clip, "--start-frame", 2,
+                      "--frame-count", 1, "--past", 1,
+                      "--correspondence", "oracle", "--visibility", "oracle",
+                      "--oracle-dir", oracle)
+    assert proc.returncode == 0, proc.stderr
+    fr = load_manifest(out)["frames"][0]
+    assert fr["total_samples"] == 64 * 64
+    assert fr["valid_samples"] == 0
+
+
+def test_visibility_oracle_rejects_noncanonical_and_unknown_is_excluded(
+        sdr_clip, tmp_path):
+    rows = "\n".join(_identity_oracle_lines(2, [1])) + "\n"
+    bad = tmp_path / "vis_bad"
+    bad.mkdir()
+    (bad / "correspondence_2.txt").write_text(rows)
+    (bad / "visibility_2_ref1.pgm").write_bytes(
+        b"P5\n64 64\n255\n" + bytes([7]) * (64 * 64))
+    proc = run_runner(tmp_path / "vis_bad_out", "--input", sdr_clip,
+                      "--start-frame", 2, "--frame-count", 1, "--past", 1,
+                      "--correspondence", "oracle", "--visibility", "oracle",
+                      "--oracle-dir", bad)
+    assert proc.returncode == 1
+    assert "noncanonical visibility value" in proc.stderr
+
+    unknown = tmp_path / "vis_unknown"
+    unknown.mkdir()
+    (unknown / "correspondence_2.txt").write_text(rows)
+    (unknown / "visibility_2_ref1.pgm").write_bytes(
+        b"P5\n64 64\n255\n" + bytes([128]) * (64 * 64))
+    outu = tmp_path / "vis_unknown_out"
+    proc = run_runner(outu, "--input", sdr_clip, "--start-frame", 2,
+                      "--frame-count", 1, "--past", 1,
+                      "--correspondence", "oracle", "--visibility", "oracle",
+                      "--oracle-dir", unknown)
+    assert proc.returncode == 0, proc.stderr
+    assert load_manifest(outu)["frames"][0]["valid_samples"] == 0
+
+
+def test_strict_geometry_oracle(sdr_clip, tmp_path):
+    for name, payload in {
+        "nan": "2 nan 0.25\n",
+        "inf": "2 inf 0.25\n",
+        "trailing": "2 0.25 0.25 extra\n",
+        "phase_oob": "2 1.0 0.25\n",
+    }.items():
+        oracle = tmp_path / ("geo_" + name)
+        oracle.mkdir()
+        (oracle / "geometry_2.txt").write_text(payload)
+        proc = run_runner(tmp_path / ("geo_out_" + name),
+                          "--input", sdr_clip, "--start-frame", 2,
+                          "--frame-count", 1, "--geometry", "oracle",
+                          "--oracle-dir", oracle)
+        assert proc.returncode == 1, name
+        assert "oracle geometry rejected" in proc.stderr
+
+
+def test_neighbor_ablation_is_exact_and_manifested(sdr_clip, tmp_path):
+    base = tmp_path / "ablate_base"
+    cut = tmp_path / "ablate_cut"
+    common = ["--input", sdr_clip, "--start-frame", 2, "--frame-count", 1,
+              "--past", 1, "--future", 1, "--correspondence", "estimate",
+              "--dump-stages", "window_select"]
+    db, dc = tmp_path / "ablate_db", tmp_path / "ablate_dc"
+    assert run_runner(base, *common, "--dump-dir", db).returncode == 0
+    assert run_runner(cut, *common, "--dump-dir", dc,
+                      "--exclude-neighbor", "2:1").returncode == 0
+    mb, mc = load_manifest(base), load_manifest(cut)
+    assert mc["config"]["excluded_neighbors"] == [{"target": 2, "reference": 1}]
+    window = (dc / "window_select_f2_window.txt").read_text()
+    assert "excluded 1 reason=ablation" in window
+    assert "neighbor 3" in window
+    assert mc["frames"][0]["total_samples"] == 64 * 64
+    assert mb["frames"][0]["total_samples"] == 2 * 64 * 64
+
+
+def test_refinement_stage_is_real_and_bypassable(sdr_clip, tmp_path):
+    outp = tmp_path / "refine"
+    dumps = tmp_path / "refine_dumps"
+    proc = run_runner(outp, "--input", sdr_clip, "--start-frame", 2,
+                      "--frame-count", 1, "--past", 1,
+                      "--correspondence", "estimate", "--refinement", "local",
+                      "--dump-dir", dumps,
+                      "--dump-stages", "correspondence,correspondence_refinement")
+    assert proc.returncode == 0, proc.stderr
+    m = load_manifest(outp)
+    assert m["config"]["refinement_mode"] == "local"
+    assert (dumps / "correspondence_f2_correspondence.txt").is_file()
+    assert (dumps / "correspondence_refinement_f2_refined.txt").is_file()
+    assert any(t["stage"] == "correspondence_refinement" for t in m["stage_timings"])
+
+
+def test_confidence_estimate_oracle_and_consumption(sdr_clip, tmp_path):
+    est = tmp_path / "conf_est"
+    d = tmp_path / "conf_est_d"
+    proc = run_runner(est, "--input", sdr_clip, "--start-frame", 2,
+                      "--frame-count", 1, "--past", 1,
+                      "--confidence", "estimate", "--dump-dir", d,
+                      "--dump-stages", "confidence")
+    assert proc.returncode == 0, proc.stderr
+    assert load_manifest(est)["frames"][0]["confidence_source"] == "estimate"
+    assert (d / "confidence_f2_i0.pgm").is_file()
+
+    oracle = tmp_path / "conf_oracle"
+    oracle.mkdir()
+    (oracle / "correspondence_2.txt").write_text(
+        "\n".join(_identity_oracle_lines(2, [1])) + "\n")
+    (oracle / "confidence_2_ref1.pgm").write_bytes(
+        b"P5\n64 64\n255\n" + b"\x00" * (64 * 64))
+    outp = tmp_path / "conf_oracle_out"
+    proc = run_runner(outp, "--input", sdr_clip, "--start-frame", 2,
+                      "--frame-count", 1, "--past", 1,
+                      "--correspondence", "oracle", "--confidence", "oracle",
+                      "--oracle-dir", oracle)
+    assert proc.returncode == 0, proc.stderr
+    m = load_manifest(outp)
+    assert m["frames"][0]["confidence_source"] == "oracle"
+    assert m["frames"][0]["valid_samples"] == 0
+
+
+def test_oracle_artifact_content_provenance_changes_on_mutation(sdr_clip, tmp_path):
+    oracle = tmp_path / "oracle_hash"
+    oracle.mkdir()
+    corr = oracle / "correspondence_2.txt"
+    corr.write_text("\n".join(_identity_oracle_lines(2, [1])) + "\n")
+    out1 = tmp_path / "oracle_hash_1"
+    assert run_runner(out1, "--input", sdr_clip, "--start-frame", 2,
+                      "--frame-count", 1, "--past", 1,
+                      "--correspondence", "oracle",
+                      "--oracle-dir", oracle).returncode == 0
+    a1 = load_manifest(out1)["oracle_artifacts"]
+    assert len(a1) == 1 and a1[0]["type"] == "correspondence"
+    h1 = a1[0]["sha256"]
+
+    corr.write_text("# mutation\n" + corr.read_text())
+    out2 = tmp_path / "oracle_hash_2"
+    assert run_runner(out2, "--input", sdr_clip, "--start-frame", 2,
+                      "--frame-count", 1, "--past", 1,
+                      "--correspondence", "oracle",
+                      "--oracle-dir", oracle).returncode == 0
+    h2 = load_manifest(out2)["oracle_artifacts"][0]["sha256"]
+    assert h1 != h2
 
 
 def test_missing_input_graceful_error(tmp_path):

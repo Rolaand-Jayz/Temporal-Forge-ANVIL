@@ -9,6 +9,7 @@
 //     (keyed by target AND temporal reference: past and future neighbors
 //      can carry different occlusion ground truth; a mask is NEVER reused
 //      across neighbors)
+//   confidence_<frame>_ref<reference>.pgm  0..255 => confidence [0,1]
 //   geometry_<frame>.txt        state phaseX phaseY   (0=unknown 1=estimated 2=known)
 //
 // Oracle data is ground truth: malformed or semantically inconsistent
@@ -37,8 +38,13 @@ std::optional<std::vector<Visibility>> loadOracleVisibility(
     const std::string& dir, uint64_t frameIndex, int64_t refFrameIndex,
     int expectedW, int expectedH, std::string* error = nullptr);
 
+std::optional<std::vector<float>> loadOracleConfidence(
+    const std::string& dir, uint64_t frameIndex, int64_t refFrameIndex,
+    int expectedW, int expectedH, std::string* error = nullptr);
+
 std::optional<SampleGeometry> loadOracleGeometry(const std::string& dir,
-                                                 uint64_t frameIndex);
+                                                 uint64_t frameIndex,
+                                                 std::string* error = nullptr);
 
 bool oracleFileExists(const std::string& dir, uint64_t frameIndex);
 

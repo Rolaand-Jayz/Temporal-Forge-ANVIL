@@ -10,6 +10,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "Manifest.hpp"
@@ -30,10 +31,17 @@ struct RunConfig {
     int future = 0;
     // correspondence: codec | estimate | oracle | none
     std::string correspondenceMode = "estimate";
+    // refinement: none | local (deterministic +/-1 residual SAD refinement)
+    std::string refinementMode = "none";
     // visibility: valid | oracle
     std::string visibilityMode = "valid";
-    // geometry: unknown | oracle
+    // confidence: unit | estimate | oracle
+    std::string confidenceMode = "unit";
+    // geometry: unknown | oracle. "estimate" is rejected until a real
+    // estimator exists; a requested experimental arm may never be a no-op.
     std::string geometryMode = "unknown";
+    // Exact per-neighbor ablations, keyed by {target, reference}.
+    std::vector<std::pair<int64_t, int64_t>> excludedNeighbors;
     bool accumulateEnabled = true;
     bool colorConvertEnabled = true;
     std::vector<int64_t> forcedCutFrames;
