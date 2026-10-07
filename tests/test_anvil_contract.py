@@ -1032,6 +1032,9 @@ def test_strict_cli_configuration_matrix(sdr_clip, tmp_path):
             "--correspondence", "oracle", "--refinement", "local"],
         "none_refinement_false_arm": [
             "--correspondence", "none", "--refinement", "local"],
+        "duplicate_neighbor_ablation": [
+            "--past", "1", "--exclude-neighbor", "2:1",
+            "--exclude-neighbor", "2:1"],
     }
     for name, extra in cases.items():
         out = tmp_path / name
@@ -1188,6 +1191,23 @@ def test_neighbor_ablation_is_exact_and_manifested(sdr_clip, tmp_path):
     assert "neighbor 3" in window
     assert mc["frames"][0]["total_samples"] == 64 * 64
     assert mb["frames"][0]["total_samples"] == 2 * 64 * 64
+
+
+def test_neighbor_ablation_rejects_noop_pairs(sdr_clip, tmp_path):
+    cases = {
+        "wrong_target": ["--start-frame", 2, "--frame-count", 1, "--past", 1,
+                         "--exclude-neighbor", "9:8"],
+        "outside_window": ["--start-frame", 2, "--frame-count", 1, "--past", 1,
+                           "--exclude-neighbor", "2:0"],
+        "already_cut": ["--start-frame", 2, "--frame-count", 1, "--past", 1,
+                        "--cut-frames", "2", "--exclude-neighbor", "2:1"],
+    }
+    for name, args in cases.items():
+        out = tmp_path / ("ablate_noop_" + name)
+        proc = run_runner(out, "--input", sdr_clip, *args)
+        assert proc.returncode == 1, (name, proc.stderr)
+        assert "neighbor ablation" in proc.stderr.lower(), (name, proc.stderr)
+        assert not (out / "manifest.json").exists()
 
 
 def test_refinement_stage_is_real_and_bypassable(sdr_clip, tmp_path):

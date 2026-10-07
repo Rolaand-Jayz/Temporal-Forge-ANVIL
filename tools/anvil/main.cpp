@@ -7,6 +7,7 @@
 // overflow), every enum/mode value is validated, every list token must be
 // well-formed, and a configuration error exits 2 BEFORE any experiment
 // output is produced. No stoi/stod/stoull exceptions are possible.
+#include <algorithm>
 #include <charconv>
 #include <cmath>
 #include <cstring>
@@ -203,7 +204,12 @@ int main(int argc, char** argv) {
                 || !parseIntStrict(v.substr(colon + 1), reference)
                 || target < 0 || reference < 0 || target == reference)
                 return configError("--exclude-neighbor requires distinct non-negative TARGET:REFERENCE");
-            cfg.excludedNeighbors.emplace_back(target, reference);
+            const auto pair = std::make_pair(static_cast<int64_t>(target),
+                                             static_cast<int64_t>(reference));
+            if (std::find(cfg.excludedNeighbors.begin(), cfg.excludedNeighbors.end(),
+                          pair) != cfg.excludedNeighbors.end())
+                return configError("duplicate --exclude-neighbor pair '" + v + "'");
+            cfg.excludedNeighbors.push_back(pair);
         } else if (arg == "--no-accumulate") {
             cfg.accumulateEnabled = false;
         } else if (arg == "--no-color-convert") {

@@ -481,6 +481,56 @@ RunResult runPipeline(const RunConfig& config) {
         return result;
     }
 
+    auto crossesCut = [&](uint64_t a, uint64_t b) {
+        const uint64_t lo = std::min(a, b), hi = std::max(a, b);
+        for (int64_t c : config.forcedCutFrames)
+            if (c > 0 && static_cast<uint64_t>(c) > lo
+                && static_cast<uint64_t>(c) <= hi)
+                return true;
+        for (int64_t c : autoCuts)
+            if (static_cast<uint64_t>(c) > lo && static_cast<uint64_t>(c) <= hi)
+                return true;
+        return false;
+    };
+
+    // An exact ablation is a scientific control, not a best-effort filter.
+    // Reject a requested pair if it would already be absent for any other
+    // reason; otherwise a typo/cut/EOF could masquerade as a successful arm.
+    for (const auto& [targetIndex, referenceIndex] : config.excludedNeighbors) {
+        const uint64_t t = static_cast<uint64_t>(targetIndex);
+        const uint64_t r = static_cast<uint64_t>(referenceIndex);
+        if (std::find(targets.begin(), targets.end(), t) == targets.end()) {
+            result.error = "neighbor ablation target " + std::to_string(t)
+                + " is not a selected target";
+            return result;
+        }
+        const auto nominal = WindowConfig{config.past, config.future}.windowFor(t);
+        if (std::find(nominal.begin(), nominal.end(), r) == nominal.end()
+            || r == t) {
+            result.error = "neighbor ablation reference " + std::to_string(r)
+                + " is outside the configured window for target "
+                + std::to_string(t);
+            return result;
+        }
+        if (!frames.count(r)) {
+            result.error = "neighbor ablation reference " + std::to_string(r)
+                + " is not decoded for target " + std::to_string(t);
+            return result;
+        }
+        if (crossesCut(t, r)) {
+            result.error = "neighbor ablation reference " + std::to_string(r)
+                + " already crosses a scene-cut boundary for target "
+                + std::to_string(t);
+            return result;
+        }
+        if (!reconstructionSpaceCompatible(frames.at(t), frames.at(r))) {
+            result.error = "neighbor ablation reference " + std::to_string(r)
+                + " is already incompatible with target sample space "
+                + std::to_string(t);
+            return result;
+        }
+    }
+
     // --- ground-truth mapping validation (reference evidence only) ---
     {
         const int64_t firstTarget = static_cast<int64_t>(targets.front());
@@ -511,6 +561,12 @@ RunResult runPipeline(const RunConfig& config) {
         const Observation& target = it->second;
         const int width = target.width;
         const int height = target.height;
+        if (width <= 0 || height <= 0 || width > 32768 || height > 32768) {
+            result.error = "target frame geometry unsupported for BlockMotion: "
+                + std::to_string(width) + "x" + std::to_string(height)
+                + " (maximum 32768 per axis)";
+            return result;
+        }
         rec.ptsUs = target.ptsUs;
 
         // Side-info state derived from the INPUT codec's measured
@@ -618,19 +674,6 @@ RunResult runPipeline(const RunConfig& config) {
         // window selection (cut-aware)
         const Clock::time_point winStart = Clock::now();
         std::vector<uint64_t> window = WindowConfig{config.past, config.future}.windowFor(t);
-        // One exclusion rule for forced AND automatically detected
-        // boundaries; a neighbor is excluded when any cut lies strictly
-        // between it and the target, in both temporal directions.
-        auto crossesCut = [&](uint64_t a, uint64_t b) {
-            const uint64_t lo = std::min(a, b), hi = std::max(a, b);
-            for (int64_t c : config.forcedCutFrames)
-                if (c > 0 && static_cast<uint64_t>(c) > lo && static_cast<uint64_t>(c) <= hi)
-                    return true;
-            for (int64_t c : autoCuts)
-                if (static_cast<uint64_t>(c) > lo && static_cast<uint64_t>(c) <= hi)
-                    return true;
-            return false;
-        };
         std::vector<uint64_t> neighbors;
         std::vector<std::string> excluded;
         for (uint64_t s : window) {
