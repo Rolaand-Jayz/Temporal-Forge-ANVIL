@@ -34,16 +34,21 @@ int main() {
         CHECK(!c.note.empty() || c.mvExportProven);
         // Truthfulness invariant: mv_export_proven=true requires an observed
         // probe frame carrying MV side data.
-        if (c.mvExportProven) CHECK(c.probeMvFrames > 0 && c.probeTotalFrames > 0);
-        if (c.mvExportProven)
+        if (c.decodeProbePassed) CHECK(c.probeTotalFrames > 0);
+        if (c.mvExportProven) {
+            CHECK(c.decodeProbePassed);
+            CHECK(c.probeMvFrames > 0 && c.probeTotalFrames > 0);
             CHECK(c.probeMvFrames <= c.probeTotalFrames);
+        }
+        if (c.encoderAvailable && c.decoderAvailable && !c.decodeProbePassed)
+            CHECK(!c.note.empty());
         if (c.codec == "h264") sawH264 = true;
         if (c.codec == "hevc") sawHevc = true;
         if (c.codec == "av1") sawAv1 = true;
-        std::printf("codec=%s encoder=%s decoder=%d mv_export=%d (%d/%d frames) note=%s\n",
+        std::printf("codec=%s encoder=%s decoder=%d decode_probe=%d mv_export=%d (%d/%d frames) note=%s\n",
                     c.codec.c_str(), c.encoder.c_str(), int(c.decoderAvailable),
-                    int(c.mvExportProven), c.probeMvFrames, c.probeTotalFrames,
-                    c.note.c_str());
+                    int(c.decodeProbePassed), int(c.mvExportProven),
+                    c.probeMvFrames, c.probeTotalFrames, c.note.c_str());
     }
     CHECK(sawH264 && sawHevc && sawAv1);
 

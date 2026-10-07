@@ -132,6 +132,7 @@ std::string Manifest::toJson() const {
         w.kv("encoder", c.encoder);
         w.kv("encoder_available", c.encoderAvailable);
         w.kv("decoder_available", c.decoderAvailable);
+        w.kv("decode_probe_passed", c.decodeProbePassed);
         w.kv("mv_export_proven", c.mvExportProven);
         w.kv("probe_mv_frames", c.probeMvFrames);
         w.kv("probe_total_frames", c.probeTotalFrames);

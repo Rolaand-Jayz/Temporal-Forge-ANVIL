@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cstdio>
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -65,6 +66,13 @@ static void testJsonWriter() {
     w.kv("b", true);
     w.endObject();
     CHECK(w.str() == R"({"a":1,"s":"x\"y","arr":[1,2],"n":null,"b":true})");
+
+    JsonWriter nonfinite;
+    nonfinite.beginArray();
+    nonfinite.value(std::numeric_limits<double>::quiet_NaN());
+    nonfinite.value(std::numeric_limits<double>::infinity());
+    nonfinite.endArray();
+    CHECK(nonfinite.str() == "[null,null]");
 }
 
 static void testManifestRoundTripNames() {

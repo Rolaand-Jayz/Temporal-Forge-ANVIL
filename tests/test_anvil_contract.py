@@ -808,6 +808,20 @@ def test_ground_truth_rejections(sdr_clip, tmp_path):
                        "--ground-truth", "0=/nonexistent.pgm")
     assert proc4.returncode == 1 and "missing" in proc4.stderr
 
+    # Payload samples must respect maxval; provenance cannot bless malformed truth.
+    bad_sample = tmp_path / "bad_sample.pgm"
+    bad_sample.write_bytes(b"P5\n64 64\n100\n" + b"\xff" * (64 * 64))
+    proc5 = run_runner(tmp_path / "r5", "--input", sdr_clip, "--frame-count", 1,
+                       "--ground-truth", f"0={bad_sample}")
+    assert proc5.returncode == 1 and "malformed" in proc5.stderr
+
+    # Decimal header accumulation must reject overflow rather than wrap.
+    huge_header = tmp_path / "huge_header.pgm"
+    huge_header.write_bytes(b"P5\n999999999999999999999999 1\n255\n")
+    proc6 = run_runner(tmp_path / "r6", "--input", sdr_clip, "--frame-count", 1,
+                       "--ground-truth", f"0={huge_header}")
+    assert proc6.returncode == 1 and "malformed" in proc6.stderr
+
 
 def test_comprehensive_stage_capture_inventory(sdr_clip, tmp_path):
     """Every consequential implemented stage yields an auditable artifact;

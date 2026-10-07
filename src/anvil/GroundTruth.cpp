@@ -5,6 +5,7 @@
 #include <climits>
 #include <cstdio>
 #include <filesystem>
+#include <limits>
 #include <string>
 
 #include "Sha256.hpp"
@@ -56,14 +57,15 @@ bool readToken(FILE* f, std::string& out) {
 
 bool positiveInt(const std::string& s, int& out) {
     if (s.empty()) return false;
-    uint64_t v = 0;
+    int v = 0;
     for (unsigned char c : s) {
         if (c < '0' || c > '9') return false;
-        v = v * 10 + (c - '0');
-        if (v > static_cast<uint64_t>(INT_MAX)) return false;
+        const int digit = c - '0';
+        if (v > (INT_MAX - digit) / 10) return false;
+        v = v * 10 + digit;
     }
-    if (!v) return false;
-    out = static_cast<int>(v);
+    if (v <= 0) return false;
+    out = v;
     return true;
 }
 
@@ -79,6 +81,32 @@ bool parseHeader(const std::string& path, std::string& magic, int& w, int& h,
     rasterOffset = ok ? std::ftell(f) : -1;
     std::fclose(f);
     return ok && rasterOffset >= 0;
+}
+
+bool validateRasterSamples(const std::string& path, long rasterOffset,
+                           uintmax_t sampleCount, uintmax_t bytesPerSample,
+                           int maxval) {
+    FILE* f = std::fopen(path.c_str(), "rb");
+    if (!f) return false;
+    if (std::fseek(f, rasterOffset, SEEK_SET) != 0) {
+        std::fclose(f);
+        return false;
+    }
+    bool ok = true;
+    for (uintmax_t i = 0; i < sampleCount && ok; ++i) {
+        const int hi = std::fgetc(f);
+        if (hi == EOF) { ok = false; break; }
+        unsigned value = static_cast<unsigned>(hi);
+        if (bytesPerSample == 2) {
+            const int lo = std::fgetc(f);
+            if (lo == EOF) { ok = false; break; }
+            value = (value << 8) | static_cast<unsigned>(lo);
+        }
+        if (value > static_cast<unsigned>(maxval)) ok = false;
+    }
+    const bool ioError = std::ferror(f) != 0;
+    std::fclose(f);
+    return ok && !ioError;
 }
 } // namespace
 
@@ -101,9 +129,27 @@ GroundTruthError validateGroundTruth(const std::string& path,
     std::error_code sec;
     const uintmax_t fileSize = fs::file_size(path, sec);
     if (sec) return GroundTruthError::Malformed;
-    const uintmax_t expected = static_cast<uintmax_t>(raster)
-        + static_cast<uintmax_t>(w) * h * channels * bps;
+
+    uintmax_t sampleCount = static_cast<uintmax_t>(w);
+    auto checkedMul = [&](uintmax_t factor) {
+        if (factor != 0
+            && sampleCount > std::numeric_limits<uintmax_t>::max() / factor)
+            return false;
+        sampleCount *= factor;
+        return true;
+    };
+    if (!checkedMul(static_cast<uintmax_t>(h)) || !checkedMul(channels))
+        return GroundTruthError::Malformed;
+    if (sampleCount > std::numeric_limits<uintmax_t>::max() / bps)
+        return GroundTruthError::Malformed;
+    const uintmax_t rasterBytes = sampleCount * bps;
+    const uintmax_t rasterStart = static_cast<uintmax_t>(raster);
+    if (rasterStart > std::numeric_limits<uintmax_t>::max() - rasterBytes)
+        return GroundTruthError::Malformed;
+    const uintmax_t expected = rasterStart + rasterBytes;
     if (fileSize != expected) return GroundTruthError::Malformed;
+    if (!validateRasterSamples(path, raster, sampleCount, bps, maxval))
+        return GroundTruthError::Malformed;
 
     if (w < observationWidth || h < observationHeight)
         return GroundTruthError::LowerResolutionThanObservation;
