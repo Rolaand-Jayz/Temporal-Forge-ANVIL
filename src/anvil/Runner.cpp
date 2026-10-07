@@ -749,12 +749,20 @@ RunResult runPipeline(const RunConfig& config) {
             m.events.push_back({t, "side_info_absent",
                                 "no codec MV side data on this frame; input "
                                 "codec " + inputCodec + " export is proven"});
-        } else {
+        } else if (inputCap && inputCap->decodeProbePassed) {
+            // Only a completed negative probe supports an "unsupported" claim.
             rec.sideInfoState = sideInfoStateName(SideInfoState::Unsupported);
             m.events.push_back({t, "side_info_unsupported",
                                 "input codec " + inputCodec
-                                + " cannot export MV side data (measured "
-                                "capability)"});
+                                + " decoded completely in the capability probe "
+                                  "but exported no MV side data"});
+        } else {
+            // Absent/incomplete probe evidence is unknown, not unsupported.
+            rec.sideInfoState = sideInfoStateName(SideInfoState::EstimatorOnly);
+            m.events.push_back({t, "side_info_unproven",
+                                "input codec " + inputCodec
+                                + " has no completed MV capability probe; "
+                                  "using estimator/oracle fallback"});
         }
 
         // decode-stage capture: source planes (pre-pipeline) and raw codec

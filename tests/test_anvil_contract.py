@@ -818,6 +818,15 @@ def test_partial_edge_block_coverage(clip66x65, tmp_path):
         "uncovered pixels leaked into accumulation as invalid/valid mismatch")
 
 
+def test_unprobed_codec_never_claims_unsupported(mpeg2_clip, tmp_path):
+    out = tmp_path / "mpeg2_capability_truth"
+    proc = run_runner(out, "--input", mpeg2_clip, "--frame-count", 1)
+    assert proc.returncode == 0, proc.stderr
+    manifest = load_manifest(out)
+    assert manifest["frames"][0]["side_info_state"] != "unsupported"
+    assert any(e["type"] == "side_info_unproven" for e in manifest["events"])
+
+
 def test_codec_mv_precision_reflects_motion_scale(
         sdr_clip, mpeg2_clip, tmp_path):
     """Codec precision is derived from the decoder's motion_scale

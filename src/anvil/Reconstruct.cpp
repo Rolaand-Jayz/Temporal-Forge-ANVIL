@@ -34,7 +34,8 @@ inline uint32_t maxSample(const Observation& o) {
     return d==16?65535u:((1u<<d)-1u);
 }
 float planeAt(const Observation& o,int plane,int x,int y,int pw,int ph){
-    if(plane<0||plane>=o.planeCount||x<0||y<0||x>=pw||y>=ph)return NAN;
+    if(plane<0||plane>=o.planeCount||x<0||y<0||x>=pw||y>=ph
+       ||o.linesize[plane]<=0)return NAN;
     const int bps=bytesPerSample(o);
     const size_t off=static_cast<size_t>(y)*o.linesize[plane]+static_cast<size_t>(x)*bps;
     if(off+static_cast<size_t>(bps)>o.plane[plane].size())return NAN;
@@ -42,7 +43,8 @@ float planeAt(const Observation& o,int plane,int x,int y,int pw,int ph){
     return static_cast<float>(uint32_t(o.plane[plane][off])|(uint32_t(o.plane[plane][off+1])<<8));
 }
 void planeSet(Observation& o,int plane,int x,int y,float value,int pw,int ph){
-    if(plane<0||plane>=o.planeCount||x<0||y<0||x>=pw||y>=ph)return;
+    if(plane<0||plane>=o.planeCount||x<0||y<0||x>=pw||y>=ph
+       ||o.linesize[plane]<=0)return;
     const int bps=bytesPerSample(o);
     const size_t off=static_cast<size_t>(y)*o.linesize[plane]+static_cast<size_t>(x)*bps;
     if(off+static_cast<size_t>(bps)>o.plane[plane].size())return;
@@ -199,8 +201,17 @@ std::vector<BlockMotion> refineCorrespondence(const Observation& target,
 
 FlowField buildFlowField(int width, int height, const std::vector<BlockMotion>& blocks,
                          int64_t refFrameIndex, std::vector<uint8_t>* coverageOut) {
-    FlowField flow(static_cast<size_t>(width) * height * 2, 0.0f);
-    if (coverageOut) coverageOut->assign(static_cast<size_t>(width) * height, 0);
+    if (width <= 0 || height <= 0) {
+        if (coverageOut) coverageOut->clear();
+        return {};
+    }
+    const size_t pixels = static_cast<size_t>(width) * static_cast<size_t>(height);
+    if (pixels > std::numeric_limits<size_t>::max() / 2) {
+        if (coverageOut) coverageOut->clear();
+        return {};
+    }
+    FlowField flow(pixels * 2, 0.0f);
+    if (coverageOut) coverageOut->assign(pixels, 0);
     for (const BlockMotion& b : blocks) {
         // Reference identity must be proven for the vector to enter
         // reconstruction. Ambiguous codec vectors are rejected here.
