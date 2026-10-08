@@ -221,37 +221,41 @@ set_target_properties(temporal_forge_player PROPERTIES
 )
 
 # --- ANVIL successor (non-FSR, Qt-free, Vulkan-free, deterministic) ---
-# Capture source identity at configure time so provenance remains correct even
-# when anvil_runner is launched outside the repository working directory.
+# Source identity is captured at BUILD time, not configure time (review
+# 4209766186): provenance captured only at configure goes stale as soon as a
+# source file changes or a new revision is checked out and ninja recompiles
+# without re-running configure, so a rebuilt binary could report a wrong or
+# even contradictorily clean identity. cmake/AnvilProvenance.cmake regenerates
+# the provenance translation unit below on every build and rewrites the file
+# ONLY when the captured content changes, so an unchanged Git state costs zero
+# recompilation.
+set(ANVIL_PROVENANCE_DIR "${CMAKE_BINARY_DIR}/anvil_provenance")
+set(ANVIL_PROVENANCE_SOURCE "${ANVIL_PROVENANCE_DIR}/AnvilBuildProvenance.cpp")
+# Configure-time generation guarantees the translation unit exists before any
+# compilation; the anvil_provenance target refreshes it from then on.
 execute_process(
-    COMMAND git rev-parse HEAD
-    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-    RESULT_VARIABLE ANVIL_GIT_SHA_RC
-    OUTPUT_VARIABLE ANVIL_GIT_SHA
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_QUIET)
-string(LENGTH "${ANVIL_GIT_SHA}" ANVIL_GIT_SHA_LENGTH)
-if(NOT ANVIL_GIT_SHA_RC EQUAL 0
-   OR NOT ANVIL_GIT_SHA_LENGTH EQUAL 40
-   OR NOT ANVIL_GIT_SHA MATCHES "^[0-9A-Fa-f]+$")
-    set(ANVIL_GIT_SHA "")
+    COMMAND "${CMAKE_COMMAND}"
+        "-DOUT_FILE=${ANVIL_PROVENANCE_SOURCE}"
+        "-DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/AnvilProvenance.cmake"
+    RESULT_VARIABLE ANVIL_PROVENANCE_RC)
+if(NOT ANVIL_PROVENANCE_RC EQUAL 0 OR NOT EXISTS "${ANVIL_PROVENANCE_SOURCE}")
+    message(FATAL_ERROR
+        "ANVIL: failed to generate build-time provenance source "
+        "${ANVIL_PROVENANCE_SOURCE}")
 endif()
-execute_process(
-    COMMAND git status --porcelain
+set_source_files_properties("${ANVIL_PROVENANCE_SOURCE}" PROPERTIES
+    GENERATED TRUE)
+# Custom targets are phony in Ninja: anvil_provenance runs on every build.
+add_custom_target(anvil_provenance
+    COMMAND "${CMAKE_COMMAND}"
+        "-DOUT_FILE=${ANVIL_PROVENANCE_SOURCE}"
+        "-DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/AnvilProvenance.cmake"
+    BYPRODUCTS "${ANVIL_PROVENANCE_SOURCE}"
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-    RESULT_VARIABLE ANVIL_GIT_DIRTY_RC
-    OUTPUT_VARIABLE ANVIL_GIT_STATUS
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_QUIET)
-if(ANVIL_GIT_DIRTY_RC EQUAL 0)
-    if(ANVIL_GIT_STATUS STREQUAL "")
-        set(ANVIL_GIT_DIRTY "false")
-    else()
-        set(ANVIL_GIT_DIRTY "true")
-    endif()
-else()
-    set(ANVIL_GIT_DIRTY "")
-endif()
+    COMMENT "ANVIL: capturing build-time Git provenance"
+    VERBATIM)
 
 file(GLOB ANVIL_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/anvil/*.cpp")
@@ -262,15 +266,17 @@ list(APPEND ANVIL_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/media/Demuxer.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/media/VideoDecoder.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/util/Log.cpp")
+# Build-time provenance definitions are strong and override the weak
+# fallbacks compiled from src/anvil/BuildProvenance.cpp (part of the GLOB).
+list(APPEND ANVIL_SOURCES "${ANVIL_PROVENANCE_SOURCE}")
 add_library(anvil_lib STATIC ${ANVIL_SOURCES})
 target_include_directories(anvil_lib PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_compile_features(anvil_lib PUBLIC cxx_std_23)
 target_compile_definitions(anvil_lib PRIVATE
     ANVIL_BUILD_TYPE="${CMAKE_BUILD_TYPE}"
-    ANVIL_COMPILER_ID="${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}"
-    ANVIL_GIT_SHA="${ANVIL_GIT_SHA}"
-    ANVIL_GIT_DIRTY="${ANVIL_GIT_DIRTY}")
+    ANVIL_COMPILER_ID="${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+add_dependencies(anvil_lib anvil_provenance)
 foreach(lib ${FFMPEG_LIBRARIES})
     target_link_libraries(anvil_lib PUBLIC ${lib})
 endforeach()

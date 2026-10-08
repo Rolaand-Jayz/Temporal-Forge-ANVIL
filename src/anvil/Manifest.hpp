@@ -84,6 +84,14 @@ public:
     struct Provenance {
         std::optional<std::string> gitSha;     // nullopt recorded as null
         std::optional<std::string> gitDirty;   // "true"/"false" when known
+        // SHA-256 over (porcelain status + "git diff HEAD") captured when the
+        // tree was dirty at build time; nullopt recorded as null. nullopt is
+        // the truthful value for a clean tree, a non-repository, or an
+        // unprovable state — it must never be guessed.
+        std::optional<std::string> gitDirtyHash;
+        // Which tier supplied the source identity (never guessed):
+        //   "build_generated" | "compile_macro" | "runtime_git" | "unknown"
+        std::string provenanceSource;
         std::string ffmpegVersion;             // av_version_info()
         std::string buildType;                 // CMAKE_BUILD_TYPE
         std::string compilerId;                // compiler + version
@@ -171,8 +179,15 @@ public:
     std::string toJson() const;
 };
 
-// Provenance helpers.
-std::optional<std::string> detectGitSha();       // nullopt when not a repo
+// Provenance helpers. Each detector resolves through three identity tiers
+// and reports nullopt/"unknown" when identity cannot be proven — it never
+// guesses. Tier order: compile-macro (CI g++-direct builds define these
+// fresh at compile time), build-generated (cmake/AnvilProvenance.cmake
+// refreshes the generated unit on every build), runtime git (last resort;
+// only meaningful when the process cwd happens to be the repository).
+std::optional<std::string> detectGitSha();       // nullopt when unprovable
 std::optional<std::string> detectGitDirty();     // "true"/"false", nullopt unknown
+std::optional<std::string> detectGitDirtyHash(); // 64-hex or nullopt
+std::string detectProvenanceSource();            // tier that supplied the sha
 
 } // namespace anvil
