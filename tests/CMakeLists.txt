@@ -365,6 +365,19 @@ if(NOT FFMPEG_ANVIL_FOUND)
     set_tests_properties(anvil_side_info_tests PROPERTIES DISABLED ON)
 endif()
 
+# anvil_output_backend_tests: the replaceable/bypassable output stage boundary
+# (execution pack capability D). "pnm" must reproduce the runner's former
+# inline serialization byte-for-byte; "null" is the zero-artifact bypass.
+anvil_add_test(anvil_output_backend_tests
+    SOURCES anvil_output_backend_tests.cpp
+            ../src/anvil/OutputBackend.cpp
+            ../src/anvil/Pnm.cpp
+            ../src/anvil/Reconstruct.cpp)
+if(NOT FFMPEG_ANVIL_FOUND)
+    set_tests_properties(anvil_output_backend_tests PROPERTIES DISABLED ON)
+endif()
+endif()
+
 # anvil_runner_tests: end-to-end CLI on a synthetic deterministic clip.
 if(FFMPEG_ANVIL_FOUND AND FFMPEG_BIN)
     add_executable(anvil_runner_tests anvil_runner_tests.cpp)
