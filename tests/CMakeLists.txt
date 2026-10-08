@@ -353,6 +353,18 @@ if(NOT FFMPEG_ANVIL_FOUND)
     set_tests_properties(anvil_codec_tests PROPERTIES DISABLED ON)
 endif()
 
+# Side-info normalization stage (review 4209763208): the raw -> normalized
+# prior boundary must be an explicit, independently bypassable stage (pack
+# capability D), not an internal step of the codec correspondence arm.
+# Pure CPU; Core.cpp is linked because the stage delegates to normalizeCodecMv.
+anvil_add_test(anvil_side_info_tests
+    SOURCES anvil_side_info_tests.cpp
+            ../src/anvil/Core.cpp
+            ../src/anvil/SideInfoNormalize.cpp)
+if(NOT FFMPEG_ANVIL_FOUND)
+    set_tests_properties(anvil_side_info_tests PROPERTIES DISABLED ON)
+endif()
+
 # anvil_runner_tests: end-to-end CLI on a synthetic deterministic clip.
 if(FFMPEG_ANVIL_FOUND AND FFMPEG_BIN)
     add_executable(anvil_runner_tests anvil_runner_tests.cpp)
