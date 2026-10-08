@@ -23,9 +23,10 @@
 // both give saw SAD 0 — which is what the column ramp disambiguates),
 // increasing in sawtooth distance otherwise. saw distances: d=1 -> 30,
 // d=2 -> 56, d=8 -> 128; the y term is weighted 14x, so any dy!=0 candidate
-// (numerically measured minimum 6496 across the tested shifts — per-pixel
-// interference makes the landscape not exactly separable) is strictly
-// dominated by every dy=0 candidate (<= 16*128 + 256 = 2304).
+// (measured minimum above 6400 across the tested shifts — per-pixel
+// interference makes the landscape not exactly separable and the exact
+// minimum enumeration-window dependent) is strictly dominated by every
+// dy=0 candidate (<= 16*128 + 256 = 2304).
 #include <cstdint>
 #include <cstdio>
 #include <vector>
