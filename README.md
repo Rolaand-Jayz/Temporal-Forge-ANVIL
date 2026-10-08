@@ -120,7 +120,21 @@ Historical plans and progress logs are archived. There is no active FSR campaign
 
 ## Requirements
 
-The runtime requires a **Vulkan 1.3** driver.
+### ANVIL successor
+
+The ANVIL runner itself is CPU/FFmpeg-based and does **not** require Qt or
+Vulkan at runtime. Building the full repository through the top-level CMake
+configuration still requires the historical player's Qt/Vulkan development
+dependencies; the CI Python-contract job demonstrates a direct ANVIL-only
+build path with FFmpeg development libraries.
+
+Core ANVIL requirements: C++23, FFmpeg ≥ 5.1 development libraries, and
+Threads. The full contract-test path additionally uses Python 3 + pytest,
+`ffmpeg`, and `ffprobe`.
+
+### Historical player
+
+The historical player runtime requires a **Vulkan 1.3** driver.
 
 | Package | Role | Required? | Behavior when missing |
 |---|---|---|---|

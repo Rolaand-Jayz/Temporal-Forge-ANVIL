@@ -236,9 +236,11 @@ full test suites. The ANVIL targets themselves need only FFmpeg.
 At implementation/evidence head `5f10b26f84ba89293e1b38622521acde37ee0732`:
 
 - Actions run `37855358002`: SUCCESS.
-- CTest: 32/32 executed tests passed; one additional provenance regression
-  is skipped in this CI environment and four historical GPU tests remain
-  disabled by design.
+- CTest: **100% tests passed out of 32 non-disabled tests**. Of the 36
+  registered tests, 29 completed normally, three were explicitly skipped
+  (`fsr4_weight_tests`, `fsr4_tensormap_tests`,
+  `anvil_provenance_rebuild_regression`), and four historical GPU tests
+  remain disabled by design.
 - Python CI contract job: 124 passed = 68 historical + 56 ANVIL tests.
 
 This validates the exact implementation/evidence head. It does not replace

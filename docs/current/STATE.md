@@ -77,8 +77,9 @@ This repository must not self-promote that value to TRUE merely because internal
 Exact implementation/evidence head `5f10b26f84ba89293e1b38622521acde37ee0732`:
 
 - GitHub Actions run `37855358002`: **SUCCESS**
-- Arch build + CTest: **32/32 executed tests passed**
-  - 1 additional provenance regression skipped in this CI environment
+- Arch build + CTest: CTest reported **100% tests passed out of 32 non-disabled tests**
+  - 29 tests completed normally
+  - 3 tests were explicitly skipped: `fsr4_weight_tests`, `fsr4_tensormap_tests`, and `anvil_provenance_rebuild_regression`
   - 4 historical GPU tests remain disabled by design
 - Python CI contract job: **124 passed**
   - 68 historical Python tests
