@@ -319,7 +319,11 @@ equivalent combined suite 124 passed + 39 subtests; GitHub Actions run
 
 ## Command evidence
 
-Current implementation evidence head `0e03af613bbaa904d8497857989ab1c88b9381ad` (2026-10-07):
+Implementation evidence heads, newest first:
+- `2715eef8` (round-4 + review-pass doc repairs; Actions run 37786744274 SUCCESS)
+- `c0533c7c` (round-4 + review-pass-1/2 code repairs; Actions run 37782937886 SUCCESS)
+- `598823e1` (round-4 integration; Actions run 37744340628 SUCCESS)
+- `0e03af613bbaa904d8497857989ab1c88b9381ad` (2026-10-07, round 3; Actions run 37582895384 SUCCESS)
 
 ```
 GitHub Actions run 37582895384 on PR #1:
@@ -341,8 +345,9 @@ Source-level inventory at this head:
 ```
 
 The earlier clean-clone verification remains historical evidence for the clone
-and build instructions. GitHub Actions run `37582895384` supplies a fresh
-clean-checkout build/test result for the implementation evidence head above.
+and build instructions. Each Actions run listed above supplies a fresh
+clean-checkout build/test result for its exact head; the newest head's run is
+the authoritative current evidence.
 The documentation refresh commit that follows this evidence head changes only
 the two current ANVIL documentation files and must itself remain green before
 evaluator handoff.
