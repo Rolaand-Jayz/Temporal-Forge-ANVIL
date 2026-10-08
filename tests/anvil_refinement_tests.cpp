@@ -18,13 +18,14 @@
 //
 // (each 16x16 block contains exactly one period of the x-sawtooth per row and
 // of the y-sawtooth per column; the terms are separable). The landscape is
-// exact, not statistical: SAD 0 uniquely at the true displacement for the
-// cases tested (the bare 16-periodic texture alone would alias +8 with -8 —
+// construction-exact at the truth: SAD 0 uniquely at the true displacement
+// for the cases tested (verified numerically) (the bare 16-periodic texture alone would alias +8 with -8 —
 // both give saw SAD 0 — which is what the column ramp disambiguates),
 // increasing in sawtooth distance otherwise. saw distances: d=1 -> 30,
 // d=2 -> 56, d=8 -> 128; the y term is weighted 14x, so any dy!=0 candidate
-// (>= 224*30 = 6720) is strictly dominated by every dy=0 candidate
-// (<= 16*128 + 256 = 2304).
+// (numerically measured minimum 6496 across the tested shifts — per-pixel
+// interference makes the landscape not exactly separable) is strictly
+// dominated by every dy=0 candidate (<= 16*128 + 256 = 2304).
 #include <cstdint>
 #include <cstdio>
 #include <vector>
