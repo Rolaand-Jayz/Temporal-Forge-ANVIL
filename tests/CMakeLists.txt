@@ -315,6 +315,18 @@ if(NOT FFMPEG_ANVIL_FOUND)
     set_tests_properties(anvil_core_tests PROPERTIES DISABLED ON)
 endif()
 
+# Coarse/refinement resolution-hierarchy regression (review 4209751753):
+# the even-lattice coarse prior plus +/-1 residual refinement must change a
+# deliberately imperfect coarse field on odd true displacements and leave
+# even/boundary optima unchanged.
+anvil_add_test(anvil_refinement_tests
+    SOURCES anvil_refinement_tests.cpp
+            ../src/anvil/Core.cpp
+            ../src/anvil/Reconstruct.cpp)
+if(NOT FFMPEG_ANVIL_FOUND)
+    set_tests_properties(anvil_refinement_tests PROPERTIES DISABLED ON)
+endif()
+
 anvil_add_test(anvil_codec_tests
     SOURCES anvil_codec_tests.cpp
             ../src/anvil/CodecProbe.cpp)
