@@ -65,6 +65,7 @@ const char* stageName(StageId id) {
     switch (id) {
         case StageId::Decode: return "decode";
         case StageId::WindowSelect: return "window_select";
+        case StageId::SideInfoNormalization: return "side_info_normalization";
         case StageId::Correspondence: return "correspondence";
         case StageId::CorrespondenceRefinement: return "correspondence_refinement";
         case StageId::Visibility: return "visibility";
@@ -81,6 +82,7 @@ StageId stageFromName(const std::string& name, bool& ok) {
     ok = true;
     if (name == "decode") return StageId::Decode;
     if (name == "window_select") return StageId::WindowSelect;
+    if (name == "side_info_normalization") return StageId::SideInfoNormalization;
     if (name == "correspondence") return StageId::Correspondence;
     if (name == "correspondence_refinement") return StageId::CorrespondenceRefinement;
     if (name == "visibility") return StageId::Visibility;
@@ -150,9 +152,12 @@ std::string Manifest::toJson() const {
     w.kv("start_frame", config.startFrame);
     if (config.startPtsUs) w.kv("start_pts_us", *config.startPtsUs);
     else w.key("start_pts_us"), w.null();
+    if (config.startPtsTicks) w.kv("start_pts_ticks", *config.startPtsTicks);
+    else w.key("start_pts_ticks"), w.null();
     w.kv("frame_count", config.frameCount);
     w.kv("past", config.past);
     w.kv("future", config.future);
+    w.kv("side_info_normalization_mode", config.sideInfoNormalizationMode);
     w.kv("correspondence_mode", config.correspondenceMode);
     w.kv("refinement_mode", config.refinementMode);
     w.kv("visibility_mode", config.visibilityMode);
@@ -178,6 +183,7 @@ std::string Manifest::toJson() const {
     w.kv("dump_stages", config.dumpStages);
     w.kv("seed", config.seed);
     w.kv("deterministic_no_random_components", true);
+    w.kv("output_backend", config.outputBackend);
     w.kv("output_format", config.outputFormat);
     w.endObject(); // config
 
@@ -294,7 +300,12 @@ std::string Manifest::toJson() const {
         w.beginObject();
         w.kv("frame_index", fr.frameIndex);
         w.kv("pts_us", fr.ptsUs);
+        w.kv("pts_ticks", fr.ptsTicks);
+        w.kv("timebase_num", fr.timebaseNum);
+        w.kv("timebase_den", fr.timebaseDen);
+        w.kv("timestamp_source", fr.timestampSource);
         w.kv("side_info_state", fr.sideInfoState);
+        w.kv("side_info_normalization", fr.sideInfoNormalizationState);
         w.kv("codec_mv_count", fr.codecMvCount);
         w.kv("codec_mv_usable_count", fr.codecMvUsableCount);
         w.kv("correspondence_source", fr.correspondenceSource);

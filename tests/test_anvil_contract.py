@@ -41,6 +41,7 @@ def _ffmpeg():
 
 RUNNER = _find_runner()
 FFMPEG = _ffmpeg()
+FFPROBE = shutil.which("ffprobe")
 
 pytestmark = pytest.mark.skipif(
     RUNNER is None or FFMPEG is None,
@@ -743,9 +744,10 @@ def test_stage_timing_attribution(sdr_clip, tmp_path):
             f"unserialized stage name: {t}"
         totals.setdefault(t["stage"], 0)
         totals[t["stage"]] += t["nanoseconds"]
-    for stage in ("decode", "window_select", "correspondence",
-                  "correspondence_refinement", "visibility", "confidence",
-                  "sample_geometry", "color_convert", "accumulate", "output"):
+    for stage in ("decode", "window_select", "side_info_normalization",
+                  "correspondence", "correspondence_refinement", "visibility",
+                  "confidence", "sample_geometry", "color_convert",
+                  "accumulate", "output"):
         assert stage in totals, f"missing timing for {stage}"
         assert totals[stage] > 0, f"zero timing for {stage}"
     # conversion fixture: a second color_convert entry carries sws_scale work
@@ -941,6 +943,7 @@ def test_comprehensive_stage_capture_inventory(sdr_clip, tmp_path):
             dump_dir / f"decode_f{t}_y.pgm",            # decoded source planes
             dump_dir / f"decode_f{t}_mvs.txt",          # raw codec side info (or explicit none)
             dump_dir / f"window_select_f{t}_window.txt",  # window selection + exclusions
+            dump_dir / f"side_info_normalization_f{t}_normalized.txt",  # raw->normalized prior boundary
             dump_dir / f"correspondence_f{t}_correspondence.txt",  # coarse vectors
             dump_dir / f"correspondence_refinement_f{t}_refined.txt",
             dump_dir / f"visibility_f{t}_i0.pgm",       # actual mask values
@@ -962,6 +965,9 @@ def test_comprehensive_stage_capture_inventory(sdr_clip, tmp_path):
     assert " mv " in corr and "block " in corr  # actual vector values
     mvs = (dump_dir / "decode_f2_mvs.txt").read_text()
     assert "state=" in mvs and ("dst " in mvs or "state=none" in mvs)
+    norm = (dump_dir / "side_info_normalization_f2_normalized.txt").read_text()
+    assert "mode=normalize" in norm and "state=" in norm
+    assert "raw=" in norm and "usable=" in norm
     color = (dump_dir / "color_convert_f2_color.txt").read_text()
     for field in ("range ", "primaries ", "transfer ", "matrix ",
                   "chroma_location ", "working_space state="):
@@ -1128,7 +1134,16 @@ def test_strict_cli_configuration_matrix(sdr_clip, tmp_path):
         "past_destination_overflow": ["--past", "4294967296"],
         "future_destination_overflow": ["--future", "4294967296"],
         "pts_destination_overflow": ["--start-pts-us", "18446744073709551615"],
-        "geometry_estimate_noop_forbidden": ["--geometry", "estimate"],
+        # --geometry estimate is now a REAL experimental arm (review
+        # 4209762343); only unknown mode values stay configuration errors.
+        "unknown_geometry_mode": ["--geometry", "estmate"],
+        "unknown_side_info_mode": ["--side-info", "normlize"],
+        "unknown_backend": ["--backend", "fsr"],
+        "pts_selection_double_spec": [
+            "--start-pts-us", "5", "--start-pts-ticks", "5"],
+        "ticks_with_start_frame": [
+            "--start-frame", "1", "--start-pts-ticks", "5"],
+        "malformed_ticks": ["--start-pts-ticks", "12ab"],
         "oracle_refinement_false_arm": [
             "--correspondence", "oracle", "--refinement", "local"],
         "none_refinement_false_arm": [
@@ -1364,6 +1379,409 @@ def test_refinement_stage_is_real_and_bypassable(sdr_clip, tmp_path):
     assert (dumps / "correspondence_f2_correspondence.txt").is_file()
     assert (dumps / "correspondence_refinement_f2_refined.txt").is_file()
     assert any(t["stage"] == "correspondence_refinement" for t in m["stage_timings"])
+
+
+@pytest.fixture(scope="module")
+def odd_motion_clip(tmp_path_factory):
+    """Deterministic odd-integer-motion clip: a STATIC gradient source cropped
+    with an animated x window yields exactly -3 px/frame content motion (an
+    odd displacement the even-lattice coarse prior cannot represent). Verified
+    while authoring: whole-region SAD best is dx=-3 on every frame pair with
+    ~2.5x SAD separation to the nearest candidate."""
+    out = tmp_path_factory.mktemp("fx") / "anvil_odd_motion.mp4"
+    subprocess.run([
+        FFMPEG, "-y", "-loglevel", "error",
+        "-f", "lavfi", "-i", "gradients=s=96x64:speed=0.000001:n=2",
+        "-vf", "crop=64:64:'min(3*n,24)':0",
+        "-t", "0.6",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18",
+        "-x264-params", "keyint=8:bframes=0:colorprim=bt709:transfer=bt709:"
+                        "colorrange=tv:colormatrix=bt709:log-level=error",
+        str(out),
+    ], check=True)
+    return out
+
+
+def _parse_block_mvs(path):
+    """(dstX, dstY) -> (mvX, mvY) from a correspondence/refinement dump line
+    'block dstX dstY blockW blockH mv mvX mvY ref ...'."""
+    out = {}
+    for line in Path(path).read_text().splitlines():
+        if line.startswith("block "):
+            parts = line.split()
+            out[(int(parts[1]), int(parts[2]))] = (float(parts[6]),
+                                                  float(parts[7]))
+    return out
+
+
+def test_refinement_corrects_imperfect_coarse_field(odd_motion_clip,
+                                                    tmp_path):
+    """Regression (review 4209751753): the coarse estimator is an even-lattice
+    prior, so an odd true displacement leaves it deliberately imperfect;
+    --refinement local must measurably correct vectors toward the odd truth
+    while --refinement none leaves the coarse field untouched."""
+    common = ["--input", odd_motion_clip, "--start-frame", 1,
+              "--frame-count", 1, "--past", 1,
+              "--correspondence", "estimate"]
+    out_l, dumps_l = tmp_path / "local", tmp_path / "dumps_local"
+    proc = run_runner(out_l, *common, "--refinement", "local",
+                      "--dump-dir", dumps_l,
+                      "--dump-stages", "correspondence,correspondence_refinement")
+    assert proc.returncode == 0, proc.stderr
+    out_n, dumps_n = tmp_path / "none", tmp_path / "dumps_none"
+    proc = run_runner(out_n, *common, "--refinement", "none",
+                      "--dump-dir", dumps_n,
+                      "--dump-stages", "correspondence,correspondence_refinement")
+    assert proc.returncode == 0, proc.stderr
+
+    coarse_l = _parse_block_mvs(dumps_l / "correspondence_f1_correspondence.txt")
+    refined = _parse_block_mvs(dumps_l / "correspondence_refinement_f1_refined.txt")
+    coarse_n = _parse_block_mvs(dumps_n / "correspondence_f1_correspondence.txt")
+    none_ref = _parse_block_mvs(dumps_n / "correspondence_refinement_f1_refined.txt")
+    assert coarse_l and coarse_l == coarse_n, \
+        "coarse field must not depend on refinement mode"
+
+    # local refinement corrects vectors the even lattice could not represent:
+    # the estimator convention maps this fixture's content motion to mv +3
+    # (verified while authoring: measured pairs coarse +2 -> refined +3 and
+    # coarse +4 -> refined +3). Lossy encoding legitimately leaves some noisy
+    # blocks elsewhere; the corrective signal must be present and unambiguous.
+    changed = [k for k in coarse_l if coarse_l[k] != refined[k]]
+    assert changed, "refinement local changed no vector on an odd-motion clip"
+    corrected = [k for k in changed if refined[k][0] == 3.0
+                 and refined[k][1] == 0.0
+                 and coarse_l[k][0] in (2.0, 4.0)]
+    assert len(corrected) >= 2, \
+        "refined vectors did not move onto the odd truth"
+    regressed = [k for k in coarse_l if coarse_l[k][0] == 3.0
+                 and refined[k][0] != 3.0]
+    assert not regressed, "refinement moved blocks OFF the odd truth"
+
+    # none is a truthful no-op: the refinement dump repeats the coarse field
+    assert none_ref == coarse_n, \
+        "refinement none must leave the coarse field unchanged"
+
+
+def test_side_info_normalization_is_independent_stage(sdr_clip, tmp_path):
+    """Regression (review 4209763208): side-info normalization is an explicit,
+    independently controllable raw->normalized boundary. Bypassing it must not
+    switch the correspondence algorithm: the estimate arm's reconstruction is
+    byte-identical across modes, while the stage's own mode/state/dump/timing
+    carry the isolation evidence."""
+    common = ["--input", sdr_clip, "--start-frame", 2, "--frame-count", 1,
+              "--past", 1, "--correspondence", "estimate"]
+    out_a, out_b = tmp_path / "norm", tmp_path / "byp"
+    dumps_b = tmp_path / "dumps_byp"
+    assert run_runner(out_a, *common,
+                      "--side-info", "normalize").returncode == 0
+    proc = run_runner(out_b, *common, "--side-info", "bypass",
+                      "--dump-dir", dumps_b, "--dump-stages", "all")
+    assert proc.returncode == 0, proc.stderr
+    ma, mb = load_manifest(out_a), load_manifest(out_b)
+    assert ma["config"]["side_info_normalization_mode"] == "normalize"
+    assert mb["config"]["side_info_normalization_mode"] == "bypass"
+    # estimate arm is provably decoupled from the normalization boundary:
+    # identical reconstruction bytes either way
+    fa = sorted(p.name for p in out_a.iterdir() if p.suffix in (".ppm", ".pgm"))
+    fb = sorted(p.name for p in out_b.iterdir() if p.suffix in (".ppm", ".pgm"))
+    assert fa == fb and fa, "output inventory changed with normalization mode"
+    for name in fa:
+        assert (out_a / name).read_bytes() == (out_b / name).read_bytes(), \
+            f"normalization mode leaked into estimate-arm output: {name}"
+    for f in mb["frames"]:
+        assert f["side_info_normalization"] in ("not_applicable", "normalized",
+                                                "bypassed")
+    assert any(t["stage"] == "side_info_normalization"
+               for t in mb["stage_timings"])
+    nd = dumps_b / "side_info_normalization_f2_normalized.txt"
+    assert nd.is_file() and "mode=bypass" in nd.read_text()
+
+
+def test_side_info_bypass_changes_codec_arm_truthfully(sdr_clip, tmp_path):
+    """In codec mode the normalization boundary is load-bearing: bypassing it
+    removes the normalized prior (state 'bypassed', zero usable entries,
+    explicit event) without touching the estimate arm's contract."""
+    out = tmp_path / "codec_byp"
+    proc = run_runner(out, "--input", sdr_clip, "--start-frame", 2,
+                      "--frame-count", 1, "--past", 1,
+                      "--correspondence", "codec", "--side-info", "bypass")
+    assert proc.returncode == 0, proc.stderr
+    m = load_manifest(out)
+    f = m["frames"][0]
+    # raw codec MVs exist on this h264 P-frame fixture; bypass refuses to
+    # interpret them and says so
+    assert f["codec_mv_count"] > 0
+    assert f["side_info_normalization"] == "bypassed"
+    assert f["codec_mv_usable_count"] == 0
+    assert any(e["type"] == "side_info_normalization_bypassed"
+               for e in m["events"])
+
+
+def test_output_backend_null_bypass_and_identity(sdr_clip, tmp_path):
+    """Regression (review 4209765746): the output backend is a replaceable
+    stage. The null backend completes the pipeline+manifest with zero output
+    artifacts; the default pnm backend is unchanged; backend identity is
+    serialized; unknown backends are configuration errors."""
+    out_n = tmp_path / "null_backend"
+    proc = run_runner(out_n, "--input", sdr_clip, "--frame-count", 1,
+                      "--backend", "null")
+    assert proc.returncode == 0, proc.stderr
+    m = load_manifest(out_n)
+    assert m["config"]["output_backend"] == "null"
+    assert m["config"]["output_format"] == "null_backend_no_output"
+    frame_outputs = [o for o in m["output_files"] if o != "manifest.json"]
+    assert frame_outputs == [], "null backend must not write frame artifacts"
+    assert list(out_n.glob("frame_*")) == [], "null backend wrote files to disk"
+    assert m["frames"], "pipeline itself must still complete"
+
+    out_p = tmp_path / "pnm_backend"
+    assert run_runner(out_p, "--input", sdr_clip, "--frame-count", 1,
+                      "--backend", "pnm").returncode == 0
+    mp = load_manifest(out_p)
+    assert mp["config"]["output_backend"] == "pnm"
+    assert mp["config"]["output_format"] == "ppm_or_depth_preserving_pgm_planes"
+    assert [o for o in mp["output_files"] if o != "manifest.json"], \
+        "pnm backend must still write frames"
+
+    out_bad = tmp_path / "bad_backend"
+    proc = run_runner(out_bad, "--input", sdr_clip, "--frame-count", 1,
+                      "--backend", "fsr")
+    assert proc.returncode == 2
+    assert not (out_bad / "manifest.json").exists()
+
+
+@pytest.fixture(scope="module")
+def subpixel_clip(tmp_path_factory):
+    """Genuinely subpixel-shifted clip (review 4209762343): consecutive frames
+    sample one analytic textured pattern at x + i*0.25 px, so the neighbor
+    carries a real fractional sampling-grid offset the estimator must recover
+    from images alone. Generated frame-exact in Python and piped to ffmpeg as
+    raw gray (no CLI filter can express per-frame fractional shifts: measured
+    on ffmpeg n9.0.2 — scroll/crop are integer, minterpolate on testsrc2
+    yields ~0.02 px)."""
+    import math
+    size, frames, shift = 96, 6, 0.25
+    out = tmp_path_factory.mktemp("fx") / "anvil_subpixel.mp4"
+    raw = bytearray()
+    for i in range(frames):
+        dx = i * shift
+        for y in range(size):
+            y_base = 128.0 + 40.0 * math.sin(2.0 * math.pi * y / 8.0)
+            for x in range(size):
+                v = y_base + 100.0 * math.sin(2.0 * math.pi * (x + dx) / 8.0)
+                raw.append(max(0, min(255, int(round(v)))))
+    enc = subprocess.run([
+        FFMPEG, "-y", "-loglevel", "error",
+        "-f", "rawvideo", "-pixel_format", "gray",
+        "-video_size", f"{size}x{size}", "-framerate", "25", "-i", "-",
+        "-c:v", "mjpeg", "-q:v", "2", "-pix_fmt", "yuvj420p", str(out),
+    ], input=bytes(raw), capture_output=True)
+    assert enc.returncode == 0, enc.stderr.decode()
+    return out
+
+
+def test_geometry_estimate_arm_is_real(sdr_clip, tmp_path):
+    """Regression (review 4209762343): --geometry estimate must run a real
+    deterministic estimator, record per-neighbor evidence, and differ from the
+    unknown arm in manifest terms (a requested experimental arm is never a
+    silent no-op). On ordinary integer-motion content the estimator may
+    honestly measure ~zero phase or refuse for insufficient agreement; the
+    arm's evidence and labeling must still be present and explicit."""
+    common = ["--input", sdr_clip, "--start-frame", 2, "--frame-count", 1,
+              "--past", 1]
+    out_e = tmp_path / "geo_est"
+    dumps = tmp_path / "geo_dumps"
+    proc = run_runner(out_e, *common, "--geometry", "estimate",
+                      "--dump-dir", dumps, "--dump-stages", "sample_geometry")
+    assert proc.returncode == 0, proc.stderr
+    me = load_manifest(out_e)
+    assert me["config"]["geometry_mode"] == "estimate"
+    f = me["frames"][0]
+    assert f["geometry_state"] in ("estimated", "unknown"), f["geometry_state"]
+    geo_events = [e for e in me["events"]
+                  if e["type"] in ("geometry_estimated",
+                                   "geometry_estimation_insufficient")]
+    assert geo_events, "estimate arm must record its evidence"
+    assert any("blocks_used=" in e["detail"] for e in geo_events)
+    gd = dumps / "sample_geometry_f2_geometry.txt"
+    assert gd.is_file()
+    # per-neighbor dump states are numeric (0 unknown / 1 estimated / 2 known)
+    # and the estimated arm must never claim oracle-known geometry
+    for line in gd.read_text().splitlines():
+        if line.startswith("neighbor "):
+            assert line.split()[2] in ("0", "1"), \
+                "estimated arm must not claim known geometry"
+
+    out_u = tmp_path / "geo_unk"
+    assert run_runner(out_u, *common, "--geometry", "unknown").returncode == 0
+    mu = load_manifest(out_u)
+    assert mu["config"]["geometry_mode"] == "unknown"
+    assert mu["frames"][0]["geometry_state"] == "unknown"
+    assert not any(e["type"].startswith("geometry_estimat")
+                   for e in mu["events"]), \
+        "unknown arm must not emit estimation evidence"
+
+
+def test_geometry_estimate_changes_reconstruction_on_subpixel_clip(
+        subpixel_clip, tmp_path):
+    """The estimator is exercised end-to-end on genuinely subpixel-shifted
+    content: the estimated phase is applied to proven flow and changes the
+    reconstruction relative to the unknown-geometry control (non-no-op proof,
+    mirroring the oracle-geometry regression's methodology)."""
+    common = ["--input", subpixel_clip, "--start-frame", 2,
+              "--frame-count", 1, "--past", 1]
+    out_e = tmp_path / "subpix_est"
+    dumps = tmp_path / "subpix_dumps"
+    assert run_runner(out_e, *common, "--geometry", "estimate",
+                      "--dump-dir", dumps,
+                      "--dump-stages", "sample_geometry").returncode == 0
+    me = load_manifest(out_e)
+    assert me["frames"][0]["geometry_state"] == "estimated", \
+        "subpixel fixture must yield sufficient estimation evidence"
+    # the measured x phase is fractional (0.25-shifted content, modulo the
+    # documented parabola contraction bias) and y is ~integer
+    est = [e for e in me["events"] if e["type"] == "geometry_estimated"]
+    assert est and "phase=" in est[0]["detail"]
+    gd = (dumps / "sample_geometry_f2_geometry.txt").read_text()
+    phases = [line.split() for line in gd.splitlines()
+              if line.startswith("neighbor ")]
+    assert phases, "geometry dump lacks neighbor phases"
+    px, py = float(phases[0][3]), float(phases[0][4])
+    assert min(abs(px - round(px)), abs(py - round(py))) >= 0.0  # sanity
+    assert abs(px - round(px)) >= 0.1, \
+        f"x phase {px} is not measurably fractional"
+    assert abs(py - round(py)) <= 0.15, \
+        f"y phase {py} should be ~integer on an x-only shift"
+
+    out_u = tmp_path / "subpix_unk"
+    assert run_runner(out_u, *common, "--geometry", "unknown").returncode == 0
+    fe = sorted(p.name for p in out_e.iterdir() if p.suffix in (".ppm", ".pgm"))
+    fu = sorted(p.name for p in out_u.iterdir() if p.suffix in (".ppm", ".pgm"))
+    assert fe == fu and fe
+    assert any((out_e / n).read_bytes() != (out_u / n).read_bytes()
+               for n in fe), \
+        "estimated geometry did not change the reconstruction"
+
+
+def _probe_tick_truth(clip):
+    """(tb_num, tb_den, [pts tick per frame]) — derived from the container."""
+    tb = subprocess.run(
+        [FFPROBE, "-v", "quiet", "-select_streams", "v:0",
+         "-show_entries", "stream=time_base", "-of", "csv=p=0", str(clip)],
+        check=True, capture_output=True, text=True).stdout.strip()
+    num, den = (int(x) for x in tb.split("/"))
+    ticks = [
+        int(line.split(",")[0])
+        for line in subprocess.run(
+            [FFPROBE, "-v", "quiet", "-select_streams", "v:0",
+             "-show_entries", "frame=pts", "-of", "csv=p=0", str(clip)],
+            check=True, capture_output=True, text=True).stdout.splitlines()
+        if line.strip()
+    ]
+    return num, den, ticks
+
+
+def _rescale_q_us(tick, num, den):
+    """Mirror av_rescale_q(tick, {num, den}, {1, 1000000})."""
+    return (2 * tick * num * 1_000_000 + den) // (2 * den)
+
+
+@pytest.fixture(scope="module")
+def tick_collision_clip(tmp_path_factory):
+    """Fine-timebase clip (review 4209783084): 10 MHz track timescale with
+    frames at ticks .../4000006/4000010/... that are 0.4 us apart yet share
+    one microsecond after av_rescale_q. Truth is re-derived via ffprobe."""
+    out = tmp_path_factory.mktemp("fx") / "anvil_tick_collision.mp4"
+    subprocess.run([
+        FFMPEG, "-y", "-loglevel", "error",
+        "-f", "lavfi", "-i", "testsrc2=size=32x32:rate=10:duration=0.8",
+        "-vf", "settb=tb=1/10000000,"
+               "setpts='if(eq(N,4),4000006,if(eq(N,5),4000010,PTS))'",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p",
+        "-x264-params", "keyint=8:bframes=0",
+        "-enc_time_base", "1/10000000",
+        "-video_track_timescale", "10000000",
+        str(out),
+    ], check=True)
+    return out
+
+
+def test_manifest_frames_carry_native_timestamp_identity(
+        tick_collision_clip, tmp_path):
+    tb_num, tb_den, ticks = _probe_tick_truth(tick_collision_clip)
+    assert tb_den > 1_000_000, "fixture timebase is not finer than microseconds"
+    out = tmp_path / "identity"
+    proc = run_runner(out, "--input", tick_collision_clip,
+                      "--frame-count", len(ticks))
+    assert proc.returncode == 0, proc.stderr
+    frames = load_manifest(out)["frames"]
+    assert len(frames) == len(ticks)
+    for f, tick in zip(frames, ticks):
+        assert f["pts_ticks"] == tick
+        assert f["timebase_num"] == tb_num
+        assert f["timebase_den"] == tb_den
+        assert f["timestamp_source"] == "pts"
+
+
+def test_start_pts_ticks_selects_exactly_one_colliding_frame(
+        tick_collision_clip, tmp_path):
+    tb_num, tb_den, ticks = _probe_tick_truth(tick_collision_clip)
+    colliding = []
+    for i, t in enumerate(ticks):
+        for u in ticks[i + 1:]:
+            if t != u and (_rescale_q_us(t, tb_num, tb_den) ==
+                           _rescale_q_us(u, tb_num, tb_den)):
+                colliding = [t, u]
+    assert colliding, "fixture lost its sub-us collision"
+
+    # each native tick addresses exactly its own frame — impossible via us
+    for tick in colliding:
+        out = tmp_path / f"ticks_{tick}"
+        proc = run_runner(out, "--input", tick_collision_clip,
+                          "--start-pts-ticks", tick, "--frame-count", 1)
+        assert proc.returncode == 0, proc.stderr
+        m = load_manifest(out)
+        assert m["config"]["start_pts_ticks"] == tick
+        assert m["frames"][0]["frame_index"] == ticks.index(tick)
+        assert m["frames"][0]["pts_ticks"] == tick
+
+    # the shared microsecond is ambiguous at the runner boundary: exact-match
+    # us selection must refuse rather than silently pick one frame
+    shared_us = _rescale_q_us(colliding[0], tb_num, tb_den)
+    out2 = tmp_path / "us_ambiguous"
+    proc = run_runner(out2, "--input", tick_collision_clip,
+                      "--start-pts-us", shared_us, "--frame-count", 1)
+    assert proc.returncode == 1
+    assert "ambiguous" in proc.stderr
+    assert not (out2 / "manifest.json").exists()
+
+
+def test_start_pts_ticks_no_match_negative_and_exclusive(
+        tick_collision_clip, tmp_path):
+    _, _, ticks = _probe_tick_truth(tick_collision_clip)
+    gap = (ticks[3] + ticks[4]) // 2
+    assert gap not in ticks
+    proc = run_runner(tmp_path / "nomatch", "--input", tick_collision_clip,
+                      "--start-pts-ticks", gap, "--frame-count", 1)
+    assert proc.returncode == 1
+    assert f"no frame with exact pts_ticks={gap}" in proc.stderr
+    assert not (tmp_path / "nomatch" / "manifest.json").exists()
+
+    # negative ticks are valid PTS, never malformed configuration
+    proc = run_runner(tmp_path / "negative", "--input", tick_collision_clip,
+                      "--start-pts-ticks", "-1000000", "--frame-count", 1)
+    assert proc.returncode == 1
+    assert "configuration error" not in proc.stderr.lower()
+    assert "exact pts_ticks=-1000000" in proc.stderr
+
+    # mutually exclusive with --start-frame and --start-pts-us
+    for extra in (["--start-frame", "1"],
+                  ["--start-pts-us", "5"]):
+        proc = run_runner(tmp_path / "both", "--input", tick_collision_clip,
+                          "--start-pts-ticks", ticks[0],
+                          "--frame-count", 1, *extra)
+        assert proc.returncode == 2
+        assert "mutually exclusive" in proc.stderr
 
 
 def test_confidence_estimate_oracle_and_consumption(sdr_clip, tmp_path):

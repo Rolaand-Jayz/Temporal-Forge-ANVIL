@@ -25,9 +25,13 @@ extern "C" {
 #include "Core.hpp"
 #include "GroundTruth.hpp"
 #include "Oracle.hpp"
+#include "OutputBackend.hpp"
 #include "Pnm.hpp"
 #include "Reconstruct.hpp"
+#include "SampleGeometryEstimate.hpp"
 #include "Sha256.hpp"
+#include "SideInfoNormalize.hpp"
+#include "TimestampSelect.hpp"
 
 namespace fs = std::filesystem;
 
@@ -76,6 +80,9 @@ Observation observationFromDecoded(const temporal_forge::DecodedVideoFrame& d) {
     o.color.hasContentLightLevel = d.hasContentLightLevel;
     o.ptsUs = d.ptsUs;
     o.ptsTicks = d.ptsTicks;
+    o.tbNum = d.tbNum;
+    o.tbDen = d.tbDen;
+    o.ptsSource = d.ptsSource;
     o.frameIndex = d.frameIndex;
     o.keyframe = d.keyframe;
     o.bFrame = d.bFrame;
@@ -223,6 +230,16 @@ RunResult runPipeline(const RunConfig& config) {
         result.error = "inputPath and outputDir are required";
         return result;
     }
+    if (config.startPtsUs && config.startPtsTicks) {
+        result.error = "startPtsUs and startPtsTicks are mutually exclusive";
+        return result;
+    }
+    if (config.sideInfoNormalizationMode != "normalize"
+        && config.sideInfoNormalizationMode != "bypass") {
+        result.error = "invalid side-info normalization mode '"
+            + config.sideInfoNormalizationMode + "' (normalize | bypass)";
+        return result;
+    }
     if (config.correspondenceMode != "codec"
         && config.correspondenceMode != "estimate"
         && config.correspondenceMode != "oracle"
@@ -248,8 +265,15 @@ RunResult runPipeline(const RunConfig& config) {
         result.error = "invalid confidence mode";
         return result;
     }
-    if (config.geometryMode != "unknown" && config.geometryMode != "oracle") {
-        result.error = "geometry estimate requested but no geometry estimator is implemented";
+    if (config.geometryMode != "unknown" && config.geometryMode != "estimate"
+        && config.geometryMode != "oracle") {
+        result.error = "invalid geometry mode '" + config.geometryMode
+            + "' (unknown | estimate | oracle)";
+        return result;
+    }
+    if (config.outputBackend != "pnm" && config.outputBackend != "null") {
+        result.error = "invalid output backend '" + config.outputBackend
+            + "' (pnm | null)";
         return result;
     }
     if (!std::isfinite(config.autoCutThreshold)
@@ -302,7 +326,7 @@ RunResult runPipeline(const RunConfig& config) {
         }
     }
     int64_t targetEnd = 0, windowEnd = 0;
-    if (!config.startPtsUs) {
+    if (!config.startPtsUs && !config.startPtsTicks) {
         if (!checkedAddInt64(config.startFrame, config.frameCount - 1, targetEnd)
             || !checkedAddInt64(targetEnd, static_cast<int64_t>(config.future), windowEnd)) {
             result.error = "frame/window bounds overflow int64";
@@ -310,14 +334,28 @@ RunResult runPipeline(const RunConfig& config) {
         }
     }
 
+    // Output backend boundary: the runner serializes nothing itself. The
+    // current non-FSR PNM writer and the null bypass backend are
+    // interchangeable implementations behind one interface, selected by
+    // configuration only (GOAL.txt capability D/N).
+    std::string backendError;
+    std::unique_ptr<OutputBackend> backend =
+        makeOutputBackend(config.outputBackend, backendError);
+    if (!backend) {
+        result.error = "failed to construct output backend: " + backendError;
+        return result;
+    }
+
     // --- config + provenance ---
     m.config.inputPath = config.inputPath;
     m.config.outputDir = config.outputDir;
     m.config.startFrame = config.startFrame;
     m.config.startPtsUs = config.startPtsUs;
+    m.config.startPtsTicks = config.startPtsTicks;
     m.config.frameCount = config.frameCount;
     m.config.past = config.past;
     m.config.future = config.future;
+    m.config.sideInfoNormalizationMode = config.sideInfoNormalizationMode;
     m.config.correspondenceMode = config.correspondenceMode;
     m.config.refinementMode = config.refinementMode;
     m.config.visibilityMode = config.visibilityMode;
@@ -333,9 +371,12 @@ RunResult runPipeline(const RunConfig& config) {
     m.config.dumpDir = config.dumpDir;
     m.config.dumpStages = config.dumpStages;
     m.config.seed = config.seed;
-    m.config.outputFormat = "ppm_or_depth_preserving_pgm_planes";
+    m.config.outputBackend = backend->id();
+    m.config.outputFormat = backend->outputFormatLabel();
     m.provenance.gitSha = detectGitSha();
     m.provenance.gitDirty = detectGitDirty();
+    m.provenance.gitDirtyHash = detectGitDirtyHash();
+    m.provenance.provenanceSource = detectProvenanceSource();
     m.provenance.ffmpegVersion = av_version_info();
     m.provenance.buildType = ANVIL_BUILD_TYPE;
     m.provenance.compilerId = ANVIL_COMPILER_ID;
@@ -376,7 +417,7 @@ RunResult runPipeline(const RunConfig& config) {
     // PTS selection needs the frame ordering to resolve exact matches, so it
     // decodes the whole stream; frame-index selection stops once the window
     // is covered.
-    const int64_t lastNeeded = config.startPtsUs
+    const int64_t lastNeeded = (config.startPtsUs || config.startPtsTicks)
         ? std::numeric_limits<int64_t>::max()
         : windowEnd;
     std::map<uint64_t, Observation> frames;
@@ -573,7 +614,43 @@ RunResult runPipeline(const RunConfig& config) {
 
     // --- target resolution (frame-index or exact-timestamp semantics) ---
     std::vector<uint64_t> targets;
-    if (config.startPtsUs) {
+    if (config.startPtsTicks) {
+        // Exact native-tick match: the lossless selection control. The same
+        // deterministic match/no-match/ambiguity semantics as microseconds,
+        // but in the stream's own timebase, so fine-timebase ticks that
+        // collide after microsecond rescaling stay individually addressable.
+        std::vector<std::pair<int64_t, uint64_t>> candidates;
+        for (const auto& [idx, obs] : frames)
+            if (obs.ptsTicks != -1)
+                candidates.emplace_back(obs.ptsTicks, idx);
+        uint64_t anchor = 0;
+        const TickSelectionOutcome outcome =
+            selectFrameByTicks(candidates, *config.startPtsTicks, anchor);
+        if (outcome == TickSelectionOutcome::NoMatch) {
+            result.error = "no frame with exact pts_ticks="
+                + std::to_string(*config.startPtsTicks)
+                + " in decoded stream (exact-match selection never falls back "
+                  "to the nearest frame)";
+            return result;
+        }
+        if (outcome == TickSelectionOutcome::Ambiguous) {
+            result.error = "ambiguous native timestamp pts_ticks="
+                + std::to_string(*config.startPtsTicks)
+                + ": multiple decoded frames share it; selection is undefined";
+            return result;
+        }
+        for (int64_t k = 0; k < config.frameCount; ++k) {
+            const uint64_t t = anchor + static_cast<uint64_t>(k);
+            if (!frames.count(t)) {
+                result.error = "requested frame sequence starting at pts_ticks="
+                    + std::to_string(*config.startPtsTicks)
+                    + " runs past the end of the decoded stream at index "
+                    + std::to_string(t);
+                return result;
+            }
+            targets.push_back(t);
+        }
+    } else if (config.startPtsUs) {
         // Exact match only: no nearest-frame fallback. Duplicate timestamps
         // are ambiguous and rejected rather than silently picking one.
         std::vector<uint64_t> anchors;
@@ -721,49 +798,11 @@ RunResult runPipeline(const RunConfig& config) {
             return result;
         }
         rec.ptsUs = target.ptsUs;
-
-        // Side-info state derived from the INPUT codec's measured
-        // capability and the frame's actual evidence. Exported data with
-        // unproven reference identity is reported ambiguous (exported but
-        // unusable) — never "available", which would contradict the
-        // reconstruction behavior that rejects ambiguous vectors.
-        const auto normalizedMv = normalizeCodecMv(target);
-        size_t usableMv = 0;
-        for (const BlockMotion& b : normalizedMv)
-            if (!b.ambiguous && b.refFrameIndex >= 0) ++usableMv;
-        rec.codecMvCount = target.codecMotionVectors.size();
-        rec.codecMvUsableCount = usableMv;
-        if (!target.codecMotionVectors.empty()) {
-            rec.sideInfoState = sideInfoStateName(
-                usableMv > 0 ? SideInfoState::Available
-                             : SideInfoState::Ambiguous);
-            if (usableMv == 0)
-                m.events.push_back({t, "side_info_ambiguous",
-                                    "codec MV side data exported but reference "
-                                    "identity unproven; not applied to "
-                                    "reconstruction"});
-        } else if (inputCap && inputCap->mvExportProven) {
-            // The input codec CAN export MVs (measured), this frame simply
-            // carries none (e.g. an I-frame): estimator fallback is allowed.
-            rec.sideInfoState = sideInfoStateName(SideInfoState::EstimatorOnly);
-            m.events.push_back({t, "side_info_absent",
-                                "no codec MV side data on this frame; input "
-                                "codec " + inputCodec + " export is proven"});
-        } else if (inputCap && inputCap->decodeProbePassed) {
-            // Only a completed negative probe supports an "unsupported" claim.
-            rec.sideInfoState = sideInfoStateName(SideInfoState::Unsupported);
-            m.events.push_back({t, "side_info_unsupported",
-                                "input codec " + inputCodec
-                                + " decoded completely in the capability probe "
-                                  "but exported no MV side data"});
-        } else {
-            // Absent/incomplete probe evidence is unknown, not unsupported.
-            rec.sideInfoState = sideInfoStateName(SideInfoState::EstimatorOnly);
-            m.events.push_back({t, "side_info_unproven",
-                                "input codec " + inputCodec
-                                + " has no completed MV capability probe; "
-                                  "using estimator/oracle fallback"});
-        }
+        rec.ptsTicks = target.ptsTicks;
+        rec.timebaseNum = target.tbNum;
+        rec.timebaseDen = target.tbDen;
+        rec.timestampSource = target.ptsSource == 1 ? "pts"
+            : target.ptsSource == 2 ? "best_effort" : "none";
 
         // decode-stage capture: source planes (pre-pipeline) and raw codec
         // side information as delivered (never normalized, never invented).
@@ -906,6 +945,92 @@ RunResult runPipeline(const RunConfig& config) {
         }
         addTiming(m, StageId::WindowSelect, elapsedNs(winStart));
 
+        // Side-info normalization stage: raw codec side information crosses
+        // an explicit raw -> normalized boundary here, BEFORE any coarse
+        // correspondence algorithm runs. The stage is independently
+        // controllable (normalize | bypass) while the correspondence arm
+        // stays unchanged; the codec branch below consumes the stage output
+        // instead of normalizing inline (GOAL.txt capability D).
+        const Clock::time_point normStart = Clock::now();
+        const SideInfoNormalizationMode normMode =
+            config.sideInfoNormalizationMode == "bypass"
+                ? SideInfoNormalizationMode::Bypass
+                : SideInfoNormalizationMode::Normalize;
+        const SideInfoNormalizationResult normResult =
+            normalizeSideInfo(target, normMode);
+        rec.sideInfoNormalizationState = normResult.state;
+        rec.codecMvCount = normResult.rawCount;
+        rec.codecMvUsableCount = normResult.usableCount;
+        if (!target.codecMotionVectors.empty()) {
+            // "Ambiguous" is the enum for present-but-not-applicable side
+            // info. Under bypass the reason is configuration (recorded in
+            // sideInfoNormalizationState + the event below), not identity;
+            // under normalize it is unproven reference identity.
+            rec.sideInfoState = sideInfoStateName(
+                normResult.usableCount > 0 ? SideInfoState::Available
+                                           : SideInfoState::Ambiguous);
+            if (normMode == SideInfoNormalizationMode::Bypass) {
+                m.events.push_back({t, "side_info_normalization_bypassed",
+                                    "raw codec side information deliberately "
+                                    "not interpreted (bypass); "
+                                    + std::to_string(normResult.rawCount)
+                                    + " raw entries preserved as evidence"});
+            } else if (normResult.usableCount == 0) {
+                m.events.push_back({t, "side_info_ambiguous",
+                                    "codec MV side data exported but reference "
+                                    "identity unproven; not applied to "
+                                    "reconstruction"});
+            }
+        } else if (inputCap && inputCap->mvExportProven) {
+            // The input codec CAN export MVs (measured), this frame simply
+            // carries none (e.g. an I-frame): estimator fallback is allowed.
+            rec.sideInfoState = sideInfoStateName(SideInfoState::EstimatorOnly);
+            m.events.push_back({t, "side_info_absent",
+                                "no codec MV side data on this frame; input "
+                                "codec " + inputCodec + " export is proven"});
+        } else if (inputCap && inputCap->decodeProbePassed) {
+            // Only a completed negative probe supports an "unsupported" claim.
+            rec.sideInfoState = sideInfoStateName(SideInfoState::Unsupported);
+            m.events.push_back({t, "side_info_unsupported",
+                                "input codec " + inputCodec
+                                + " decoded completely in the capability probe "
+                                  "but exported no MV side data"});
+        } else {
+            // Absent/incomplete probe evidence is unknown, not unsupported.
+            rec.sideInfoState = sideInfoStateName(SideInfoState::EstimatorOnly);
+            m.events.push_back({t, "side_info_unproven",
+                                "input codec " + inputCodec
+                                + " has no completed MV capability probe; "
+                                  "using estimator/oracle fallback"});
+        }
+        if (!dumpBase.empty()
+            && stageDumpable(config.dumpStages, StageId::SideInfoNormalization)) {
+            std::string content = "frame " + std::to_string(t)
+                + " mode=" + config.sideInfoNormalizationMode
+                + " state=" + normResult.state
+                + " raw=" + std::to_string(normResult.rawCount)
+                + " usable=" + std::to_string(normResult.usableCount) + "\n";
+            for (const BlockMotion& b : normResult.normalized) {
+                content += "block " + std::to_string(b.dstX) + " "
+                    + std::to_string(b.dstY) + " " + std::to_string(b.blockW)
+                    + " " + std::to_string(b.blockH) + " mv "
+                    + std::to_string(b.mvX) + " " + std::to_string(b.mvY)
+                    + " ref " + std::to_string(b.refFrameIndex)
+                    + " ambiguous " + std::to_string(int(b.ambiguous))
+                    + " precision " + std::to_string(static_cast<int>(b.precision))
+                    + "\n";
+            }
+            const fs::path nP = dumpPath(StageId::SideInfoNormalization, t,
+                                         "normalized.txt");
+            if (!writeTextFile(nP, content)) {
+                result.error = "failed to write side-info normalization dump "
+                    + nP.string();
+                return result;
+            }
+            recordDump(nP);
+        }
+        addTiming(m, StageId::SideInfoNormalization, elapsedNs(normStart));
+
         // Coarse correspondence per neighbor.
         const Clock::time_point corrStart = Clock::now();
         std::vector<std::vector<BlockMotion>> coarseNeighborBlocks;
@@ -952,7 +1077,10 @@ RunResult runPipeline(const RunConfig& config) {
             } else if (config.correspondenceMode == "estimate") {
                 blocks = estimateCorrespondence(target, obs);
             } else if (config.correspondenceMode == "codec") {
-                blocks = normalizeCodecMv(target);
+                // Consumes the side-info normalization STAGE output; the
+                // raw->normalized boundary is upstream and independently
+                // controllable.
+                blocks = normResult.normalized;
                 size_t ambiguous = 0;
                 for (const BlockMotion& b : blocks)
                     if (b.ambiguous || b.refFrameIndex != static_cast<int64_t>(s)) ++ambiguous;
@@ -1083,6 +1211,63 @@ RunResult runPipeline(const RunConfig& config) {
                     return result;
                 }
             }
+        } else if (config.geometryMode == "estimate") {
+            // Estimated arm: the target grid is the anchor (Estimated, phase
+            // 0) — estimated phases are target-relative by construction. Each
+            // neighbor's phase is measured from image evidence only
+            // (deterministic parabolic subpixel registration); a neighbor
+            // with insufficient evidence degrades truthfully to unknown and
+            // is recorded, never given an invented phase.
+            SampleGeometry anchor;
+            anchor.state = SampleGeometryState::Estimated;
+            geo = anchor;
+            size_t appliedCount = 0, insufficientCount = 0;
+            std::string firstDetail;
+            for (size_t i = 0; i < neighbors.size(); ++i) {
+                const SampleGeometryEstimateResult est =
+                    estimateRelativeSampleGeometry(target, frames[neighbors[i]]);
+                std::string d = "neighbor " + std::to_string(neighbors[i])
+                    + " state=" + sampleGeometryStateName(est.geometry.state)
+                    + " blocks_used=" + std::to_string(est.blocksUsed)
+                    + "/" + std::to_string(est.blocksConsidered);
+                if (est.geometry.state == SampleGeometryState::Estimated) {
+                    d += " phase=" + std::to_string(est.geometry.phaseX)
+                       + "," + std::to_string(est.geometry.phaseY);
+                } else {
+                    d += " reason=" + est.insufficientReason;
+                }
+                if (firstDetail.empty()) firstDetail = d;
+                if (est.geometry.state != SampleGeometryState::Estimated) {
+                    ++insufficientCount;
+                    continue;
+                }
+                neighborGeometry[i] = est.geometry;
+                if (!applyRelativeSampleGeometry(flows[i], coverages[i],
+                                                 width, height, anchor,
+                                                 est.geometry)) {
+                    result.error = "failed to apply estimated relative sample "
+                        "geometry for target " + std::to_string(t)
+                        + " reference " + std::to_string(neighbors[i]);
+                    return result;
+                }
+                ++appliedCount;
+            }
+            if (appliedCount > 0) {
+                m.events.push_back({t, "geometry_estimated",
+                                    "estimated=" + std::to_string(appliedCount)
+                                    + " insufficient="
+                                    + std::to_string(insufficientCount)
+                                    + "; " + firstDetail});
+            } else {
+                // No neighbor yielded sufficient evidence: the stage output
+                // is genuinely unknown for this frame, and the arm must say
+                // so rather than present an unmeasured anchor as an estimate.
+                geo = SampleGeometry{};
+                m.events.push_back({t, "geometry_estimation_insufficient",
+                                    "no neighbor had sufficient image "
+                                    "evidence for phase estimation; "
+                                    + firstDetail});
+            }
         }
         rec.geometryState = sampleGeometryStateName(geo.state);
         if (!dumpBase.empty()
@@ -1098,7 +1283,8 @@ RunResult runPipeline(const RunConfig& config) {
                     + std::to_string(int(neighborGeometry[i].state)) + " "
                     + std::to_string(neighborGeometry[i].phaseX) + " "
                     + std::to_string(neighborGeometry[i].phaseY);
-                if (config.geometryMode == "oracle") {
+                if (config.geometryMode == "oracle"
+                    || config.geometryMode == "estimate") {
                     content += " relative_offset "
                         + std::to_string(geo.phaseX - neighborGeometry[i].phaseX)
                         + " "
@@ -1233,69 +1419,56 @@ RunResult runPipeline(const RunConfig& config) {
         }
         addTiming(m, StageId::Accumulate, elapsedNs(accStart));
 
-        // output (non-FSR backend)
+        // output stage: serialization belongs to the replaceable output
+        // backend (pnm | null). The runner hands over the (possibly
+        // converted) raster plus the native-format observation and records
+        // what the backend wrote; swapping backends requires no runner
+        // restructuring.
         const Clock::time_point outStart = Clock::now();
-        fs::path outP;
+        std::vector<uint8_t> rgb;
+        int rgbStride = 0;
+        bool haveRgb = false;
         if (ws.state == WorkingSpaceResult::State::converted) {
-            std::vector<uint8_t> rgb;
-            int stride = 0;
             // The actual YUV->RGB transform belongs to the color stage.
             const Clock::time_point convStart = Clock::now();
-            const bool converted = convertToRgb(acc.frame, rgb, stride);
+            haveRgb = convertToRgb(acc.frame, rgb, rgbStride);
             addTiming(m, StageId::ColorConvert, elapsedNs(convStart));
-            if (!converted) {
+            if (!haveRgb) {
                 result.error = "explicit color conversion failed for frame "
                     + std::to_string(t) + "; refusing to relabel preserved "
                       "source planes as converted output";
                 return result;
             }
-            outP = fs::path(config.outputDir) / ("frame_" + std::to_string(t) + ".ppm");
-            if (!writePpm(outP.string(), width, height, rgb.data(), stride)) {
-                result.error = "failed to write output frame " + outP.string();
-                return result;
-            }
-            result.outputFiles.push_back(outP.string());
-            m.outputFiles.push_back(outP.filename().string());
         }
-        if (outP.empty()) {
-            if (!temporalReconstructionFormatSupported(acc.frame)) {
-                const char* fmt = av_get_pix_fmt_name(
-                    static_cast<AVPixelFormat>(acc.frame.avPixelFormat));
-                result.error = "cannot serialize unconverted pixel format "
-                    + std::string(fmt ? fmt : "unknown")
-                    + " as planar PGM evidence";
-                return result;
-            }
-            const AVPixFmtDescriptor* desc=av_pix_fmt_desc_get(
-                static_cast<AVPixelFormat>(acc.frame.avPixelFormat));
-            const char* suffix[4]={"y","u","v","p3"};
-            for(int p=0;p<acc.frame.planeCount&&p<4;++p){
-                if(acc.frame.plane[p].empty())continue;
-                int pw=width,ph=height;
-                if(desc&&(p==1||p==2)){
-                    pw=AV_CEIL_RSHIFT(width,desc->log2_chroma_w);
-                    ph=AV_CEIL_RSHIFT(height,desc->log2_chroma_h);
-                }
-                const fs::path q=fs::path(config.outputDir)/
-                    ("frame_"+std::to_string(t)+"_"+suffix[p]+".pgm");
-                if(!writePgm(q.string(),pw,ph,acc.frame.plane[p].data(),
-                             acc.frame.linesize[p],acc.frame.color.bitDepth)){
-                    result.error="failed to write depth-preserving output plane "
-                        +std::to_string(p)+" for frame "+std::to_string(t);return result;
-                }
-                result.outputFiles.push_back(q.string());
-                m.outputFiles.push_back(q.filename().string());
-                if(p==0)outP=q;
-            }
-            if(outP.empty()){result.error="no output plane available for frame "+std::to_string(t);return result;}
-        }
+        BackendFrameInput backendInput;
+        backendInput.frameIndex = t;
+        backendInput.observation = &acc.frame;
+        backendInput.rgb = haveRgb ? &rgb : nullptr;
+        backendInput.rgbStride = rgbStride;
+        const BackendWriteResult backendOut =
+            backend->writeFrame(config.outputDir, backendInput);
         addTiming(m, StageId::Output, elapsedNs(outStart));
+        if (!backendOut.ok) {
+            result.error = "output backend '" + std::string(backend->id())
+                + "' failed for frame " + std::to_string(t) + ": "
+                + backendOut.error;
+            return result;
+        }
+        bool wrotePpm = false;
+        for (const std::string& p : backendOut.filesWritten) {
+            const fs::path wp(p);
+            result.outputFiles.push_back(p);
+            m.outputFiles.push_back(wp.filename().string());
+            if (!wrotePpm && wp.extension() == ".ppm") wrotePpm = true;
+        }
         // Structured color metadata: source space as decoded, output space
         // as actually written. RGB output carries full range, RGB matrix and
         // the source primaries/transfer (no transfer conversion is ever
-        // performed); chroma siting is not applicable to packed RGB.
+        // performed); chroma siting is not applicable to packed RGB. The
+        // null backend writes nothing, so the source space is recorded
+        // alongside an empty output inventory.
         rec.colorSource = colorFieldsOf(target.color);
-        if (!outP.empty() && outP.string().ends_with(".ppm")) {
+        if (wrotePpm) {
             rec.colorOutput.range = "full";
             rec.colorOutput.primaries = rec.colorSource.primaries;
             rec.colorOutput.transfer = rec.colorSource.transfer;

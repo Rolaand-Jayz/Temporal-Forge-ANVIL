@@ -342,6 +342,7 @@ endif()
 # proof, determinism, and codec-MV independence.
 anvil_add_test(anvil_geometry_estimate_tests
     SOURCES anvil_geometry_estimate_tests.cpp
+            ../src/anvil/BuildProvenance.cpp
             ../src/anvil/Core.cpp
             ../src/anvil/JsonWriter.cpp
             ../src/anvil/ColorMeta.cpp
@@ -384,7 +385,6 @@ anvil_add_test(anvil_output_backend_tests
             ../src/anvil/Reconstruct.cpp)
 if(NOT FFMPEG_ANVIL_FOUND)
     set_tests_properties(anvil_output_backend_tests PROPERTIES DISABLED ON)
-endif()
 endif()
 
 # anvil_runner_tests: end-to-end CLI on a synthetic deterministic clip.
@@ -494,7 +494,13 @@ if(ANVIL_PYTHON3 AND FFMPEG_ANVIL_FOUND AND FFMPEG_BIN)
                 "${CMAKE_SOURCE_DIR}")
     set_tests_properties(anvil_provenance_rebuild_regression PROPERTIES
         SKIP_RETURN_CODE 77
-        TIMEOUT 1200)
+        TIMEOUT 1200
+        # The regression materializes a full worktree of the source tree; keep
+        # its scratch on the same filesystem as the build. On hosts where /tmp
+        # is a small or restricted tmpfs, checking ~30k tracked files into it
+        # fails ("unable to write file" -> "Could not reset index"), which
+        # would masquerade as a provenance defect.
+        ENVIRONMENT "TMPDIR=${CMAKE_BINARY_DIR}")
 elseif(NOT ANVIL_PYTHON3)
     message(STATUS "ANVIL: python3 not found; anvil_provenance_rebuild_regression disabled")
 endif()

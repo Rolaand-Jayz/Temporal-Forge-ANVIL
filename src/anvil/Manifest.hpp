@@ -17,10 +17,14 @@
 
 namespace anvil {
 
-// Pipeline stages in fixed execution order.
+// Pipeline stages in fixed execution order. Side-info normalization is an
+// independent stage between window selection and coarse correspondence: raw
+// codec side information crosses an explicit raw->normalized boundary before
+// any correspondence algorithm consumes it (GOAL.txt capability D).
 enum class StageId : uint8_t {
     Decode = 0,
     WindowSelect,
+    SideInfoNormalization,
     Correspondence,
     CorrespondenceRefinement,
     Visibility,
@@ -59,14 +63,20 @@ public:
         std::string outputDir;
         int64_t startFrame = 0;
         std::optional<int64_t> startPtsUs; // nullopt = frame-index selection
+        // Exact selection by native stream ticks (the input stream's own
+        // timebase): nullopt = not requested. Distinct native ticks that
+        // collide after microsecond rescaling stay individually addressable
+        // through this control, which --start-pts-us cannot distinguish.
+        std::optional<int64_t> startPtsTicks;
         int64_t frameCount = 1;
         int past = 0;
         int future = 0;
+        std::string sideInfoNormalizationMode; // normalize | bypass
         std::string correspondenceMode; // codec | estimate | oracle | none
         std::string refinementMode;     // none | local
         std::string visibilityMode;     // valid | oracle
         std::string confidenceMode;     // unit | estimate | oracle
-        std::string geometryMode;       // unknown | oracle
+        std::string geometryMode;       // unknown | estimate | oracle
         std::vector<std::pair<int64_t, int64_t>> excludedNeighbors;
         bool accumulateEnabled = true;
         bool colorConvertEnabled = true;
@@ -77,7 +87,9 @@ public:
         std::string dumpDir;           // empty = no dumps
         std::string dumpStages;        // comma list of stage names
         uint64_t seed = 0;             // recorded; deterministic mode has no RNG
-        std::string outputFormat;      // ppm | pgm_planes
+        std::string outputBackend;     // pnm | null (identity of the
+                                       // replaceable output-backend stage)
+        std::string outputFormat;      // backend-provided format label
     } config;
 
     // --- provenance ---
@@ -135,7 +147,18 @@ public:
     struct FrameRecord {
         uint64_t frameIndex = 0;
         int64_t ptsUs = -1;
+        // Native timestamp identity: exact stream ticks, the stream timebase
+        // they live in, and where the canonical timestamp came from. ptsUs is
+        // a convenience rescaling of ptsTicks and is LOSSY for timebases
+        // finer than 1/1e6 (distinct ticks can share one microsecond).
+        int64_t ptsTicks = -1;
+        int timebaseNum = 0;
+        int timebaseDen = 0;
+        std::string timestampSource;   // pts | best_effort | none
         std::string sideInfoState;   // SideInfoState name
+        // Result of the explicit side-info normalization stage:
+        // normalized | bypassed | not_applicable.
+        std::string sideInfoNormalizationState;
         size_t codecMvCount = 0;
         size_t codecMvUsableCount = 0; // entries with PROVEN reference identity
         std::string correspondenceSource; // which source actually used
