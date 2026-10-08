@@ -317,12 +317,44 @@ equivalent combined suite 124 passed + 39 subtests; GitHub Actions run
   relative_offset for unapplied (Unknown) neighbors; the contraction-bias
   figure hedged to the independently reproduced 0.08–0.09 px range.
 
+## Repair addendum — internal review passes 3-7 (2026-10-08)
+
+The repair protocol requires three consecutive fully-clean independent
+review passes; any material finding resets the count. Status after pass 7:
+
+- Pass 3 (8 reviewers): 2 material findings — a stale test count (55 → 56)
+  and a pass-2 addendum missing its head/CI identifiers. Repaired in
+  `2715eef8` (CI 37786744274 SUCCESS).
+- Pass 4: 2 material findings — both caused by 2715eef8's edit script
+  aborting mid-list (Command-evidence rewrite and architecture-doc
+  vocabulary never landed while the commit message claimed them).
+  Repaired and diff-verified in `214ac453` (CI 37795544542 SUCCESS).
+- Pass 5: CLEAN — 8/8 reviewers, zero material defects (18 cosmetic nits).
+- Pass 6: 1 material finding — README.md still said successor work "has
+  not yet started". Repaired in `99342ab5` (CI 37850662565 SUCCESS),
+  together with comment-level nits (BuildProvenance CI-macro claim,
+  Core.hpp timebase wording, fixture-comment bound).
+- Pass 7: 1 material finding — this record's own Command-evidence section
+  lagged the heads above and no addendum recorded passes 3-6. Repaired by
+  this commit (head list + this addendum + role-based closing language).
+  Clean-pass count after this repair: 0 (protocol reset); passes continue
+  until three consecutive clean.
+
+Review-scratch policy note: reviewer briefs now direct all scratch work to
+/mnt/workdrive/.review-scratch/ (disk-backed) — /tmp is a RAM-backed tmpfs
+shared with running applications and reviewer builds there crashed them
+twice during passes 1-4.
+
 ## Command evidence
 
-Implementation evidence heads, newest first:
-- `2715eef8` (round-4 + review-pass doc repairs; Actions run 37786744274 SUCCESS)
-- `c0533c7c` (round-4 + review-pass-1/2 code repairs; Actions run 37782937886 SUCCESS)
-- `598823e1` (round-4 integration; Actions run 37744340628 SUCCESS)
+Implementation evidence heads, newest first (every head's Actions run green
+on that exact SHA; each commit's role is recorded so the trail stays
+readable as the branch advances):
+- `99342ab5` (review-pass-6 repair: README successor status + comment nits; Actions run 37850662565 SUCCESS)
+- `214ac453` (review-pass-4 repair: evidence-trail completion; Actions run 37795544542 SUCCESS)
+- `2715eef8` (review-pass-3 repairs: evidence identifiers; Actions run 37786744274 SUCCESS)
+- `c0533c7c` (round-4 + review-pass-2 code repairs; Actions run 37782937886 SUCCESS)
+- `598823e1` (round-4 integration + review-pass-1 repairs; Actions run 37744340628 SUCCESS)
 - `0e03af613bbaa904d8497857989ab1c88b9381ad` (2026-10-07, round 3; Actions run 37582895384 SUCCESS)
 
 ```
@@ -346,11 +378,11 @@ Source-level inventory at this head:
 
 The earlier clean-clone verification remains historical evidence for the clone
 and build instructions. Each Actions run listed above supplies a fresh
-clean-checkout build/test result for its exact head; the newest head's run is
-the authoritative current evidence.
-The documentation refresh commit that follows this evidence head changes only
-the two current ANVIL documentation files and must itself remain green before
-evaluator handoff.
+clean-checkout build/test result for its exact head. Documentation-only or
+comment-only commits that follow a recorded evidence head do not invalidate
+that head's code evidence; any such follow-up commit must itself carry a
+green run before evaluator handoff (this is the discipline the review passes
+below enforce).
 
 ## Reused historical infrastructure and justification
 

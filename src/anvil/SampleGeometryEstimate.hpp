@@ -31,7 +31,7 @@
 //   [0,1) representative frac(-median displacement). Consumers MUST apply it
 //   through applyEstimatedPhaseResidual (Reconstruct.hpp), which wraps the
 //   phase difference into the round-consistent SIGNED residual in
-//   (-0.5, 0.5] before adding it to the proven flow: the correspondence
+//   [-0.5, 0.5) before adding it to the proven flow: the correspondence
 //   flow's integer part is the block-SAD argmin (~round(D)), so the sampler
 //   needs D - round(D) — applying the raw mod-1 representative instead lands
 //   a full pixel away on one quadrant and measurably DEGRADES reconstruction
