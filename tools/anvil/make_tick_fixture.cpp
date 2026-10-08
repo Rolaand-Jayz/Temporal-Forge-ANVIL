@@ -16,9 +16,8 @@
 // timestamps i*ticks_per_frame in stream timebase 1/timescale. With the
 // defaults, adjacent frames sit 5 ticks = 0.5 us apart, so their microsecond
 // rescaling (av_rescale_q, round-half-away-from-zero) collides while their
-// native ticks stay distinct.
-// distinct. Frame content is a deterministic gradient plus a frame-index
-// bar so decoders cannot deduplicate identical pictures.
+// native ticks stay distinct. Frame content is a deterministic gradient
+// plus a frame-index bar so decoders cannot deduplicate identical pictures.
 //
 // Exit codes: 0 success, 1 usage error, 2 encode/mux failure. Prints the
 // realized stream timebase and the written ticks to stdout (deterministic;

@@ -70,7 +70,9 @@ src/anvil/
 Isolation: `temporal_forge_lib` (FSR-era player) excludes `src/anvil/` by
 CMake filter; `anvil_lib` contains no Qt, Vulkan, or FSR code.
 
-## Pipeline stages (each: selectable, bypassable, timed, dumpable)
+## Pipeline stages (each: selectable, bypassable, timed; every stage except
+the output backend has a dump capture — the output stage's capture is the
+backend-written artifact inventory recorded in `output_files[]`)
 
 decode → window_select → side_info_normalization → correspondence →
 correspondence_refinement → visibility → sample_geometry → confidence →
@@ -171,7 +173,8 @@ With `--dump-stages all`, the captured artifact set per target frame includes
 decoded source/MV evidence, window selection and ablation exclusions, the
 side-info normalization boundary output (mode/state/counts/blocks), coarse
 `correspondence`, `correspondence_refinement`, per-neighbor `visibility`
-and `confidence` PGM fields, sample geometry, color metadata/decision,
+PGM masks, sample geometry, per-neighbor `confidence` fields, color
+metadata/decision,
 accumulated reconstruction, plus final outputs in the output directory.
 Single-frame/no-neighbor states are explicit. All dump inventory paths are
 recorded relative to their base directory for deterministic replay.
