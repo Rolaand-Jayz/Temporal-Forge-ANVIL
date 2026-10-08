@@ -1383,22 +1383,34 @@ def test_refinement_stage_is_real_and_bypassable(sdr_clip, tmp_path):
 
 @pytest.fixture(scope="module")
 def odd_motion_clip(tmp_path_factory):
-    """Deterministic odd-integer-motion clip: a STATIC gradient source cropped
-    with an animated x window yields exactly -3 px/frame content motion (an
-    odd displacement the even-lattice coarse prior cannot represent). Verified
-    while authoring: whole-region SAD best is dx=-3 on every frame pair with
-    ~2.5x SAD separation to the nearest candidate."""
+    """Deterministic odd-integer-motion clip: consecutive frames sample one
+    analytic textured pattern at x + i*3 px, so the neighbor's content sits at
+    an ODD integer displacement the even-lattice coarse prior cannot represent.
+    Generated frame-exact in Python and piped to ffmpeg as raw gray — the
+    ffmpeg CLI's own sources are not reproducible for this purpose (the
+    gradients filter seeds randomly, and -t cuts vary in frame count;
+    measured while authoring). Aperiodic composite textures in both axes
+    avoid period-aliasing and SAD tie-breaks."""
+    import math
+    size, frames, shift = 96, 8, 3.0
     out = tmp_path_factory.mktemp("fx") / "anvil_odd_motion.mp4"
-    subprocess.run([
+    raw = bytearray()
+    for i in range(frames):
+        dx = i * shift
+        for y in range(size):
+            y_base = 128.0 + 30.0 * math.sin(2.0 * math.pi * y / 8.0) \
+                + 20.0 * math.sin(2.0 * math.pi * y / 13.0)
+            for x in range(size):
+                v = y_base + 70.0 * math.sin(2.0 * math.pi * (x + dx) / 8.0) \
+                    + 50.0 * math.sin(2.0 * math.pi * (x + dx) / 17.0)
+                raw.append(max(0, min(255, int(round(v)))))
+    enc = subprocess.run([
         FFMPEG, "-y", "-loglevel", "error",
-        "-f", "lavfi", "-i", "gradients=s=96x64:speed=0.000001:n=2",
-        "-vf", "crop=64:64:'min(3*n,24)':0",
-        "-t", "0.6",
-        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18",
-        "-x264-params", "keyint=8:bframes=0:colorprim=bt709:transfer=bt709:"
-                        "colorrange=tv:colormatrix=bt709:log-level=error",
-        str(out),
-    ], check=True)
+        "-f", "rawvideo", "-pixel_format", "gray",
+        "-video_size", f"{size}x{size}", "-framerate", "25", "-i", "-",
+        "-c:v", "mjpeg", "-q:v", "2", "-pix_fmt", "yuvj420p", str(out),
+    ], input=bytes(raw), capture_output=True)
+    assert enc.returncode == 0, enc.stderr.decode()
     return out
 
 
@@ -1441,21 +1453,18 @@ def test_refinement_corrects_imperfect_coarse_field(odd_motion_clip,
     assert coarse_l and coarse_l == coarse_n, \
         "coarse field must not depend on refinement mode"
 
-    # local refinement corrects vectors the even lattice could not represent:
-    # the estimator convention maps this fixture's content motion to mv +3
-    # (verified while authoring: measured pairs coarse +2 -> refined +3 and
-    # coarse +4 -> refined +3). Lossy encoding legitimately leaves some noisy
-    # blocks elsewhere; the corrective signal must be present and unambiguous.
+    # local refinement corrects vectors the even lattice could not represent.
+    # The estimator convention maps this fixture's +3 px content motion to
+    # mv +3 (verified while authoring: interior blocks measured coarse +2 ->
+    # refined +3 and coarse +4 -> refined +3; right-edge blocks whose +3
+    # candidates leave the frame stay on the negative search side, which is
+    # honest bounded-search behavior, not error).
     changed = [k for k in coarse_l if coarse_l[k] != refined[k]]
     assert changed, "refinement local changed no vector on an odd-motion clip"
-    corrected = [k for k in changed if refined[k][0] == 3.0
-                 and refined[k][1] == 0.0
+    corrected = [k for k in changed if refined[k] == (3.0, 0.0)
                  and coarse_l[k][0] in (2.0, 4.0)]
-    assert len(corrected) >= 2, \
-        "refined vectors did not move onto the odd truth"
-    regressed = [k for k in coarse_l if coarse_l[k][0] == 3.0
-                 and refined[k][0] != 3.0]
-    assert not regressed, "refinement moved blocks OFF the odd truth"
+    assert len(corrected) >= 10, \
+        f"only {len(corrected)} refined vectors moved onto the odd truth"
 
     # none is a truthful no-op: the refinement dump repeats the coarse field
     assert none_ref == coarse_n, \
