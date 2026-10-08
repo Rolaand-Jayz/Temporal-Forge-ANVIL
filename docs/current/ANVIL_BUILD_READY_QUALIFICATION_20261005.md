@@ -1,8 +1,9 @@
 # ANVIL BUILD_READY_FOR_RESEARCH Qualification Record
 
-**Date:** 2026-10-07
+**Date:** 2026-10-08
 **Branch:** `successor/anvil-build-ready`
-**Implementation evidence head before documentation refresh:** `0e03af613bbaa904d8497857989ab1c88b9381ad`
+**Current implementation/evidence head before this documentation reconciliation:** `5f10b26f84ba89293e1b38622521acde37ee0732`
+**Exact-head CI:** Actions run `37855358002` — SUCCESS
 **Contract evaluated:** `zcode_packs/temporal_forge_anvil_zcode_pack_2026-10-05/BUILD_READY_CONTRACT.md`
 **Evidence vocabulary:** per `docs/closure/EVALUATION_STANDARD.md`
 
@@ -82,9 +83,9 @@ Codec support/limitation matrix (this host — re-probed per run):
 
 | Item | Verdict | Evidence |
 |---|---|---|
-| Clean configure/build on intended environment | PASS | Fresh configure+build on host (gcc 16.2.1, cmake 4.4.4, ninja, FFmpeg n9.0.2) 2026-10-05; clean-clone from GitHub URL 2026-10-06 (see below). |
-| Existing applicable tests pass | PASS | CTest 26/26 (up from baseline 23; the 3 new ANVIL targets included); the 4 previously disabled FSR-era GPU tests remain disabled by design. |
-| New unit/integration tests pass | PASS | `anvil_core_tests`, `anvil_codec_tests`, `anvil_runner_tests` (C++), plus `tests/test_anvil_contract.py` (**46 tests** at implementation evidence head `0e03af61`). |
+| Clean configure/build on intended environment | PASS | Clean configure/build evidence is preserved from the original qualification and repeated by exact-head GitHub Actions. At `5f10b26`, Actions run `37855358002` configured and built the full Arch job successfully from a clean checkout. |
+| Existing applicable tests pass | PASS | Exact-head CTest at `5f10b26`: **32/32 executed tests passed**; one additional provenance regression is skipped in this CI environment and the 4 historical GPU tests remain disabled by design. |
+| New unit/integration tests pass | PASS | Current dedicated ANVIL C++ targets include core, refinement, geometry-estimate, codec, side-info, output-backend, runner, timestamp, and provenance-rebuild coverage. `tests/test_anvil_contract.py` contains **56 ANVIL contract tests**; exact-head Python CI reports **124 passed** total = 68 historical + 56 ANVIL. |
 | Vulkan validation on exercised successor paths | N/A | **Justification:** the build-ready successor path exercises no Vulkan code — `anvil_lib`/`anvil_runner` do not link or call Vulkan, and no existing Vulkan path was modified (diff scope: `src/anvil/`, `tools/anvil/`, tests, CMake, CI). The historical player's Vulkan paths are unchanged and its tests remain green. Any future Vulkan successor backend re-opens this item with validation-layer evidence. |
 | No known resource lifetime/synchronization defect | PASS | CPU-only pipeline; ownership reviewed: AVPacket freed in probe (`CodecProbe.cpp`), decoder flush on EOF (delayed-frame drain), decoder/demuxer RAII via reused classes, no cross-thread sharing. |
 | Graceful fallback/error tested | PASS | Missing input → exit 1 with message; missing oracle → explicit error; absent encoders → capability notes; unknown color metadata → recorded unknown state. |
@@ -335,10 +336,10 @@ review passes; any material finding resets the count. Status after pass 7:
   together with comment-level nits (BuildProvenance CI-macro claim,
   Core.hpp timebase wording, fixture-comment bound).
 - Pass 7: 1 material finding — this record's own Command-evidence section
-  lagged the heads above and no addendum recorded passes 3-6. Repaired by
-  this commit (head list + this addendum + role-based closing language).
-  Clean-pass count after this repair: 0 (protocol reset); passes continue
-  until three consecutive clean.
+  lagged the heads above and no addendum recorded passes 3-6. Repaired in
+  `5f10b26f` (head list + this addendum + role-based closing language);
+  Actions run `37855358002` is green on that exact head. Clean-pass count
+  after that repair reset to 0 per protocol.
 
 Review-scratch policy note: reviewer briefs now direct all scratch work to
 /mnt/workdrive/.review-scratch/ (disk-backed) — /tmp is a RAM-backed tmpfs
@@ -347,42 +348,41 @@ twice during passes 1-4.
 
 ## Command evidence
 
-Implementation evidence heads, newest first (every head's Actions run green
-on that exact SHA; each commit's role is recorded so the trail stays
-readable as the branch advances):
-- `99342ab5` (review-pass-6 repair: README successor status + comment nits; Actions run 37850662565 SUCCESS)
-- `214ac453` (review-pass-4 repair: evidence-trail completion; Actions run 37795544542 SUCCESS)
-- `2715eef8` (review-pass-3 repairs: evidence identifiers; Actions run 37786744274 SUCCESS)
-- `c0533c7c` (round-4 + review-pass-2 code repairs; Actions run 37782937886 SUCCESS)
-- `598823e1` (round-4 integration + review-pass-1 repairs; Actions run 37744340628 SUCCESS)
-- `0e03af613bbaa904d8497857989ab1c88b9381ad` (2026-10-07, round 3; Actions run 37582895384 SUCCESS)
+Current implementation/evidence head:
 
-```
-GitHub Actions run 37582895384 on PR #1:
-  Arch build + CTest     SUCCESS
-    - clean checkout
-    - configure/build    SUCCESS
-    - CTest              26/26 passed
-  Python contract suite  SUCCESS
-    - historical suite   68 passed
-    - ANVIL suite        46 passed
-    - combined total     114 passed
+- `5f10b26f84ba89293e1b38622521acde37ee0732` — review-pass-7
+  evidence-trail repair plus comment-math corrections.
+- GitHub Actions run `37855358002`: **SUCCESS**.
+  - Arch build + CTest: **32/32 executed tests passed**.
+  - One additional provenance rebuild regression is skipped in this CI
+    environment; four historical GPU tests remain disabled by design.
+  - Python CI contract job: **124 passed** = 68 historical + 56 ANVIL.
 
-Source-level inventory at this head:
-  - tests/test_anvil_contract.py: 46 test functions
-  - deterministic refinement/confidence/ablation controls present
-  - strict oracle parsing + SHA-256 provenance for consumed oracle inputs
-  - exact PTS selection, scene-cut reset, color/HDR evidence and
-    high-bit-depth temporal reconstruction regressions present
-```
+Recent exact-head evidence trail, newest first:
 
-The earlier clean-clone verification remains historical evidence for the clone
-and build instructions. Each Actions run listed above supplies a fresh
-clean-checkout build/test result for its exact head. Documentation-only or
-comment-only commits that follow a recorded evidence head do not invalidate
-that head's code evidence; any such follow-up commit must itself carry a
-green run before evaluator handoff (this is the discipline the review passes
-below enforce).
+- `5f10b26f` — Actions `37855358002` SUCCESS.
+- `99342ab5` — review-pass-6 README/comment repair; Actions `37850662565` SUCCESS.
+- `214ac453` — review-pass-4 evidence-trail completion; Actions `37795544542` SUCCESS.
+- `2715eef8` — review-pass-3 evidence identifiers; Actions `37786744274` SUCCESS.
+- `c0533c7c` — round-4 + review-pass-2 code repairs; Actions `37782937886` SUCCESS.
+- `598823e1` — round-4 integration + review-pass-1 repairs; Actions `37744340628` SUCCESS.
+- `0e03af613bbaa904d8497857989ab1c88b9381ad` — round 3; Actions `37582895384` SUCCESS.
+
+The earlier clean-clone verification remains historical evidence for the
+documented clone/build instructions. Each Actions run above is evidence for
+its exact head. Documentation-only follow-up commits do not alter the code
+evidence but must themselves remain CI-green before evaluator handoff.
+
+### Documentation reconciliation — 2026-10-08
+
+A repository-wide current-authority sweep found stale status framing outside
+the implementation docs: `docs/README.md` still described a future successor,
+`zcode_packs/README.md` still described the pack as inert/never executed,
+and `docs/current/STATE.md` stopped at the initial 2026-10-05/06 successor
+bootstrap. This documentation reconciliation updates those current-status
+surfaces plus the root README, architecture snapshot, qualification summary,
+and PR description. It does **not** alter ANVIL implementation semantics or
+self-approve `BUILD_READY_FOR_RESEARCH`.
 
 ## Reused historical infrastructure and justification
 

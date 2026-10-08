@@ -2,7 +2,10 @@
 
 **Status:** CURRENT — successor integration branch `successor/anvil-build-ready`
 **Contract:** `zcode_packs/temporal_forge_anvil_zcode_pack_2026-10-05/BUILD_READY_CONTRACT.md`
-**Qualification:** [`ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](ANVIL_BUILD_READY_QUALIFICATION_20261005.md)
+**Qualification:** [`ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](ANVIL_BUILD_READY_QUALIFICATION_20261005.md)  
+**Implementation/evidence head:** `5f10b26f84ba89293e1b38622521acde37ee0732`  
+**Exact-head CI:** Actions run `37855358002` — SUCCESS  
+**Gate state:** candidate/pending independent evaluator; not self-approved
 
 ## What ANVIL is at this gate
 
@@ -227,6 +230,19 @@ Requirements: C++23 compiler, CMake ≥ 3.24, Ninja, FFmpeg ≥ 5.1 dev libs
 (libavformat/libavcodec/libavutil/libswscale/libswresample), Qt6 + Vulkan
 (for the historical player targets), ffmpeg CLI + ffprobe + pytest for the
 full test suites. The ANVIL targets themselves need only FFmpeg.
+
+## Current validation snapshot
+
+At implementation/evidence head `5f10b26f84ba89293e1b38622521acde37ee0732`:
+
+- Actions run `37855358002`: SUCCESS.
+- CTest: 32/32 executed tests passed; one additional provenance regression
+  is skipped in this CI environment and four historical GPU tests remain
+  disabled by design.
+- Python CI contract job: 124 passed = 68 historical + 56 ANVIL tests.
+
+This validates the exact implementation/evidence head. It does not replace
+independent evaluator adjudication of the Build-Ready gate.
 
 ## Tests
 
