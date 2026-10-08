@@ -327,6 +327,25 @@ if(NOT FFMPEG_ANVIL_FOUND)
     set_tests_properties(anvil_refinement_tests PROPERTIES DISABLED ON)
 endif()
 
+# Sample-geometry estimation contract: the fixture knows the true sampling
+# grid offset, the estimator sees only image planes. Covers the estimated
+# arm's accuracy, zero-offset, fail-closed inputs, the flow-application sign
+# proof, determinism, and codec-MV independence.
+anvil_add_test(anvil_geometry_estimate_tests
+    SOURCES anvil_geometry_estimate_tests.cpp
+            ../src/anvil/Core.cpp
+            ../src/anvil/JsonWriter.cpp
+            ../src/anvil/ColorMeta.cpp
+            ../src/anvil/Manifest.cpp
+            ../src/anvil/Oracle.cpp
+            ../src/anvil/Pnm.cpp
+            ../src/anvil/Reconstruct.cpp
+            ../src/anvil/SampleGeometryEstimate.cpp
+            ../src/anvil/Sha256.cpp)
+if(NOT FFMPEG_ANVIL_FOUND)
+    set_tests_properties(anvil_geometry_estimate_tests PROPERTIES DISABLED ON)
+endif()
+
 anvil_add_test(anvil_codec_tests
     SOURCES anvil_codec_tests.cpp
             ../src/anvil/CodecProbe.cpp)
