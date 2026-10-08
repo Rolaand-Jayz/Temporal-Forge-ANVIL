@@ -270,6 +270,36 @@ bool applyRelativeSampleGeometry(FlowField& flow,
     return true;
 }
 
+bool applyEstimatedPhaseResidual(FlowField& flow,
+                                 const std::vector<uint8_t>& coverage,
+                                 int width, int height,
+                                 float targetPhaseX, float targetPhaseY,
+                                 float neighborPhaseX, float neighborPhaseY) {
+    const auto inUnit = [](float v) {
+        return std::isfinite(v) && v >= 0.0f && v < 1.0f;
+    };
+    if (width <= 0 || height <= 0 || !inUnit(targetPhaseX)
+        || !inUnit(targetPhaseY) || !inUnit(neighborPhaseX)
+        || !inUnit(neighborPhaseY)) {
+        return false;
+    }
+    const size_t pixels = static_cast<size_t>(width) * height;
+    if (flow.size() != pixels * 2 || coverage.size() != pixels) return false;
+    // Wrap the raw difference d ∈ (-1, 1) into the round-consistent residual
+    // r = d - round(d) ∈ (-0.5, 0.5] (ties wrap to -0.5, deterministic).
+    const auto wrapHalf = [](float d) {
+        return d - std::floor(d + 0.5f);
+    };
+    const float rx = wrapHalf(targetPhaseX - neighborPhaseX);
+    const float ry = wrapHalf(targetPhaseY - neighborPhaseY);
+    for (size_t i = 0; i < pixels; ++i) {
+        if (!coverage[i]) continue;
+        flow[i * 2] += rx;
+        flow[i * 2 + 1] += ry;
+    }
+    return true;
+}
+
 namespace {
 inline float bilinear(const Observation& o, float fx, float fy) {
     if (!std::isfinite(fx) || !std::isfinite(fy)

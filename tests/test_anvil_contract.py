@@ -12,6 +12,7 @@
 
 import hashlib
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -1511,9 +1512,13 @@ def test_side_info_normalization_is_independent_stage(sdr_clip, tmp_path):
 
 
 def test_side_info_bypass_changes_codec_arm_truthfully(sdr_clip, tmp_path):
-    """In codec mode the normalization boundary is load-bearing: bypassing it
-    removes the normalized prior (state 'bypassed', zero usable entries,
-    explicit event) without touching the estimate arm's contract."""
+    """In codec mode, bypassing the normalization boundary records the
+    truthful control evidence (state 'bypassed', zero usable entries, explicit
+    event) without switching the correspondence algorithm. Note: on this
+    host every exported codec MV carries unproven reference identity, so the
+    normalized prior is empty in BOTH modes and the reconstruction bytes
+    coincide — the boundary's data-path effect is enforced structurally by
+    test_side_info_stage_feeds_correspondence below, not by outputs."""
     out = tmp_path / "codec_byp"
     proc = run_runner(out, "--input", sdr_clip, "--start-frame", 2,
                       "--frame-count", 1, "--past", 1,
@@ -1528,6 +1533,22 @@ def test_side_info_bypass_changes_codec_arm_truthfully(sdr_clip, tmp_path):
     assert f["codec_mv_usable_count"] == 0
     assert any(e["type"] == "side_info_normalization_bypassed"
                for e in m["events"])
+
+
+def test_side_info_stage_feeds_correspondence():
+    """Structural regression (review pass 2, R3): the codec correspondence
+    arm must consume the normalization STAGE output — reverting to inline
+    normalizeCodecMv leaves every output-level suite green on this host
+    (all real codec MVs are ambiguous, so both paths yield an empty prior),
+    so the wiring itself is pinned here at the source level."""
+    runner_src = (REPO_ROOT / "src" / "anvil" / "Runner.cpp").read_text()
+    assert "blocks = normResult.normalized;" in runner_src, \
+        "codec correspondence no longer consumes the normalization stage output"
+    assert "normalizeCodecMv(" not in runner_src, \
+        "inline normalization re-introduced in the runner"
+    stage_src = (REPO_ROOT / "src" / "anvil" / "SideInfoNormalize.cpp").read_text()
+    assert "normalizeCodecMv(frame)" in stage_src, \
+        "the stage must keep delegating semantics to Core's normalizeCodecMv"
 
 
 def test_output_backend_null_bypass_and_identity(sdr_clip, tmp_path):
@@ -1660,12 +1681,19 @@ def test_geometry_estimate_changes_reconstruction_on_subpixel_clip(
               if line.startswith("neighbor ")]
     assert phases, "geometry dump lacks neighbor phases"
     px, py = float(phases[0][3]), float(phases[0][4])
-    assert min(abs(px - round(px)), abs(py - round(py))) >= 0.0  # sanity
-    assert abs(px - round(px)) >= 0.1, \
-        f"x phase {px} is not measurably fractional"
-    assert abs(py - round(py)) <= 0.15, \
-        f"y phase {py} should be ~integer on an x-only shift"
+    # Effective residuals mirror the C++ round-consistent wrap: r = d - floor(d + 0.5)
+    def wrap_half(d):
+        return d - math.floor(d + 0.5)
+    rx, ry = wrap_half(-px), wrap_half(-py)
+    assert abs(rx) >= 0.1, \
+        f"effective x residual {rx} is not measurably fractional"
+    assert abs(ry) <= 0.15, \
+        f"effective y residual {ry} should be ~0 on an x-only shift"
 
+    # The arm must measurably IMPROVE, not merely change, the reconstruction
+    # (review pass 2: a mod-1 phase application changed the output while
+    # degrading it by a full pixel on one quadrant). Reference truth: the
+    # fixture's own frame-2 luma, decoded independently.
     out_u = tmp_path / "subpix_unk"
     assert run_runner(out_u, *common, "--geometry", "unknown").returncode == 0
     fe = sorted(p.name for p in out_e.iterdir() if p.suffix in (".ppm", ".pgm"))
@@ -1674,6 +1702,27 @@ def test_geometry_estimate_changes_reconstruction_on_subpixel_clip(
     assert any((out_e / n).read_bytes() != (out_u / n).read_bytes()
                for n in fe), \
         "estimated geometry did not change the reconstruction"
+
+    def _pgm_samples(path):
+        data = path.read_bytes()
+        magic, dims, maxval, payload = data.split(b"\n", 3)
+        assert magic == b"P5"
+        w, h = map(int, dims.split())
+        assert int(maxval) == 255
+        return bytearray(payload[:w * h]), w, h
+
+    ref = subprocess.run(
+        [FFMPEG, "-loglevel", "error", "-i", subpixel_clip,
+         "-frames:v", "3", "-f", "rawvideo", "-pix_fmt", "gray", "-"],
+        check=True, capture_output=True).stdout
+    ref_y = ref[2 * 96 * 96: 3 * 96 * 96]  # frame index 2 (the target)
+    est_y, w_, h_ = _pgm_samples(out_e / "frame_2_y.pgm")
+    unk_y, _, _ = _pgm_samples(out_u / "frame_2_y.pgm")
+    assert (w_, h_) == (96, 96)
+    mad_e = sum(abs(a - b) for a, b in zip(est_y, ref_y)) / len(ref_y)
+    mad_u = sum(abs(a - b) for a, b in zip(unk_y, ref_y)) / len(ref_y)
+    assert mad_e < mad_u, \
+        f"estimated geometry degraded reconstruction vs unknown ({mad_e:.2f} >= {mad_u:.2f})"
 
 
 def _probe_tick_truth(clip):

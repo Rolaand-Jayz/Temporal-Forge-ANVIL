@@ -80,6 +80,22 @@ bool applyRelativeSampleGeometry(FlowField& flow,
                                  const SampleGeometry& targetGeometry,
                                  const SampleGeometry& neighborGeometry);
 
+// Estimated-phase application with the coherence contract the estimated arm
+// needs: the correspondence flow's integer part is the block-SAD argmin
+// (~round of the true displacement), so the residual the sampler requires is
+// D - round(D) in (-0.5, 0.5] per axis — NOT a mod-1 representative. This
+// wraps the [0,1) phase difference into (-0.5, 0.5] before applying it, so
+// the effective correction is position-exact for BOTH fractional quadrants
+// regardless of which representative the estimator emitted (review pass 2:
+// the mod-1 representative landed a full pixel away whenever the integer
+// flow rounded where the representative ceiled, measurably DEGRADING
+// reconstruction on the arm's own subpixel fixture).
+bool applyEstimatedPhaseResidual(FlowField& flow,
+                                 const std::vector<uint8_t>& coverage,
+                                 int width, int height,
+                                 float targetPhaseX, float targetPhaseY,
+                                 float neighborPhaseX, float neighborPhaseY);
+
 ConfidenceField estimateConfidence(const Observation& target,
                                    const Observation& neighbor,
                                    const FlowField& flow,

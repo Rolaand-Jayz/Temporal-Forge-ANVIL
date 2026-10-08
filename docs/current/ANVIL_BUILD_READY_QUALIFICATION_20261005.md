@@ -24,7 +24,7 @@ This record does not launch the later adversarial campaign.
 | Stages independently selectable/bypassable | PASS | `--side-info normalize|bypass` (explicit raw→normalized boundary stage), `--refinement none|local`, `--confidence unit|estimate|oracle`, `--geometry unknown|estimate|oracle`, `--backend pnm|null` (replaceable output-backend boundary; null completes pipeline+manifest with zero artifacts), `--no-accumulate`, `--no-color-convert`, correspondence/visibility selection. Stage timing/dumps cover every stage incl. side-info normalization and the backend. Corrected 2026-10-08 (round 4): this row previously covered normalization (not then a stage) and output (not then bypassable). |
 | Missing side info explicit, never fabricated | PASS | `SideInfoState` (available/unsupported/ambiguous/estimator_only) recorded per frame in manifest; `side_info_unsupported` events; `test_oracle_injection_replaces_estimates`, codec probe notes. |
 | Backend-neutral confidence/visibility | PASS | Per-pixel `ConfidenceField` C(x)∈[0,1] supports unit, deterministic photometric estimate, and per-neighbor oracle modes; `Visibility` remains a separate invalid/valid/unknown signal. `accumulate()` consumes confidence as the sample weight and excludes every visibility state except `Valid`; `test_confidence_estimate_oracle_and_consumption` and strict visibility-oracle regressions cover the separation. |
-| Sample geometry known/estimated/unknown, no fake jitter | PASS | `SampleGeometryState` preserves Known/Estimated/Unknown and all three are reachable: oracle (`--geometry oracle`), estimated (`--geometry estimate`: deterministic block-subpixel registration over luma evidence only; parabolic fits + median aggregation + dispersion gate; never codec MVs), and unknown (default, or truthful degradation with recorded reasons). Estimated phases are target-relative, labeled Estimated, applied to proven flow, and measurably change reconstruction on a genuinely subpixel-shifted fixture (`test_geometry_estimate_changes_reconstruction_on_subpixel_clip`); oracle phase regression retained (`test_geometry_oracle_changes_sampling_and_is_provenanced`). Corrected 2026-10-08 (round 4, review 4209762343): the previous text documented the pre-estimator rejection. |
+| Sample geometry known/estimated/unknown, no fake jitter | PASS | `SampleGeometryState` preserves Known/Estimated/Unknown and all three are reachable: oracle (`--geometry oracle`), estimated (`--geometry estimate`: deterministic block-subpixel registration over luma evidence only; parabolic fits + median aggregation + dispersion gate; never codec MVs), and unknown (default, or truthful degradation with recorded reasons). Estimated phases are target-relative, labeled Estimated, and applied to proven flow through the round-consistent signed residual (`applyEstimatedPhaseResidual`) so the correction is position-exact for BOTH fractional quadrants (review pass 2 repaired a mod-1 application that degraded one quadrant); the subpixel fixture regression asserts a measured IMPROVEMENT of the reconstruction against the fixture’s own decoded frame, not merely a change (`test_geometry_estimate_changes_reconstruction_on_subpixel_clip`); oracle phase regression retained (`test_geometry_oracle_changes_sampling_and_is_provenanced`). Corrected 2026-10-08 (round 4, review 4209762343): the previous text documented the pre-estimator rejection. |
 | Temporal reconstruction outputs via non-FSR path | PASS | Deterministic confidence-weighted aligned average (`src/anvil/Reconstruct.cpp`) consumes flow, visibility and confidence, preserves single-frame control, and supports exact target/reference ablation with `--exclude-neighbor TARGET:REFERENCE`; exercised by C++ and Python runner tests. |
 
 ## Mandatory testability conditions
@@ -32,7 +32,7 @@ This record does not launch the later adversarial campaign.
 | Item | Verdict | Evidence |
 |---|---|---|
 | Headless/offline deterministic runner | PASS | `anvil_runner` CLI; no window/GPU/network; all runner tests run headless in CI containers. |
-| Exact input frame indices/timestamps selectable | PASS | `--start-frame/--frame-count`; exact `--start-pts-us` (microsecond domain; no nearest fallback; no-match is an error); exact `--start-pts-ticks` (native stream ticks — the lossless control: distinct fine-timebase ticks that collide after microsecond rescaling stay individually addressable, with match/no-match/ambiguity semantics); VFR regression `test_exact_pts_selection_on_vfr`; collision regression `test_start_pts_ticks_selects_exactly_one_colliding_frame` (10 MHz timebase fixture, ticks 0.4 µs apart sharing one microsecond, truth derived via ffprobe). Manifest frames carry `pts_ticks`, `timebase_num/den`, `timestamp_source` (pts|best_effort|none) alongside the convenience `pts_us`. Corrected 2026-10-08 (round 4, review 4209783084). |
+| Exact input frame indices/timestamps selectable | PASS | `--start-frame/--frame-count`; exact `--start-pts-us` (microsecond domain; no nearest fallback; no-match is an error); exact `--start-pts-ticks` (native stream ticks — the lossless control: distinct fine-timebase ticks that collide after microsecond rescaling stay individually addressable, with match/no-match/ambiguity semantics); VFR regression `test_exact_pts_selection_on_vfr`; collision regression `test_start_pts_ticks_selects_exactly_one_colliding_frame` (10 MHz timebase fixture, adjacent ticks 0.5 µs apart sharing one rounded microsecond, truth derived via ffprobe). Manifest frames carry `pts_ticks`, `timebase_num/den`, `timestamp_source` (pts|best_effort|none) alongside the convenience `pts_us`. Corrected 2026-10-08 (round 4, review 4209783084). |
 | Exact configuration serialized in run manifest | PASS | `manifest.json` `config` section (all CLI parameters); `test_manifest_schema_and_provenance`. |
 | Git/build/input provenance captured | PASS | Source identity is regenerated from Git state on EVERY build (`cmake/AnvilProvenance.cmake` → strong definitions linked beside weak defaults; unchanged Git state causes zero recompilation), so an incremental rebuild after a commit or source mutation cannot present the prior clean revision. Manifest carries `git_sha`, `git_dirty`, `git_dirty_hash` (SHA-256 over porcelain status + tracked-content diff when dirty), and `provenance_source` (build_generated|compile_macro|runtime_git). Regression `anvil_provenance_rebuild_regression` configures a detached worktree at HEAD, mutates source/Git state, rebuilds WITHOUT reconfigure (from a runtime-git-isolated cwd) and fails if the manifest claims the stale clean identity; input SHA-256 verified equal to an independent `hashlib` digest; FIPS 180-4 known-answer tests guard the hash. Corrected 2026-10-08 (round 4, review 4209766186): the previous PASS rested on fresh-configure-only evidence. |
 | Per-stage timing hooks | PASS | `stage_timings[]` covers decode, window_select, side_info_normalization, correspondence, correspondence_refinement, visibility, sample_geometry, confidence, color_convert, accumulate and output; `test_stage_timing_attribution` asserts exercised stages have meaningful timings, including that a converted frame carries TWO color_convert records (working-space decision + actual sws_scale transform) so naive by-name summation must expect the duplicate. Corrected 2026-10-08 (round 4, review 4209766876): the previous enumeration stated visibility → confidence → sample_geometry; the actual execution order (then and now) is visibility → sample_geometry → confidence, because estimated confidence measures the geometry-adjusted warp — the StageId enum encodes the same order. |
@@ -256,9 +256,9 @@ corresponding GitHub threads intentionally remain open.
 - 4209783084 (timestamp identity lossy): native ticks + timebase + pts-vs-
   best-effort provenance carried through decode/observation/manifest;
   exact `--start-pts-ticks` selection. Regressions: `anvil_timestamp_tests`
-  and the tick-collision python matrix (ticks 0.4 µs apart sharing one
-  microsecond: tick selection addresses each frame exactly; µs selection
-  refuses as ambiguous).
+  and the tick-collision python matrix (adjacent ticks 0.5 µs apart sharing
+  one rounded microsecond: tick selection addresses each frame exactly; µs
+  selection refuses as ambiguous).
 - 4209766876 (documented stage order wrong): architecture map and this
   record now state the actual execution order (visibility → sample_geometry
   → confidence) explicitly, with the reason it is load-bearing.
@@ -285,6 +285,34 @@ the exact head `598823e1`: **SUCCESS** (Arch build + CTest 32/32; python
 contract suite green). An internal independent review pass over the seven
 repairs found and fixed the defects recorded in `598823e1`; further passes
 continue until three consecutive clean reviews, per the repair protocol.
+
+## Repair addendum — internal review pass 2 (2026-10-08)
+
+The second full independent review pass (8 reviewers) found five material
+defects, all repaired at this head:
+
+- Estimated-geometry phase application was incoherent with the integer
+  correspondence flow on one fractional quadrant (mod-1 representative vs
+  the round-based argmin): measured DEGRADATION on the arm's own subpixel
+  fixture. Fixed with `applyEstimatedPhaseResidual` (round-consistent signed
+  residual in (-0.5, 0.5]); the estimator header now states the application
+  contract; unit test (d) proves BOTH quadrants; the runner-level regression
+  now asserts measured improvement against the fixture's decoded frame.
+- The codec arm's consumption of the normalization stage output was
+  unenforced (a mutation reverting to inline normalization left the suite
+  green because every real codec MV is ambiguous on this host). Pinned by
+  the structural regression `test_side_info_stage_feeds_correspondence`,
+  and the codec-arm docstring no longer overstates what outputs can prove.
+- Native-tick selection could not address a legitimate pts == -1 (sentinel
+  collision). The candidate guard now keys on the resolved source
+  (`hasNativeTimestamp`), unit-tested including the -1 corner.
+- Five stale fixture descriptions (0.4 µs / differ-by-4) left from the
+  superseded CLI draft fixture corrected to the actual 0.5 µs / 5-tick
+  spacing.
+- Nits: detectGitDirtyHash tier order aligned with the other detectors;
+  ptsTicks member comment updated; sample-geometry dump no longer prints
+  relative_offset for unapplied (Unknown) neighbors; the contraction-bias
+  figure hedged to the independently reproduced 0.08–0.09 px range.
 
 ## Command evidence
 
@@ -351,8 +379,9 @@ evaluator handoff.
    residual. Its usefulness versus oracle/unit confidence is a later research
    question, not an established quality result.
 4. The estimated-geometry arm uses parabolic subpixel fits with a
-   documented contraction bias on smooth periodic textures (measured
-   ~0.08 px at 0.25 px offsets) and needs sufficient block-level agreement
+   documented contraction bias on smooth periodic textures (on the order
+   of 0.08–0.09 px at 0.25 px offsets across tested texture periods of
+   6–24 px) and needs sufficient block-level agreement
    (>= 8 usable tiles, MAD <= 0.25 px); ordinary mixed-motion content can
    truthfully degrade to unknown. Its accuracy versus oracle phase is a
    later-campaign question, not a quality claim.

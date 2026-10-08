@@ -24,21 +24,18 @@
 // Sufficiency: state Estimated only when blocksUsed >= 8 AND both axis MADs
 // are <= 0.25 px; otherwise Unknown with a truthful insufficientReason.
 //
-// Sign convention (derived, and proven by
-// anvil_geometry_estimate_tests.cpp test (d)):
+// Phase and application contract (derived; proven for BOTH fractional
+// quadrants by anvil_geometry_estimate_tests.cpp test (d)):
 //   The target observation is the anchor (phase 0); the result is the
-//   NEIGHBOR's sampling-grid phase relative to the target. If target content
-//   at position p is matched by neighbor content at p + f (f = the per-tile
-//   displacement measured above), then applyRelativeSampleGeometry
-//   (Reconstruct.hpp) adds targetPhase - neighborPhase to the proven flow and
-//   the accumulator samples the neighbor at x + flow. With
-//   neighborPhase = ((-f) mod 1) in [0,1) the sampler therefore evaluates the
-//   neighbor's sampling grid at x - frac(-f), i.e. the fractional position
-//   whose grid sample carries the target's content. Because the phase is a
-//   [0,1) representative of a mod-1 offset, a zero-flow reconstruction is
-//   position-exact when the neighbor's true grid offset lies in (0,1)
-//   (positive side); offsets on the negative side are represented mod 1 and
-//   need the integer part carried by the flow field's motion.
+//   NEIGHBOR's sampling-grid phase relative to the target, emitted as the
+//   [0,1) representative frac(-median displacement). Consumers MUST apply it
+//   through applyEstimatedPhaseResidual (Reconstruct.hpp), which wraps the
+//   phase difference into the round-consistent SIGNED residual in
+//   (-0.5, 0.5] before adding it to the proven flow: the correspondence
+//   flow's integer part is the block-SAD argmin (~round(D)), so the sampler
+//   needs D - round(D) — applying the raw mod-1 representative instead lands
+//   a full pixel away on one quadrant and measurably DEGRADES reconstruction
+//   (review pass 2 finding; the pre-fix application had exactly that defect).
 #pragma once
 #include <cstddef>
 #include <string>

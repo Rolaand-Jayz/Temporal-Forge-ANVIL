@@ -42,7 +42,9 @@ struct MvEntry {
 struct DecodedVideoFrame {
     int64_t ptsUs = 0;          // presentation timestamp, microseconds
     int64_t durationUs = 0;     // frame duration, microseconds
-    int64_t ptsTicks = -1;      // raw pts in stream timebase (-1 = none)
+    int64_t ptsTicks = -1;      // native tick of the DISPLAYED timestamp
+                                 // (pts, else best_effort; -1 only when both
+                                 // are AV_NOPTS_VALUE — see ptsSource below)
     int64_t durationTicks = 0;
     int width = 0;
     int height = 0;
