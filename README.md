@@ -2,7 +2,7 @@
 
 > **FSR-era research closed 2026-09-15 · ANVIL successor program authorized 2026-10-05**
 
-**Successor program (active):** the maintainer has authorized the "Temporal Forge / ANVIL" successor build program; this repository is its designated working repository and push target. The program pack, contracts, and mapping decision live under [`zcode_packs/README.md`](zcode_packs/README.md). As of authorization, successor work has not yet started (no successor branch; historical `main` is not rewritten).
+**Successor program (active):** the maintainer has authorized the "Temporal Forge / ANVIL" successor build program; this repository is its designated working repository and push target. The program pack, contracts, and mapping decision live under [`zcode_packs/README.md`](zcode_packs/README.md). Successor work is in progress on the dedicated branch [`successor/anvil-build-ready`](docs/current/STATE.md) under draft PR #1 (never merged without explicit maintainer authorization); historical `main` is not rewritten.
 
 **Preserved FSR-era record (closed):** this tree also preserves the engineering and evidence record of Temporal Forge's attempt to adapt **AMD FSR 4.1 temporal reconstruction/upscaling to ordinary decoded video**. The closure does **not** claim that FSR 4.1 can never work for video — it records a narrower evidence-based decision: the accumulated results no longer justify keeping FSR-specific expected-input reconstruction as Temporal Forge's primary research architecture.
 

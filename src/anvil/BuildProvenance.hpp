@@ -12,8 +12,9 @@
 //    omit the generated unit. The WEAK definitions in
 //    src/anvil/BuildProvenance.cpp default every value to "" so linking
 //    still succeeds; detection then falls through to the compile-macro tier
-//    (ANVIL_GIT_SHA / ANVIL_GIT_DIRTY / ANVIL_GIT_DIRTY_HASH, which that
-//    path defines fresh at compile time) or to runtime Git.
+//    (ANVIL_GIT_SHA / ANVIL_GIT_DIRTY, which that path defines fresh at
+//    compile time; the dirty hash is honestly null on that path) or to
+//    runtime Git.
 //
 // Provenance truthfulness contract: "" means "not captured", never an
 // invented value. Callers (Manifest detection) must validate before use.
