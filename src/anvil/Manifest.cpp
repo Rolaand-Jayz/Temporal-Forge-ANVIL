@@ -1,6 +1,8 @@
 // Manifest.cpp — run manifest serialization + provenance detection.
 #include "Manifest.hpp"
 
+#include "anvil/BuildProvenance.hpp"
+
 #include <cstdio>
 
 extern "C" {
@@ -12,6 +14,9 @@ extern "C" {
 #endif
 #ifndef ANVIL_GIT_DIRTY
 #define ANVIL_GIT_DIRTY ""
+#endif
+#ifndef ANVIL_GIT_DIRTY_HASH
+#define ANVIL_GIT_DIRTY_HASH ""
 #endif
 
 namespace anvil {
@@ -25,6 +30,34 @@ bool validGitSha(const std::string& s) {
         if (!hex) return false;
     }
     return true;
+}
+
+bool validDirtyHash(const std::string& s) {
+    if (s.size() != 64) return false;
+    for (char c : s) {
+        if (c < '0' || c > 'f') return false;
+        // lowercase hex only: '0'..'9' or 'a'..'f'
+        const bool digit = (c >= '0' && c <= '9');
+        const bool alpha = (c >= 'a' && c <= 'f');
+        if (!digit && !alpha) return false;
+    }
+    return true;
+}
+
+// Last-resort tier: the process cwd happens to be the repository. This can
+// mask an unprovable embedded identity (that is exactly why it is the LAST
+// tier and why provenance_source records which tier fired).
+std::optional<std::string> runtimeGitSha() {
+    FILE* p = popen("git rev-parse HEAD 2>/dev/null", "r");
+    if (!p) return std::nullopt;
+    char buf[64] = {};
+    const bool ok = std::fgets(buf, sizeof(buf), p) != nullptr;
+    pclose(p);
+    if (!ok) return std::nullopt;
+    std::string s(buf);
+    while (!s.empty() && (s.back() == '\n' || s.back() == '\r')) s.pop_back();
+    if (!validGitSha(s)) return std::nullopt;
+    return s;
 }
 }
 
@@ -61,22 +94,22 @@ StageId stageFromName(const std::string& name, bool& ok) {
 }
 
 std::optional<std::string> detectGitSha() {
-    const std::string builtSha = ANVIL_GIT_SHA;
+    // Tier 1: compile-macro (CI g++-direct builds capture this at compile
+    // time, the only capture that path performs).
+    const std::string macroSha = ANVIL_GIT_SHA;
+    if (validGitSha(macroSha)) return macroSha;
+    // Tier 2: build-generated (CMake builds regenerate this unit on every
+    // build, so a rebuilt binary can never report a stale identity).
+    const std::string builtSha = buildprov::gitSha;
     if (validGitSha(builtSha)) return builtSha;
-    FILE* p = popen("git rev-parse HEAD 2>/dev/null", "r");
-    if (!p) return std::nullopt;
-    char buf[64] = {};
-    const bool ok = std::fgets(buf, sizeof(buf), p) != nullptr;
-    pclose(p);
-    if (!ok) return std::nullopt;
-    std::string s(buf);
-    while (!s.empty() && (s.back() == '\n' || s.back() == '\r')) s.pop_back();
-    if (!validGitSha(s)) return std::nullopt;
-    return s;
+    // Tier 3: runtime git — last resort only.
+    return runtimeGitSha();
 }
 
 std::optional<std::string> detectGitDirty() {
-    const std::string builtDirty = ANVIL_GIT_DIRTY;
+    const std::string macroDirty = ANVIL_GIT_DIRTY;
+    if (macroDirty == "true" || macroDirty == "false") return macroDirty;
+    const std::string builtDirty = buildprov::gitDirty;
     if (builtDirty == "true" || builtDirty == "false") return builtDirty;
     FILE* p = popen("git status --porcelain 2>/dev/null", "r");
     if (!p) return std::nullopt;
@@ -85,6 +118,26 @@ std::optional<std::string> detectGitDirty() {
     const bool closedOk = pclose(p) == 0;
     if (!closedOk) return std::nullopt;
     return std::string(any ? "true" : "false");
+}
+
+std::optional<std::string> detectGitDirtyHash() {
+    // Build-generated tier first (CMake builds); the macro tier backs the
+    // CI g++-direct path. An empty capture means "clean tree, non-repo, or
+    // failed capture" — reported as null, never guessed.
+    const std::string builtHash = buildprov::gitDirtyHash;
+    if (validDirtyHash(builtHash)) return builtHash;
+    const std::string macroHash = ANVIL_GIT_DIRTY_HASH;
+    if (validDirtyHash(macroHash)) return macroHash;
+    return std::nullopt;
+}
+
+std::string detectProvenanceSource() {
+    // Reports exactly which tier supplied the identity emitted by
+    // detectGitSha(); "unknown" when no tier could prove it.
+    if (validGitSha(std::string(ANVIL_GIT_SHA))) return "compile_macro";
+    if (validGitSha(std::string(buildprov::gitSha))) return "build_generated";
+    if (runtimeGitSha()) return "runtime_git";
+    return "unknown";
 }
 
 std::string Manifest::toJson() const {
@@ -133,6 +186,9 @@ std::string Manifest::toJson() const {
     else w.key("git_sha"), w.null();
     if (provenance.gitDirty) w.kv("git_dirty", *provenance.gitDirty);
     else w.key("git_dirty"), w.null();
+    if (provenance.gitDirtyHash) w.kv("git_dirty_hash", *provenance.gitDirtyHash);
+    else w.key("git_dirty_hash"), w.null();
+    w.kv("provenance_source", provenance.provenanceSource);
     w.kv("ffmpeg_version", provenance.ffmpegVersion);
     w.kv("build_type", provenance.buildType);
     w.kv("compiler", provenance.compilerId);

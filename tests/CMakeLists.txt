@@ -304,10 +304,19 @@ anvil_add_test(anvil_core_tests
             ../src/anvil/JsonWriter.cpp
             ../src/anvil/ColorMeta.cpp
             ../src/anvil/Manifest.cpp
+            ../src/anvil/BuildProvenance.cpp
             ../src/anvil/Oracle.cpp
             ../src/anvil/Pnm.cpp
             ../src/anvil/Reconstruct.cpp
             ../src/anvil/Sha256.cpp)
+# Build-time provenance (review 4209766186): link the GENERATED strong
+# definitions too so detectGitSha()/detectGitDirty() are exercised through
+# the build_generated tier alongside the weak fallbacks (strong wins at
+# link time; the pair must coexist without duplicate-symbol errors).
+set(ANVIL_PROVENANCE_SOURCE "${CMAKE_BINARY_DIR}/anvil_provenance/AnvilBuildProvenance.cpp")
+target_sources(anvil_core_tests PRIVATE "${ANVIL_PROVENANCE_SOURCE}")
+set_source_files_properties("${ANVIL_PROVENANCE_SOURCE}" PROPERTIES GENERATED TRUE)
+add_dependencies(anvil_core_tests anvil_provenance)
 # git-provenance regression runs inside the checkout so detectGitSha() can
 # be compared against `git rev-parse HEAD`.
 set_tests_properties(anvil_core_tests PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
@@ -468,4 +477,24 @@ if(FFMPEG_ANVIL_FOUND AND FFMPEG_BIN)
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
         ENVIRONMENT "ANVIL_TICK_FIXTURE=${ANVIL_TICK_CLIP};ANVIL_FFPROBE=${ANVIL_FFPROBE_VAL}"
         SKIP_RETURN_CODE 77)
+endif()
+
+# Regression for review 4209766186 (configure-time provenance staleness):
+# configures a detached worktree at HEAD, mutates source and Git state, and
+# rebuilds WITHOUT re-running configure; the manifest must never claim the
+# stale clean identity (git_dirty_hash must appear on dirty rebuilds and the
+# sha must advance on commit). Deterministic skip (exit 77) when git/cmake/
+# ninja/ffmpeg/python3 are unavailable.
+find_program(ANVIL_PYTHON3 python3)
+if(ANVIL_PYTHON3 AND FFMPEG_ANVIL_FOUND AND FFMPEG_BIN)
+    add_test(
+        NAME anvil_provenance_rebuild_regression
+        COMMAND "${ANVIL_PYTHON3}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/anvil_provenance_rebuild_regression.py"
+                "${CMAKE_SOURCE_DIR}")
+    set_tests_properties(anvil_provenance_rebuild_regression PROPERTIES
+        SKIP_RETURN_CODE 77
+        TIMEOUT 1200)
+elseif(NOT ANVIL_PYTHON3)
+    message(STATUS "ANVIL: python3 not found; anvil_provenance_rebuild_regression disabled")
 endif()
