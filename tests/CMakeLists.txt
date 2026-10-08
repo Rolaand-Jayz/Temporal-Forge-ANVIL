@@ -447,17 +447,14 @@ endif()
 find_program(FFPROBE_BIN ffprobe)
 if(FFMPEG_ANVIL_FOUND AND FFMPEG_BIN)
     set(ANVIL_TICK_CLIP "${CMAKE_CURRENT_BINARY_DIR}/anvil_tick_fixture.mp4")
+    # Fixture via make_tick_fixture (libavformat, version-proof): the CLI
+    # route with settb/setpts + -enc_time_base 1/10000000 explodes on older
+    # ffmpeg (ubuntu-24.04 / 6.1); see the root CMakeLists note.
     add_custom_command(
         OUTPUT ${ANVIL_TICK_CLIP}
-        COMMAND ${FFMPEG_BIN} -y -loglevel error
-            -f lavfi -i "testsrc2=size=32x32:rate=10:duration=0.8"
-            -vf "settb=tb=1/10000000,setpts=if(eq(N\\,4)\\,4000006\\,if(eq(N\\,5)\\,4000010\\,PTS))"
-            -c:v libx264 -pix_fmt yuv420p
-            -x264-params "keyint=8:bframes=0"
-            -enc_time_base 1/10000000
-            -video_track_timescale 10000000
-            ${ANVIL_TICK_CLIP}
-        DEPENDS ""
+        COMMAND $<TARGET_FILE:make_tick_fixture>
+                ${ANVIL_TICK_CLIP} 5 10000000 8
+        DEPENDS make_tick_fixture
         COMMENT "Generating anvil_tick_fixture.mp4 (10 MHz timebase, sub-us tick collision)"
         VERBATIM)
     add_custom_target(anvil_tick_fixture DEPENDS ${ANVIL_TICK_CLIP})

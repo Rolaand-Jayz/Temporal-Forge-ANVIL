@@ -288,6 +288,20 @@ add_executable(anvil_runner tools/anvil/main.cpp)
 target_include_directories(anvil_runner PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_compile_features(anvil_runner PRIVATE cxx_std_23)
 target_link_libraries(anvil_runner PRIVATE anvil_lib)
+
+# Deterministic fine-timebase fixture generator (libavformat/libavcodec
+# only). The FFmpeg CLI tick-fixture route (settb+setpts with -enc_time_base
+# 1/10000000) is version-sensitive: it completes instantly on ffmpeg 9 but
+# degenerates into a ~10-minute frame explosion on ubuntu-24.04's ffmpeg 6.1
+# (measured in CI run 37741621706), so both the C++ and python tick
+# regressions take their fixture from this tool.
+add_executable(make_tick_fixture tools/anvil/make_tick_fixture.cpp)
+target_compile_features(make_tick_fixture PRIVATE cxx_std_23)
+foreach(lib ${FFMPEG_LIBRARIES})
+    target_link_libraries(make_tick_fixture PRIVATE ${lib})
+endforeach()
+target_link_directories(make_tick_fixture PRIVATE ${FFMPEG_LIBRARY_DIRS})
+target_include_directories(make_tick_fixture PRIVATE ${FFMPEG_INCLUDE_DIRS})
 target_compile_definitions(anvil_runner PRIVATE
     ANVIL_BUILD_TYPE="${CMAKE_BUILD_TYPE}"
     ANVIL_COMPILER_ID="${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")

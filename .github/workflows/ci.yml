@@ -95,6 +95,13 @@ jobs:
             src/media/Demuxer.cpp src/media/VideoDecoder.cpp src/util/Log.cpp \
             $(pkg-config --cflags --libs libavformat libavcodec libavutil libswscale) \
             -pthread -o build-py/anvil_runner
+          # Fine-timebase fixture generator for the tick-collision
+          # regression: the ffmpeg-CLI fixture route is version-sensitive
+          # (hangs ~10 min on ubuntu-24.04's ffmpeg 6.1), so the python
+          # suite consumes the libavformat tool instead.
+          g++ -std=c++23 -O2 tools/anvil/make_tick_fixture.cpp \
+            $(pkg-config --cflags --libs libavformat libavcodec libavutil) \
+            -o build-py/make_tick_fixture
           ./build-py/anvil_runner --help > /dev/null
 
       - name: Run historical + ANVIL contract suites
@@ -109,3 +116,4 @@ jobs:
             tests/test_anvil_contract.py
         env:
           ANVIL_RUNNER: ${{ github.workspace }}/build-py/anvil_runner
+          ANVIL_MAKE_TICK_FIXTURE: ${{ github.workspace }}/build-py/make_tick_fixture

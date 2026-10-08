@@ -13,6 +13,7 @@
 // Skip conditions (deterministic, not failures): fixture file missing or
 // ffprobe unavailable -> exit 77 (same convention as media_pipeline_tests).
 #include "anvil/TimestampSelect.hpp"
+#include "media/TimestampResolve.hpp"
 #include "media/Demuxer.hpp"
 #include "media/VideoDecoder.hpp"
 
@@ -148,8 +149,59 @@ bool probeTruth(const std::string& ffprobe, const std::string& fixture,
 
 } // namespace
 
+// Review-pass-1 defect repair: every branch of the display-timestamp
+// resolution must keep ticks, microseconds and the source label in agreement
+// (a best-effort frame previously lost its native tick).
+void testResolveDisplayTimestampUnit() {
+    using temporal_forge::resolveDisplayTimestamp;
+    constexpr int64_t kNoPts = AV_NOPTS_VALUE;
+
+    // pts present: ticks mirror pts, source = 1
+    {
+        const auto r = resolveDisplayTimestamp(4000006, 123, AVRational{1, 10000000});
+        CHECK(r.ticks == 4000006);
+        CHECK(r.source == 1);
+        CHECK(r.microseconds == av_rescale_q(4000006, AVRational{1, 10000000},
+                                             AVRational{1, 1000000}));
+    }
+    // pts NOPTS, best_effort present: ticks mirror BEST_EFFORT (the repair),
+    // source = 2 — the exact native identity of a best-effort frame survives
+    {
+        const auto r = resolveDisplayTimestamp(kNoPts, 4000010,
+                                               AVRational{1, 10000000});
+        CHECK(r.ticks == 4000010);
+        CHECK(r.source == 2);
+        CHECK(r.microseconds == 400001); // 0.4 us-fine tick rescales exactly
+    }
+    // both NOPTS: none, ticks -1, no fabricated values
+    {
+        const auto r = resolveDisplayTimestamp(kNoPts, kNoPts, AVRational{1, 25});
+        CHECK(r.ticks == -1);
+        CHECK(r.source == 0);
+        CHECK(r.microseconds == 0);
+    }
+    // negative ticks are valid PTS values
+    {
+        const auto r = resolveDisplayTimestamp(-1000000, kNoPts,
+                                               AVRational{1, 1000000});
+        CHECK(r.ticks == -1000000);
+        CHECK(r.source == 1);
+        CHECK(r.microseconds == -1000000);
+    }
+    // fine-timebase collision is preserved by construction (µs lossy, ticks exact)
+    {
+        const auto a = resolveDisplayTimestamp(4000006, kNoPts,
+                                               AVRational{1, 10000000});
+        const auto b = resolveDisplayTimestamp(4000010, kNoPts,
+                                               AVRational{1, 10000000});
+        CHECK(a.ticks != b.ticks);
+        CHECK(a.microseconds == b.microseconds);
+    }
+}
+
 int main(int argc, char** argv) {
     testSelectByTicksUnit();
+    testResolveDisplayTimestampUnit();
 
     // Fixture + ffprobe may be provided via environment (ctest) or argv, like
     // media_pipeline_tests. Missing pieces are a deterministic skip.

@@ -106,11 +106,14 @@ struct DecodedVideoFrame {
     // timebase ptsTicks/durationTicks are denominated in; the same timebase
     // used for the ptsUs rescale, with the historical 1/1 fallback when the
     // container declares none). ptsSource records which AVFrame timestamp
-    // actually produced ptsUs:
-    //   0 = none (AVFrame::pts and best_effort_timestamp both AV_NOPTS_VALUE)
-    //   1 = AVFrame::pts (the same value ptsTicks mirrors)
-    //   2 = best_effort_timestamp (only consulted when pts is AV_NOPTS_VALUE;
-    //       ptsTicks remains -1 because it mirrors AVFrame::pts only)
+    // produced ptsUs AND ptsTicks — one resolution (media/TimestampResolve.hpp)
+    // supplies ticks, microseconds and the label together, so they agree on
+    // every frame:
+    //   0 = none (AVFrame::pts and best_effort_timestamp both AV_NOPTS_VALUE;
+    //       ptsTicks is -1)
+    //   1 = AVFrame::pts (ptsTicks mirrors pts)
+    //   2 = best_effort_timestamp (ptsTicks mirrors best_effort — the native
+    //       identity of a best-effort frame is preserved, not discarded)
     // A timebase finer than 1/1000000 can collapse distinct ptsTicks to the
     // same ptsUs, so exact frame identity must use (ptsTicks, tbNum, tbDen).
     int tbNum = 0;

@@ -46,7 +46,7 @@ static int failures = 0;
 // Deterministic textured frame (no RNG): 16-periodic position encoding plus
 // a per-block-column ramp (x/16) that makes the texture aperiodic at the
 // frame scale, so the +8 boundary displacement cannot alias with -8.
-// Values span 0..242 with no wrap or clamp over the whole frame.
+// Values span 0..228 with no wrap or clamp over the whole frame.
 static Observation makeTexturedFrame(uint64_t idx, int w, int h) {
     Observation o;
     o.width = w;
@@ -301,7 +301,21 @@ static void testRefinementDeterminism() {
     CHECK(!coarse1.empty());
 }
 
+// searchStep < 1 must fail closed (empty field), never loop or fabricate a
+// lattice — pinned here because the runner only ever uses the default.
+static void testSearchStepFailsClosed() {
+    Observation target = makeTexturedFrame(0, 64, 64);
+    Observation obs = makeTexturedFrame(1, 64, 64);
+    for (int step : {0, -1, -7}) {
+        CHECK(estimateCorrespondence(target, obs, 16, 8, step).empty());
+    }
+    // step=1 is the documented degeneration to the exhaustive scan
+    CHECK(!estimateCorrespondence(target, obs, 16, 8, 1).empty());
+}
+
+
 int main() {
+    testSearchStepFailsClosed();
     testOddDisplacementPlus1AndPlus3();
     testEvenDisplacementStaysAtCoarseOptimum();
     testBoundaryDisplacementUnchanged();

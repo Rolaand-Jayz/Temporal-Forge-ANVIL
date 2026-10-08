@@ -123,7 +123,11 @@ and excluded from replay equality):
   and sample counts; per-frame native timestamp identity (`pts_ticks`,
   `timebase_num`/`timebase_den`, `timestamp_source` in
   {`pts`,`best_effort`,`none`} — `pts_us` remains as a convenience field
-  and is lossy for timebases finer than 1/1,000,000)
+  and is lossy for timebases finer than 1/1,000,000). Aggregation note:
+  a converted frame carries TWO `color_convert` timing records — the
+  working-space decision (inside the per-frame color stage) and the actual
+  `sws_scale` transform (attributed to `color_convert` from the output
+  block) — so summing timings by stage name must expect the duplicate.
 
 ## CLI
 
