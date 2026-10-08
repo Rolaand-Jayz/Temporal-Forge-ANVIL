@@ -5,10 +5,11 @@
 // (explicit raw codec side information → normalized prior boundary) →
 // correspondence (codec | estimate | oracle, provenance-preserving) →
 // refinement → visibility → sample geometry (unknown | estimate | oracle) →
-// explicit color handling → confidence (estimated confidence consumes the
-// geometry-adjusted flow) → confidence-weighted accumulate → replaceable
-// output backend (pnm | null). Every stage is bypassable; every consequential
-// stage is dumpable; all observable behavior lands in the run manifest.
+// confidence (estimated confidence consumes the geometry-adjusted flow) →
+// explicit color handling → confidence-weighted accumulate → replaceable
+// output backend (pnm | null). This is the execution order the StageId enum
+// encodes; every stage is bypassable, every consequential stage is dumpable,
+// and all observable behavior lands in the run manifest.
 #pragma once
 #include <map>
 #include <optional>

@@ -84,6 +84,8 @@ static bool deepEqualObservation(const Observation& a, const Observation& b) {
     if (a.width != b.width || a.height != b.height) return false;
     if (a.avPixelFormat != b.avPixelFormat) return false;
     if (a.ptsUs != b.ptsUs || a.ptsTicks != b.ptsTicks) return false;
+    if (a.tbNum != b.tbNum || a.tbDen != b.tbDen
+        || a.ptsSource != b.ptsSource) return false;
     if (a.frameIndex != b.frameIndex) return false;
     if (a.keyframe != b.keyframe || a.bFrame != b.bFrame) return false;
     if (a.planeCount != b.planeCount) return false;

@@ -1,5 +1,7 @@
 // VideoDecoder.cpp
 #include "media/VideoDecoder.hpp"
+
+#include "media/TimestampResolve.hpp"
 #include "util/Log.hpp"
 
 extern "C" {
@@ -323,25 +325,26 @@ bool VideoDecoder::receiveFrame(DecodedVideoFrame& out) {
     out.drmObjects = 0;
     out.keyframe = (sourceFrame->flags & AV_FRAME_FLAG_KEY) != 0;
     out.frameIndex = frameCounter_++;
-    out.ptsTicks = sourceFrame->pts != AV_NOPTS_VALUE ? sourceFrame->pts : -1;
     out.durationTicks = sourceFrame->duration;
 
-    // Convert PTS/duration to microseconds using the stream timebase.
-    // Record the effective timebase and the provenance of the displayed
-    // timestamp beside the µs value: a timebase finer than 1/1000000 can
-    // rescale distinct ticks to the same microsecond, so ptsUs alone is not
-    // a frame identity (review 4209783084).
+    // Convert the display timestamp to microseconds using the stream
+    // timebase, and record the effective timebase plus the provenance of
+    // the displayed timestamp beside the µs value. Ticks, microseconds and
+    // the source label all come from ONE resolution (pts when present,
+    // else best_effort), so a best-effort frame keeps its native tick too —
+    // a timebase finer than 1/1000000 can rescale distinct ticks to the
+    // same microsecond, making ptsUs alone insufficient as a frame identity
+    // (review 4209783084).
     AVRational tb = codec_->pkt_timebase;
     if (tb.den == 0) tb = {1, 1};
     out.tbNum = tb.num;
     out.tbDen = tb.den;
-    if (sourceFrame->pts != AV_NOPTS_VALUE) {
-        out.ptsUs = av_rescale_q(sourceFrame->pts, tb, {1, 1000000});
-        out.ptsSource = 1;
-    } else if (sourceFrame->best_effort_timestamp != AV_NOPTS_VALUE) {
-        out.ptsUs = av_rescale_q(sourceFrame->best_effort_timestamp, tb, {1, 1000000});
-        out.ptsSource = 2;
-    }
+    const temporal_forge::ResolvedTimestamp resolved =
+        temporal_forge::resolveDisplayTimestamp(
+            sourceFrame->pts, sourceFrame->best_effort_timestamp, tb);
+    out.ptsTicks = resolved.ticks;
+    out.ptsUs = resolved.microseconds;
+    out.ptsSource = resolved.source;
     if (sourceFrame->duration > 0) {
         out.durationUs = av_rescale_q(sourceFrame->duration, tb, {1, 1000000});
     }

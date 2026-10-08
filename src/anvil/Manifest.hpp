@@ -42,9 +42,14 @@ StageId stageFromName(const std::string& name, bool& ok);
 // record required by the build-ready contract.
 struct RunEvent {
     uint64_t frameIndex = 0;
-    std::string type;   // "scene_cut" | "window_reset" | "fallback" |
-                        // "side_info_unsupported" | "side_info_ambiguous" |
-                        // "color_unknown_metadata" | "oracle_used"
+    std::string type;   // observed vocabulary: scene_cut | window_reset |
+                        // decode_gap | neighbor_incompatible | neighbor_ablation |
+                        // side_info_unsupported | side_info_ambiguous |
+                        // side_info_absent | side_info_unproven |
+                        // side_info_normalization_bypassed |
+                        // color_unknown_metadata | color_unsupported_matrix |
+                        // oracle_used | geometry_estimated |
+                        // geometry_estimation_insufficient
     std::string detail;
 };
 
