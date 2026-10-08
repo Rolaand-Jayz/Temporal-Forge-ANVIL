@@ -113,7 +113,7 @@ and excluded from replay equality):
   dir; empty of frame artifacts under the null backend)
 - `provenance` — git SHA/dirty plus `git_dirty_hash` (SHA-256 over the dirty
   state's porcelain status + tracked-content diff when dirty) and
-  `provenance_source` (`build_generated` | `compile_macro` | `runtime_git`);
+  `provenance_source` (`build_generated` | `compile_macro` | `runtime_git` | `unknown`);
   identity is regenerated from Git state on every build, so an incremental
   rebuild after a commit or source mutation cannot present the prior clean
   revision; FFmpeg version, build type, compiler, input SHA-256 + size,
