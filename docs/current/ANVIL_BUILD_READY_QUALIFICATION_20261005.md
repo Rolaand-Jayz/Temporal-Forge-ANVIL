@@ -268,11 +268,23 @@ Implementation commits (this branch, oldest first): `a3a7e166`
 stage), `30468ea1` (output backend), `788c4135` (timestamp identity),
 `97782681` (build-time provenance), `20665174` (runner/manifest/CLI seam
 integration + parent-owned regressions), `c48b53be` (deterministic odd-motion
-fixture). Local validation at `c48b53be`: clean configure+build, CTest
-**32/32 passed** (1 skipped weight-blob test and 4 GPU tests disabled by
-design, as at baseline), ANVIL python suite **55 passed** (twice,
-back-to-back), CI-equivalent combined python job **123 passed + 39 subtests**
-(68 historical + 55 ANVIL), clean-worktree verification green.
+fixture), `292e39ad` (documentation reconciliation), `598823e1` (review-pass-1
+repairs: best-effort frames keep their native tick via the unit-tested
+media/TimestampResolve.hpp resolution; Runner.hpp order comment corrected;
+double color_convert timing record documented; the CI tick-fixture hang
+root-caused to a version-sensitive ffmpeg-CLI route and fixed with the
+restored libavformat fixture generator compiled into both CI jobs).
+
+Local validation at `598823e1`: clean configure+build, CTest **32/32
+passed** (1 skipped weight-blob test and 4 GPU tests disabled by design, as
+at baseline), ANVIL python suite **55 passed**, CI-equivalent combined
+python job **123 passed + 39 subtests** (68 historical + 55 ANVIL),
+clean-worktree verification green at `c48b53be` (identical ANVIL content
+through `598823e1`'s repair delta). GitHub Actions run **37744340628** on
+the exact head `598823e1`: **SUCCESS** (Arch build + CTest 32/32; python
+contract suite green). An internal independent review pass over the seven
+repairs found and fixed the defects recorded in `598823e1`; further passes
+continue until three consecutive clean reviews, per the repair protocol.
 
 ## Command evidence
 
