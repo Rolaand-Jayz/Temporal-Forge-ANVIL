@@ -286,7 +286,8 @@ bool applyEstimatedPhaseResidual(FlowField& flow,
     const size_t pixels = static_cast<size_t>(width) * height;
     if (flow.size() != pixels * 2 || coverage.size() != pixels) return false;
     // Wrap the raw difference d ∈ (-1, 1) into the round-consistent residual
-    // r = d - round(d) ∈ (-0.5, 0.5] (ties wrap to -0.5, deterministic).
+    // r = d - floor(d + 0.5) ∈ [-0.5, 0.5) (exact ties map to -0.5,
+    // deterministic).
     const auto wrapHalf = [](float d) {
         return d - std::floor(d + 0.5f);
     };
