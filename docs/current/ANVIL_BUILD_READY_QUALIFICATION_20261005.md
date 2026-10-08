@@ -84,7 +84,7 @@ Codec support/limitation matrix (this host — re-probed per run):
 | Item | Verdict | Evidence |
 |---|---|---|
 | Clean configure/build on intended environment | PASS | Clean configure/build evidence is preserved from the original qualification and repeated by exact-head GitHub Actions. At `5f10b26`, Actions run `37855358002` configured and built the full Arch job successfully from a clean checkout. |
-| Existing applicable tests pass | PASS | Exact-head CTest at `5f10b26`: **32/32 executed tests passed**; one additional provenance regression is skipped in this CI environment and the 4 historical GPU tests remain disabled by design. |
+| Existing applicable tests pass | PASS | Exact-head CTest at `5f10b26` reports **100% tests passed out of 32 non-disabled tests**. Of 36 registered tests, 29 complete normally, 3 are explicitly skipped (`fsr4_weight_tests`, `fsr4_tensormap_tests`, `anvil_provenance_rebuild_regression`), and 4 historical GPU tests remain disabled by design. |
 | New unit/integration tests pass | PASS | Current dedicated ANVIL C++ targets include core, refinement, geometry-estimate, codec, side-info, output-backend, runner, timestamp, and provenance-rebuild coverage. `tests/test_anvil_contract.py` contains **56 ANVIL contract tests**; exact-head Python CI reports **124 passed** total = 68 historical + 56 ANVIL. |
 | Vulkan validation on exercised successor paths | N/A | **Justification:** the build-ready successor path exercises no Vulkan code — `anvil_lib`/`anvil_runner` do not link or call Vulkan, and no existing Vulkan path was modified (diff scope: `src/anvil/`, `tools/anvil/`, tests, CMake, CI). The historical player's Vulkan paths are unchanged and its tests remain green. Any future Vulkan successor backend re-opens this item with validation-layer evidence. |
 | No known resource lifetime/synchronization defect | PASS | CPU-only pipeline; ownership reviewed: AVPacket freed in probe (`CodecProbe.cpp`), decoder flush on EOF (delayed-frame drain), decoder/demuxer RAII via reused classes, no cross-thread sharing. |
@@ -353,9 +353,11 @@ Current implementation/evidence head:
 - `5f10b26f84ba89293e1b38622521acde37ee0732` — review-pass-7
   evidence-trail repair plus comment-math corrections.
 - GitHub Actions run `37855358002`: **SUCCESS**.
-  - Arch build + CTest: **32/32 executed tests passed**.
-  - One additional provenance rebuild regression is skipped in this CI
-    environment; four historical GPU tests remain disabled by design.
+  - Arch build + CTest: **100% tests passed out of 32 non-disabled tests**.
+  - Of 36 registered tests, 29 completed normally, three were explicitly
+    skipped (`fsr4_weight_tests`, `fsr4_tensormap_tests`,
+    `anvil_provenance_rebuild_regression`), and four historical GPU tests
+    remained disabled by design.
   - Python CI contract job: **124 passed** = 68 historical + 56 ANVIL.
 
 Recent exact-head evidence trail, newest first:

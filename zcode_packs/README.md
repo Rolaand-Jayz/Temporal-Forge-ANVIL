@@ -42,8 +42,10 @@ Resolved by direct maintainer instruction in a working session:
 - Draft PR: #1; merge remains explicitly maintainer-controlled.
 - Current implementation/evidence head before documentation reconciliation:
   `5f10b26f84ba89293e1b38622521acde37ee0732`.
-- Exact-head CI run `37855358002`: SUCCESS (CTest 32/32 executed tests;
-  Python CI contract job 124 passed = 68 historical + 56 ANVIL).
+- Exact-head CI run `37855358002`: SUCCESS (CTest: 100% tests passed out
+  of 32 non-disabled tests; 29 normal passes, 3 explicit skips, 4 historical
+  GPU tests disabled; Python CI contract job 124 passed = 68 historical +
+  56 ANVIL).
 - Current architecture: [`../docs/current/ANVIL_SUCCESSOR_ARCHITECTURE.md`](../docs/current/ANVIL_SUCCESSOR_ARCHITECTURE.md).
 - Current candidate qualification record:
   [`../docs/current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](../docs/current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md).
