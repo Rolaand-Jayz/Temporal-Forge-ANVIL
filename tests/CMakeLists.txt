@@ -428,3 +428,44 @@ if(FFMPEG_ANVIL_FOUND AND FFMPEG_BIN)
 elseif(NOT FFMPEG_BIN)
     message(STATUS "ANVIL: ffmpeg binary not found; anvil_runner_tests disabled")
 endif()
+
+# anvil_timestamp_tests: native-timestamp identity (review 4209783084).
+# Unit tests for exact tick selection plus a decode-level regression on a
+# fine-timebase fixture (mp4 track timescale 10 MHz) containing two frames
+# whose native pts ticks differ by 4 (0.4 us) but collapse to the same
+# microsecond after av_rescale_q. Fixture expectations are derived at runtime
+# from ffprobe, never hardcoded.
+find_program(FFPROBE_BIN ffprobe)
+if(FFMPEG_ANVIL_FOUND AND FFMPEG_BIN)
+    set(ANVIL_TICK_CLIP "${CMAKE_CURRENT_BINARY_DIR}/anvil_tick_fixture.mp4")
+    add_custom_command(
+        OUTPUT ${ANVIL_TICK_CLIP}
+        COMMAND ${FFMPEG_BIN} -y -loglevel error
+            -f lavfi -i "testsrc2=size=32x32:rate=10:duration=0.8"
+            -vf "settb=tb=1/10000000,setpts=if(eq(N\\,4)\\,4000006\\,if(eq(N\\,5)\\,4000010\\,PTS))"
+            -c:v libx264 -pix_fmt yuv420p
+            -x264-params "keyint=8:bframes=0"
+            -enc_time_base 1/10000000
+            -video_track_timescale 10000000
+            ${ANVIL_TICK_CLIP}
+        DEPENDS ""
+        COMMENT "Generating anvil_tick_fixture.mp4 (10 MHz timebase, sub-us tick collision)"
+        VERBATIM)
+    add_custom_target(anvil_tick_fixture DEPENDS ${ANVIL_TICK_CLIP})
+    anvil_add_test(anvil_timestamp_tests
+        SOURCES anvil_timestamp_tests.cpp
+                ../src/media/Demuxer.cpp
+                ../src/media/VideoDecoder.cpp
+                ../src/util/Log.cpp)
+    add_dependencies(anvil_timestamp_tests anvil_tick_fixture)
+    # The C++ test shells out to ffprobe for runtime-derived truth.
+    if(FFPROBE_BIN)
+        set(ANVIL_FFPROBE_VAL "${FFPROBE_BIN}")
+    else()
+        set(ANVIL_FFPROBE_VAL "ffprobe")
+    endif()
+    set_tests_properties(anvil_timestamp_tests PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        ENVIRONMENT "ANVIL_TICK_FIXTURE=${ANVIL_TICK_CLIP};ANVIL_FFPROBE=${ANVIL_FFPROBE_VAL}"
+        SKIP_RETURN_CODE 77)
+endif()

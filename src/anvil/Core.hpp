@@ -58,6 +58,20 @@ struct Observation {
         int32_t motionScale = 0;
     };
     std::vector<RawMv> codecMotionVectors;
+
+    // Native timestamp identity (appended for review 4209783084; semantics
+    // tied to temporal_forge::DecodedVideoFrame, from which these are copied).
+    // tbNum/tbDen denominate ptsTicks/durationTicks — the stream timebase the
+    // container declares for the video track. ptsSource records which AVFrame
+    // timestamp actually produced ptsUs: 0 = none (both AVFrame::pts and
+    // best_effort_timestamp were AV_NOPTS_VALUE), 1 = AVFrame::pts,
+    // 2 = best_effort_timestamp. 0/0 timebase means "no timebase observed",
+    // never a fabricated default. Rescaling ticks to ptsUs can collapse
+    // distinct ticks (any timebase finer than 1 MHz); selection identity must
+    // therefore use ptsTicks with tbNum/tbDen, not ptsUs.
+    int tbNum = 0;
+    int tbDen = 0;
+    int ptsSource = 0;
 };
 
 // --- Correspondence ---------------------------------------------------------

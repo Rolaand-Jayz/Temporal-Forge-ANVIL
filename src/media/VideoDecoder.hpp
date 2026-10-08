@@ -100,6 +100,22 @@ struct DecodedVideoFrame {
     // them — e.g. intra-only streams, or export disabled). These feed the
     // motion-texture synthesis in SideBufferTextures (MotionMode::Codec).
     std::vector<MvEntry> motionVectors;
+
+    // Native timestamp identity (appended for review 4209783084). tbNum/tbDen
+    // are the packet timebase given to the decoder at open() (the stream
+    // timebase ptsTicks/durationTicks are denominated in; the same timebase
+    // used for the ptsUs rescale, with the historical 1/1 fallback when the
+    // container declares none). ptsSource records which AVFrame timestamp
+    // actually produced ptsUs:
+    //   0 = none (AVFrame::pts and best_effort_timestamp both AV_NOPTS_VALUE)
+    //   1 = AVFrame::pts (the same value ptsTicks mirrors)
+    //   2 = best_effort_timestamp (only consulted when pts is AV_NOPTS_VALUE;
+    //       ptsTicks remains -1 because it mirrors AVFrame::pts only)
+    // A timebase finer than 1/1000000 can collapse distinct ptsTicks to the
+    // same ptsUs, so exact frame identity must use (ptsTicks, tbNum, tbDen).
+    int tbNum = 0;
+    int tbDen = 0;
+    int ptsSource = 0;
 };
 
 class VideoDecoder {

@@ -97,6 +97,12 @@ void Demuxer::fillStreamInfo() {
         if (s.type == StreamInfo::Type::Video) {
             s.width = cp->width;
             s.height = cp->height;
+            // Native video-track timebase, carried verbatim (0/0 when the
+            // container declares none). Additive: existing consumers are
+            // unchanged; ANVIL observation identity reads this instead of
+            // assuming a microsecond grid (review 4209783084).
+            s.timebaseNum = st->time_base.num;
+            s.timebaseDen = st->time_base.den;
             if (st->avg_frame_rate.den)
                 s.frameRate = static_cast<double>(st->avg_frame_rate.num) /
                               static_cast<double>(st->avg_frame_rate.den);
