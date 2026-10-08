@@ -71,7 +71,8 @@ CMake filter; `anvil_lib` contains no Qt, Vulkan, or FSR code.
 
 decode → window_select → side_info_normalization → correspondence →
 correspondence_refinement → visibility → sample_geometry → confidence →
-color_convert → accumulate → output_backend
+color_convert → accumulate → output (serialized stage name; the stage
+is the output-backend boundary — see the stage semantics note below)
 
 Execution order note (deliberate, and load-bearing): sample geometry is
 applied to proven flow BEFORE confidence is estimated, so estimated
@@ -250,7 +251,7 @@ full test suites. The ANVIL targets themselves need only FFmpeg.
 - `tests/anvil_codec_tests.cpp` — measured codec capability truthfulness
 - `tests/anvil_runner_tests.cpp` — end-to-end CLI on generated fixtures
   (SDR full-metadata, PQ-HDR, unspecified-metadata)
-- `tests/test_anvil_contract.py` — 55 python contract tests over the CLI,
+- `tests/test_anvil_contract.py` — 56 python contract tests over the CLI,
   including the runner-level seven-finding regressions (corrective
   refinement on an odd-motion fixture, normalization isolation, backend
   null/pnm identity, estimated-geometry non-no-op proof on a subpixel
