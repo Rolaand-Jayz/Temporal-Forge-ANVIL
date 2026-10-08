@@ -94,10 +94,18 @@ def run_build(build_dir: Path) -> None:
 
 def run_runner(runner: Path, clip: Path, out_dir: Path, cwd: Path):
     out_dir.mkdir(parents=True, exist_ok=True)
+    # GIT_CEILING_DIRECTORIES pins the runtime-git fallback tier OFF: git
+    # invoked from `cwd` never ascends past the scratch root, so no host
+    # repository can supply identity. This makes the non-repo cwd property
+    # hold on any filesystem layout instead of requiring the scratch to
+    # physically live outside every repository (impossible when TMPDIR is
+    # inside the main checkout, e.g. a build-dir TMPDIR).
+    env = dict(os.environ)
+    env["GIT_CEILING_DIRECTORIES"] = str(cwd.parent)
     proc = subprocess.run(
         [str(runner), "--output-dir", str(out_dir), "--input", str(clip),
          "--frame-count", "1"],
-        cwd=str(cwd), capture_output=True, text=True)
+        cwd=str(cwd), capture_output=True, text=True, env=env)
     if proc.returncode != 0:
         fail(f"anvil_runner failed from non-repo cwd {cwd}:\n"
              f"{proc.stdout}\n{proc.stderr}")
@@ -138,14 +146,18 @@ def main() -> None:
     runner = build_dir / "anvil_runner"
     worktree_added = False
     try:
-        # The cwd for every runner invocation must be outside any repository:
-        # the runtime-git tier would otherwise mask stale embedded identity.
+        # Sanity-check the runtime-git masking: with GIT_CEILING_DIRECTORIES
+        # pinned at the scratch root (see run_runner), git invoked from the
+        # non-repo cwd must NOT discover any repository — including a host
+        # repository that physically contains this scratch dir.
+        ceiling = dict(os.environ)
+        ceiling["GIT_CEILING_DIRECTORIES"] = str(nonrepo.parent)
         inside = subprocess.run(
             ["git", "rev-parse", "--git-dir"], cwd=str(nonrepo),
-            capture_output=True, text=True)
+            capture_output=True, text=True, env=ceiling)
         if inside.returncode == 0:
-            skip(f"temp dir {nonrepo} is inside a repository; cannot test "
-                 "runtime-git masking")
+            skip(f"GIT_CEILING_DIRECTORIES did not isolate {nonrepo}; "
+                 "runtime-git masking cannot be guaranteed")
 
         # --- fixture: tiny deterministic x264 clip ---
         enc = subprocess.run(

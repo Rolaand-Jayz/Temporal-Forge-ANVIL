@@ -1,11 +1,14 @@
 // Runner.hpp — ANVIL deterministic headless/offline pipeline runner.
 //
 // Integrates: decode (reused Qt-free FFmpeg shell, software mode) → temporal
-// window selection (past/future, cut-aware) → correspondence (codec |
-// estimate | oracle, provenance-preserving) → visibility → sample geometry →
-// explicit color handling → confidence-weighted accumulate → non-FSR output.
-// Every stage is bypassable; every consequential stage is dumpable; all
-// observable behavior lands in the run manifest.
+// window selection (past/future, cut-aware) → side-info normalization
+// (explicit raw codec side information → normalized prior boundary) →
+// correspondence (codec | estimate | oracle, provenance-preserving) →
+// refinement → visibility → sample geometry (unknown | estimate | oracle) →
+// explicit color handling → confidence (estimated confidence consumes the
+// geometry-adjusted flow) → confidence-weighted accumulate → replaceable
+// output backend (pnm | null). Every stage is bypassable; every consequential
+// stage is dumpable; all observable behavior lands in the run manifest.
 #pragma once
 #include <map>
 #include <optional>
@@ -26,20 +29,40 @@ struct RunConfig {
     // No match, or an ambiguous duplicate timestamp, is a hard error.
     // Mutually exclusive with an explicit --start-frame.
     std::optional<int64_t> startPtsUs;
+    // Exact native-tick selection: when set, the target sequence starts at
+    // the frame whose native pts_ticks equals this value EXACTLY in the
+    // input stream's own timebase. This is the lossless selection control:
+    // distinct fine-timebase ticks that collide after microsecond rescaling
+    // remain individually addressable here (and inherently ambiguous to
+    // startPtsUs). No nearest fallback; duplicates are a hard error.
+    // Mutually exclusive with --start-frame and --start-pts-us.
+    std::optional<int64_t> startPtsTicks;
     int64_t frameCount = 1;
     int past = 0;
     int future = 0;
+    // side-info normalization: normalize (raw codec side information crosses
+    // the explicit raw->normalized boundary before correspondence) | bypass
+    // (raw side information is deliberately NOT interpreted; the codec
+    // correspondence arm then receives no prior while estimate/oracle arms
+    // are untouched).
+    std::string sideInfoNormalizationMode = "normalize";
     // correspondence: codec | estimate | oracle | none
     std::string correspondenceMode = "estimate";
-    // refinement: none | local (deterministic +/-1 residual SAD refinement)
+    // refinement: none | local (deterministic +/-1 residual SAD refinement
+    // over the even-lattice coarse prior)
     std::string refinementMode = "none";
     // visibility: valid | oracle
     std::string visibilityMode = "valid";
     // confidence: unit | estimate | oracle
     std::string confidenceMode = "unit";
-    // geometry: unknown | oracle. "estimate" is rejected until a real
-    // estimator exists; a requested experimental arm may never be a no-op.
+    // geometry: unknown | estimate | oracle. "estimate" runs the real
+    // deterministic image-evidence estimator (parabolic subpixel
+    // registration); insufficient evidence degrades truthfully to unknown
+    // with recorded reasons, never an invented phase.
     std::string geometryMode = "unknown";
+    // output backend: pnm (current non-FSR PPM/PGM writer) | null (bypass:
+    // pipeline and manifest complete with zero output artifacts)
+    std::string outputBackend = "pnm";
     // Exact per-neighbor ablations, keyed by {target, reference}.
     std::vector<std::pair<int64_t, int64_t>> excludedNeighbors;
     bool accumulateEnabled = true;

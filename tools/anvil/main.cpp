@@ -84,14 +84,29 @@ void usage() {
         << "  --start-pts-us N         exact target timestamp in microseconds\n"
         << "                           (exact match; no nearest fallback; mutually\n"
         << "                           exclusive with an explicit --start-frame)\n"
+        << "  --start-pts-ticks N      exact target timestamp in NATIVE stream\n"
+        << "                           ticks (the input's own timebase; lossless:\n"
+        << "                           fine-timebase ticks that collide after\n"
+        << "                           microsecond rescaling stay addressable;\n"
+        << "                           mutually exclusive with --start-frame and\n"
+        << "                           --start-pts-us)\n"
         << "  --frame-count N          number of target frames (default 1)\n"
         << "  --past N                 past window size (default 0 = single-frame control)\n"
         << "  --future N               future window size (default 0)\n"
+        << "  --side-info MODE         normalize | bypass (default normalize).\n"
+        << "                           Raw codec side information crosses an\n"
+        << "                           explicit normalization boundary before\n"
+        << "                           correspondence; bypass refuses to interpret\n"
+        << "                           it while keeping the correspondence arm\n"
+        << "                           unchanged\n"
         << "  --correspondence MODE    codec | estimate | oracle | none (default estimate)\n"
         << "  --refinement MODE        none | local (default none)\n"
         << "  --visibility MODE        valid | oracle (default valid)\n"
         << "  --confidence MODE        unit | estimate | oracle (default unit)\n"
-        << "  --geometry MODE          unknown | oracle (estimate rejected until implemented)\n"
+        << "  --geometry MODE          unknown | estimate | oracle (default unknown)\n"
+        << "  --backend MODE           pnm | null (default pnm). Output-backend\n"
+        << "                           stage implementation; null completes the\n"
+        << "                           pipeline and manifest with zero artifacts\n"
         << "  --exclude-neighbor T:R   ablate exact target/reference pair (repeatable)\n"
         << "  --no-accumulate          bypass the accumulate stage (passthrough)\n"
         << "  --no-color-convert       bypass explicit working-space conversion\n"
@@ -110,7 +125,7 @@ void usage() {
 int main(int argc, char** argv) {
     anvil::RunConfig cfg;
     bool haveInput = false, haveOutput = false;
-    bool haveStartFrame = false, haveStartPts = false;
+    bool haveStartFrame = false, haveStartPts = false, haveStartTicks = false;
     // Validates dump-stages tokens against the real stage vocabulary.
     bool dumpStagesOk = true;
 
@@ -145,6 +160,14 @@ int main(int argc, char** argv) {
                 return configError("--start-pts-us requires a signed int64 timestamp");
             haveStartPts = true;
             cfg.startPtsUs = static_cast<int64_t>(n);
+        } else if (arg == "--start-pts-ticks") {
+            std::string v;
+            long long n = 0;
+            if (!next(v) || !parseIntStrict(v, n))
+                return configError("--start-pts-ticks requires a signed int64 "
+                                   "native tick value");
+            haveStartTicks = true;
+            cfg.startPtsTicks = static_cast<int64_t>(n);
         } else if (arg == "--frame-count") {
             std::string v;
             long long n = 0;
@@ -187,9 +210,20 @@ int main(int argc, char** argv) {
                                    + "' (unit | estimate | oracle)");
         } else if (arg == "--geometry") {
             if (!next(cfg.geometryMode)) return configError("--geometry requires a value");
-            if (!isKnownMode(cfg.geometryMode, {"unknown", "oracle"}))
-                return configError("unknown/unsupported geometry mode '" + cfg.geometryMode
-                                   + "' (unknown | oracle; estimate is not implemented)");
+            if (!isKnownMode(cfg.geometryMode, {"unknown", "estimate", "oracle"}))
+                return configError("unknown geometry mode '" + cfg.geometryMode
+                                   + "' (unknown | estimate | oracle)");
+        } else if (arg == "--side-info") {
+            if (!next(cfg.sideInfoNormalizationMode)) return configError("--side-info requires a value");
+            if (!isKnownMode(cfg.sideInfoNormalizationMode, {"normalize", "bypass"}))
+                return configError("unknown side-info normalization mode '"
+                                   + cfg.sideInfoNormalizationMode
+                                   + "' (normalize | bypass)");
+        } else if (arg == "--backend") {
+            if (!next(cfg.outputBackend)) return configError("--backend requires a value");
+            if (!isKnownMode(cfg.outputBackend, {"pnm", "null"}))
+                return configError("unknown output backend '" + cfg.outputBackend
+                                   + "' (pnm | null)");
         } else if (arg == "--exclude-neighbor") {
             std::string v;
             if (!next(v)) return configError("--exclude-neighbor requires TARGET:REFERENCE");
@@ -294,6 +328,12 @@ int main(int argc, char** argv) {
     }
     if (haveStartFrame && haveStartPts)
         return configError("--start-frame and --start-pts-us are mutually exclusive");
+    if (haveStartFrame && haveStartTicks)
+        return configError("--start-frame and --start-pts-ticks are mutually "
+                           "exclusive");
+    if (haveStartPts && haveStartTicks)
+        return configError("--start-pts-us and --start-pts-ticks are mutually "
+                           "exclusive");
     const bool anyOracle = cfg.correspondenceMode == "oracle"
         || cfg.visibilityMode == "oracle"
         || cfg.confidenceMode == "oracle"
@@ -308,7 +348,7 @@ int main(int argc, char** argv) {
                            "codec references are unproven and oracle/none are not "
                            "refinable arms");
 
-    if (!cfg.startPtsUs) {
+    if (!cfg.startPtsUs && !cfg.startPtsTicks) {
         int64_t targetEnd = 0, windowEnd = 0;
         if (!checkedAddInt64(cfg.startFrame, cfg.frameCount - 1, targetEnd)
             || !checkedAddInt64(targetEnd, static_cast<int64_t>(cfg.future), windowEnd))
