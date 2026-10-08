@@ -31,6 +31,13 @@ struct StreamInfo {
     int height = 0;
     double frameRate = 0.0;        // computed fps (num/den) at demux time
     double sampleAspectRatio = 1.0;
+    // Container-declared stream timebase of the video track (0/0 when the
+    // container does not declare one — never a fabricated default). This is
+    // the timebase the decoder's native pts ticks are denominated in;
+    // rescaling to microseconds can collapse distinct ticks for any timebase
+    // finer than 1/1000000 (review 4209783084).
+    int timebaseNum = 0;
+    int timebaseDen = 0;
     // audio-only
     int sampleRate = 0;
     int channels = 0;

@@ -327,12 +327,20 @@ bool VideoDecoder::receiveFrame(DecodedVideoFrame& out) {
     out.durationTicks = sourceFrame->duration;
 
     // Convert PTS/duration to microseconds using the stream timebase.
+    // Record the effective timebase and the provenance of the displayed
+    // timestamp beside the µs value: a timebase finer than 1/1000000 can
+    // rescale distinct ticks to the same microsecond, so ptsUs alone is not
+    // a frame identity (review 4209783084).
     AVRational tb = codec_->pkt_timebase;
     if (tb.den == 0) tb = {1, 1};
+    out.tbNum = tb.num;
+    out.tbDen = tb.den;
     if (sourceFrame->pts != AV_NOPTS_VALUE) {
         out.ptsUs = av_rescale_q(sourceFrame->pts, tb, {1, 1000000});
+        out.ptsSource = 1;
     } else if (sourceFrame->best_effort_timestamp != AV_NOPTS_VALUE) {
         out.ptsUs = av_rescale_q(sourceFrame->best_effort_timestamp, tb, {1, 1000000});
+        out.ptsSource = 2;
     }
     if (sourceFrame->duration > 0) {
         out.durationUs = av_rescale_q(sourceFrame->duration, tb, {1, 1000000});
