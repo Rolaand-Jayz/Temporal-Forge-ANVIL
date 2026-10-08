@@ -22,14 +22,25 @@ bool reconstructionSpaceCompatible(const Observation& target,
 bool temporalReconstructionFormatSupported(const Observation& observation);
 
 // Deterministic block-SAD correspondence estimate between `target` (frame t)
-// and `obs` (frame s). Blocks are 16x16 over the luma plane, integer search
-// radius around (0,0). Output blocks carry refFrameIndex = obs.frameIndex
-// (proven by construction — the estimator compared exactly those frames).
+// and `obs` (frame s). Blocks are 16x16 over the luma plane. The coarse
+// search is a PRIOR on the lattice {-searchRadius, -searchRadius+searchStep,
+// ..., +searchRadius} around (0,0): with the default radius 8 step 2 the
+// candidates are -8,-6,-4,-2,0,2,4,6,8, so a coarse vector can never land on
+// an odd offset (searchStep=1 degenerates to the full exhaustive scan).
+// Output blocks carry refFrameIndex = obs.frameIndex (proven by construction
+// — the estimator compared exactly those frames).
 std::vector<BlockMotion> estimateCorrespondence(const Observation& target,
                                                 const Observation& obs,
                                                 int blockSize = 16,
-                                                int searchRadius = 8);
+                                                int searchRadius = 8,
+                                                int searchStep = 2);
 
+// Integer +/-1 residual search around the coarse prior (all 9 candidates,
+// strict < — first minimum in scan order wins ties). The two stages form a
+// resolution hierarchy: the coarse stage contributes the even-lattice prior,
+// refinement supplies the odd-lattice residual precision the coarse stage can
+// never select; neither alone covers the full integer displacement field.
+// Per-block only — no smoothing across motion boundaries.
 std::vector<BlockMotion> refineCorrespondence(const Observation& target,
                                               const Observation& obs,
                                               const std::vector<BlockMotion>& coarse,

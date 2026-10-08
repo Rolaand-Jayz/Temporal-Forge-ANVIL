@@ -100,10 +100,11 @@ bool reconstructionSpaceCompatible(const Observation& a,
 
 std::vector<BlockMotion> estimateCorrespondence(const Observation& target,
                                                 const Observation& obs,
-                                                int blockSize, int searchRadius) {
+                                                int blockSize, int searchRadius,
+                                                int searchStep) {
     std::vector<BlockMotion> out;
     if (target.plane[0].empty() || obs.plane[0].empty()
-        || blockSize <= 0 || searchRadius < 0
+        || blockSize <= 0 || searchRadius < 0 || searchStep < 1
         || target.width <= 0 || target.height <= 0
         || target.width > 32768 || target.height > 32768)
         return out;
@@ -117,6 +118,16 @@ std::vector<BlockMotion> estimateCorrespondence(const Observation& target,
         return out;
     const int temporalDistance = static_cast<int>(distance64);
     const int bw = blockSize;
+    // Coarse PRIOR lattice: {-r, -r+step, ..., +r}, with +r included exactly
+    // once even when step does not divide the range. Default radius 8 step 2
+    // yields -8,-6,-4,-2,0,2,4,6,8 — an even lattice the +/-1 residual
+    // refinement refines to the odd offsets this stage can never select.
+    // step=1 degenerates to the exhaustive integer scan. Ascending scan order
+    // with strict < keeps the first minimum on ties (deterministic).
+    std::vector<int> lattice;
+    for (int o = -searchRadius; o < searchRadius; o += searchStep)
+        lattice.push_back(o);
+    lattice.push_back(searchRadius);
     // Tile the frame in blockSize steps with CLIPPED edge tiles: a 66x65
     // frame still yields 2-wide right-column tiles and 1-tall bottom-row
     // tiles, and 1920x1080 yields 8-tall bottom-row tiles. Skipping partial
@@ -128,8 +139,8 @@ std::vector<BlockMotion> estimateCorrespondence(const Observation& target,
             const int bwl = std::min(bw, target.width - bx);
             uint32_t bestSad = ~0u;
             int bestDx = 0, bestDy = 0;
-            for (int dy = -searchRadius; dy <= searchRadius; ++dy) {
-                for (int dx = -searchRadius; dx <= searchRadius; ++dx) {
+            for (int dy : lattice) {
+                for (int dx : lattice) {
                     const uint32_t sad =
                         blockSad(target, bx, by, obs, bx + dx, by + dy, bwl, bh);
                     if (sad < bestSad) {
