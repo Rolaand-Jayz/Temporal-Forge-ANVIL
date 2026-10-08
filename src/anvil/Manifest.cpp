@@ -123,13 +123,15 @@ std::optional<std::string> detectGitDirty() {
 }
 
 std::optional<std::string> detectGitDirtyHash() {
-    // Build-generated tier first (CMake builds); the macro tier backs the
-    // CI g++-direct path. An empty capture means "clean tree, non-repo, or
-    // failed capture" — reported as null, never guessed.
-    const std::string builtHash = buildprov::gitDirtyHash;
-    if (validDirtyHash(builtHash)) return builtHash;
+    // Macro tier first (the CI g++-direct path), then the build-generated
+    // tier — the same precedence as detectGitSha/detectGitDirty, so all
+    // three detectors always attribute the identity to ONE tier. An empty
+    // capture means "clean tree, non-repo, or failed capture" — reported as
+    // null, never guessed.
     const std::string macroHash = ANVIL_GIT_DIRTY_HASH;
     if (validDirtyHash(macroHash)) return macroHash;
+    const std::string builtHash = buildprov::gitDirtyHash;
+    if (validDirtyHash(builtHash)) return builtHash;
     return std::nullopt;
 }
 

@@ -621,7 +621,7 @@ RunResult runPipeline(const RunConfig& config) {
         // collide after microsecond rescaling stay individually addressable.
         std::vector<std::pair<int64_t, uint64_t>> candidates;
         for (const auto& [idx, obs] : frames)
-            if (obs.ptsTicks != -1)
+            if (hasNativeTimestamp(obs.ptsTicks, obs.ptsSource))
                 candidates.emplace_back(obs.ptsTicks, idx);
         uint64_t anchor = 0;
         const TickSelectionOutcome outcome =
@@ -1242,9 +1242,14 @@ RunResult runPipeline(const RunConfig& config) {
                     continue;
                 }
                 neighborGeometry[i] = est.geometry;
-                if (!applyRelativeSampleGeometry(flows[i], coverages[i],
-                                                 width, height, anchor,
-                                                 est.geometry)) {
+                // Estimated phases need the round-consistent signed residual
+                // (the integer flow is the SAD argmin, ~round(D)), not the
+                // mod-1 representative — see applyEstimatedPhaseResidual.
+                if (!applyEstimatedPhaseResidual(flows[i], coverages[i],
+                                                 width, height,
+                                                 anchor.phaseX, anchor.phaseY,
+                                                 est.geometry.phaseX,
+                                                 est.geometry.phaseY)) {
                     result.error = "failed to apply estimated relative sample "
                         "geometry for target " + std::to_string(t)
                         + " reference " + std::to_string(neighbors[i]);
@@ -1283,8 +1288,12 @@ RunResult runPipeline(const RunConfig& config) {
                     + std::to_string(int(neighborGeometry[i].state)) + " "
                     + std::to_string(neighborGeometry[i].phaseX) + " "
                     + std::to_string(neighborGeometry[i].phaseY);
-                if (config.geometryMode == "oracle"
-                    || config.geometryMode == "estimate") {
+                const bool phaseApplied =
+                    config.geometryMode == "oracle"
+                    || (config.geometryMode == "estimate"
+                        && neighborGeometry[i].state
+                               == SampleGeometryState::Estimated);
+                if (phaseApplied) {
                     content += " relative_offset "
                         + std::to_string(geo.phaseX - neighborGeometry[i].phaseX)
                         + " "

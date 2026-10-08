@@ -28,6 +28,15 @@ enum class TickSelectionOutcome {
     Ambiguous = 2, // more than one candidate carries wantTick
 };
 
+// Whether an observation carries an addressable native timestamp. Keyed on
+// the RESOLVED SOURCE, not on a sentinel tick value: a container may
+// legitimately deliver pts == -1 (source 1), and -1 is indistinguishable
+// from the "none" sentinel if ticks alone are inspected (review pass 2, R6).
+inline bool hasNativeTimestamp(int64_t ticks, int ptsSource) {
+    (void)ticks;
+    return ptsSource != 0;
+}
+
 // candidates: (native tick, decode frame index) pairs, in any order —
 //             typically Observation::ptsTicks keyed by Observation::frameIndex.
 // wantTick:   the native tick to address, in the stream timebase tbNum/tbDen

@@ -211,31 +211,37 @@ void testInsufficientOrMalformedInputsFailClosed() {
 }
 
 void testEstimatedGeometryReducesPhotometricResidual() {
-    const Observation target = render(0, 0.0);
-    const Observation neighbor = render(1, -0.25);
-    const SampleGeometryEstimateResult est =
-        estimateRelativeSampleGeometry(target, neighbor);
-    CHECK(est.geometry.state == SampleGeometryState::Estimated);
+    // BOTH fractional quadrants must improve (review pass 2, R2): the
+    // estimator emits a [0,1) phase representative, and the runner's integer
+    // flow is the SAD argmin (~round(D)), so the sampler needs the wrapped
+    // SIGNED residual — a mod-1 application landed a full pixel away on one
+    // quadrant and measurably DEGRADED reconstruction. This test fails on
+    // the pre-fix applyRelativeSampleGeometry application for dx = +0.25.
+    for (const double dx : {-0.25, +0.25}) {
+        const Observation target = render(0, 0.0);
+        const Observation neighbor = render(1, dx);
+        const SampleGeometryEstimateResult est =
+            estimateRelativeSampleGeometry(target, neighbor);
+        CHECK(est.geometry.state == SampleGeometryState::Estimated);
 
-    // Zero flow field with full proven coverage.
-    FlowField flow(static_cast<size_t>(kW) * kH * 2, 0.0f);
-    std::vector<uint8_t> coverage(static_cast<size_t>(kW) * kH, 1);
+        // Zero flow field with full proven coverage: the integer part of the
+        // true displacement is 0, exactly like the runner's correspondence
+        // flow for sub-pixel-only motion.
+        FlowField flow(static_cast<size_t>(kW) * kH * 2, 0.0f);
+        std::vector<uint8_t> coverage(static_cast<size_t>(kW) * kH, 1);
+        const double residualWithout = meanResidual(target, neighbor, flow);
+        CHECK(residualWithout > 0.0);
 
-    const double residualWithout = meanResidual(target, neighbor, flow);
-
-    // Target anchor (Estimated, phase 0) and the estimated neighbor phase:
-    // applyRelativeSampleGeometry adds targetPhase - neighborPhase to the
-    // covered flow, then the accumulator samples the neighbor at x + flow.
-    SampleGeometry anchor;
-    anchor.state = SampleGeometryState::Estimated;
-    anchor.phaseX = 0.0f;
-    anchor.phaseY = 0.0f;
-    CHECK(applyRelativeSampleGeometry(flow, coverage, kW, kH, anchor,
-                                      est.geometry));
-    const double residualWith = meanResidual(target, neighbor, flow);
-
-    CHECK(residualWithout > 0.0);
-    CHECK(residualWith < residualWithout);
+        // Target anchor (Estimated, phase 0) and the estimated neighbor
+        // phase; applyEstimatedPhaseResidual wraps the difference into
+        // (-0.5, 0.5] before adding it to the covered flow.
+        CHECK(applyEstimatedPhaseResidual(flow, coverage, kW, kH,
+                                          0.0f, 0.0f,
+                                          est.geometry.phaseX,
+                                          est.geometry.phaseY));
+        const double residualWith = meanResidual(target, neighbor, flow);
+        CHECK(residualWith < residualWithout);
+    }
 }
 
 void testDeterministicRepeat() {

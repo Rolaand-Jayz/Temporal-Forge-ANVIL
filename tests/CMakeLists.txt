@@ -441,7 +441,7 @@ endif()
 # anvil_timestamp_tests: native-timestamp identity (review 4209783084).
 # Unit tests for exact tick selection plus a decode-level regression on a
 # fine-timebase fixture (mp4 track timescale 10 MHz) containing two frames
-# whose native pts ticks differ by 4 (0.4 us) but collapse to the same
+# whose adjacent frames sit 5 ticks (0.5 us) apart and collapse to the same
 # microsecond after av_rescale_q. Fixture expectations are derived at runtime
 # from ffprobe, never hardcoded.
 find_program(FFPROBE_BIN ffprobe)
@@ -455,7 +455,7 @@ if(FFMPEG_ANVIL_FOUND AND FFMPEG_BIN)
         COMMAND $<TARGET_FILE:make_tick_fixture>
                 ${ANVIL_TICK_CLIP} 5 10000000 8
         DEPENDS make_tick_fixture
-        COMMENT "Generating anvil_tick_fixture.mp4 (10 MHz timebase, sub-us tick collision)"
+        COMMENT "Generating anvil_tick_fixture.mp4 (10 MHz timebase, 0.5 us tick spacing)"
         VERBATIM)
     add_custom_target(anvil_tick_fixture DEPENDS ${ANVIL_TICK_CLIP})
     anvil_add_test(anvil_timestamp_tests

@@ -5,8 +5,8 @@
 //    with no nearest-frame fallback, duplicates ambiguous, negative ticks valid.
 // 2. Decode-level regression through the real Demuxer+VideoDecoder path on a
 //    generated fine-timebase fixture (mp4 track timescale 10 MHz) whose video
-//    frames include two distinct native ticks 4 apart (0.4 us) that collapse
-//    to the SAME microsecond after av_rescale_q. All fixture expectations are
+//    adjacent frames sit 5 ticks (0.5 us) apart and collapse to the SAME
+//    rounded microsecond after av_rescale_q. All fixture expectations are
 //    derived at runtime from ffprobe of the actual container — nothing about
 //    the ticks or timebase is hardcoded here.
 //
@@ -56,6 +56,14 @@ void testSelectByTicksUnit() {
     CHECK(out == UINT64_MAX); // untouched on failure
     CHECK(selectFrameByTicks(stream, 999999, out) == TickSelectionOutcome::NoMatch);
     CHECK(selectFrameByTicks(stream, 2000001, out) == TickSelectionOutcome::NoMatch);
+
+    // hasNativeTimestamp keys on the resolved source, never a tick sentinel:
+    // a legitimate pts == -1 (source 1) stays addressable; source 0 never is.
+    CHECK(anvil::hasNativeTimestamp(-1, 1));
+    CHECK(anvil::hasNativeTimestamp(0, 1));
+    CHECK(anvil::hasNativeTimestamp(-1000000, 2));
+    CHECK(!anvil::hasNativeTimestamp(-1, 0));
+    CHECK(!anvil::hasNativeTimestamp(12345, 0));
 
     // ambiguous: duplicate ticks are refused, not silently resolved to one
     const std::vector<std::pair<int64_t, uint64_t>> colliding = {

@@ -186,9 +186,13 @@ aggregation with a dispersion gate, phases labeled `SampleGeometryState::
 Estimated` and applied to proven flow; insufficient evidence degrades
 truthfully to unknown with recorded reasons. Estimated phases are
 target-relative (the target grid is the anchor). The estimator has a
-documented parabolic contraction bias on smooth periodic textures (measured
-~0.08 px at 0.25 px offsets); accuracy bounds live in the estimator header
-and its tests.
+documented parabolic contraction bias on smooth periodic textures (on the
+order of 0.08–0.09 px at 0.25 px offsets across tested texture periods of
+6–24 px; independently reproduced numerically during review); accuracy
+bounds live in the estimator header and its tests. Application is coherent
+by construction: the runner applies estimated phases through
+applyEstimatedPhaseResidual, the round-consistent signed residual matching
+the integer correspondence flow (proven for both fractional quadrants).
 
 Planar 4:2:0 temporal reconstruction is sample-depth aware: 8-bit uses one
 byte/sample while 10/12/16-bit little-endian inputs use complete two-byte
@@ -238,7 +242,7 @@ full test suites. The ANVIL targets themselves need only FFmpeg.
   substitution, byte-identical PNM serialization, null bypass, fail-closed
 - `tests/anvil_timestamp_tests.cpp` — exact tick-selection semantics +
   decode-level collision regression on a fine-timebase fixture
-  (10 MHz track timescale, 0.4 µs-spaced ticks colliding after µs rescale)
+  (10 MHz track timescale, 0.5 µs-spaced ticks colliding after µs rescale)
 - `tests/anvil_provenance_rebuild_regression.py` — configures a detached
   worktree at HEAD, mutates source/Git state, rebuilds WITHOUT reconfigure:
   the manifest must not claim the stale clean identity (dirty hash appears
