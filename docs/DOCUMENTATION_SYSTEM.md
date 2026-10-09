@@ -30,15 +30,15 @@ Historical truth must be preserved without allowing historical instructions to b
 
 ### Successor program
 
-Authority for the ANVIL successor line (merged into `main` by PR #1, `36952dce`, 2026-10-09) is:
+Authority for the active ANVIL branch is:
 
 1. Explicit maintainer direction — authorization, protected actions, and merge authority.
 2. The governing ANVIL execution-pack contracts under [`../zcode_packs/temporal_forge_anvil_zcode_pack_2026-10-05/`](../zcode_packs/temporal_forge_anvil_zcode_pack_2026-10-05/).
 3. Current executable source and tests — implementation truth.
-4. [`current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md) — Build-Ready gate/evidence record; the gate was closed `TRUE` on 2026-10-09 by independent evaluator adjudication (CLEAN verdict at `fe7dac22`) plus maintainer merge authorization — never a self-approval.
+4. [`current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md) — candidate gate/evidence record; never self-approves the gate.
 5. [`current/ANVIL_SUCCESSOR_ARCHITECTURE.md`](current/ANVIL_SUCCESSOR_ARCHITECTURE.md) — current successor architecture/reference.
 6. [`current/STATE.md`](current/STATE.md) — concise repository/program status summary.
-7. The PR #1 evaluator adjudication record (final CLEAN verdict at `fe7dac22`; merge `36952dce`).
+7. Current PR/evaluator evidence for the exact candidate revision.
 
 When these conflict, governing contracts and validated current implementation/evidence outrank stale narrative summaries.
 
@@ -61,19 +61,19 @@ Closure documents remain authoritative for whether the FSR-centered campaign is 
 
 Answers: **What is true now?**
 
-[`current/STATE.md`](current/STATE.md) is the concise cross-program state summary. It identifies the FSR closure boundary, the merged successor line on `main`, the current implementation/evidence head, the adjudicated gate state, and current authority.
+[`current/STATE.md`](current/STATE.md) is the concise cross-program state summary. It identifies the FSR closure boundary, active ANVIL branch, current candidate evidence head, evaluator/gate state, and current authority.
 
 ### Current successor architecture
 
-Answers: **How does the ANVIL successor work?**
+Answers: **How does the active ANVIL candidate work?**
 
 [`current/ANVIL_SUCCESSOR_ARCHITECTURE.md`](current/ANVIL_SUCCESSOR_ARCHITECTURE.md) must match current successor code or explicitly state divergence. It is not a rewrite of the historical FSR player architecture.
 
 ### Current successor qualification
 
-Answers: **What evidence supports the Build-Ready gate and how was it adjudicated?**
+Answers: **What evidence supports the Build-Ready candidate and what remains pending?**
 
-[`current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md) records contract-by-contract evidence, evaluator repair history, literal-head CI evidence, and non-blocking risks. The gate closed `TRUE` on 2026-10-09 through the independent evaluator's CLEAN verdict and the maintainer's merge of PR #1 — the record never self-approved it. Historical addenda inside the record describe their own dated heads and remain evidence.
+[`current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md) records contract-by-contract evidence, evaluator repair history, exact-head CI evidence, and non-blocking risks. It must remain candidate/pending until independent evaluator adjudication closes the gate.
 
 ### Closure
 
@@ -216,7 +216,7 @@ A new agent or contributor working on this repository must read:
 4. for ANVIL work, [`current/ANVIL_SUCCESSOR_ARCHITECTURE.md`](current/ANVIL_SUCCESSOR_ARCHITECTURE.md) and the governing execution pack;
 5. for FSR-era interpretation, [`closure/README.md`](closure/README.md).
 
-No historical plan may be resumed merely because it contains instructions or unfinished gates. Behavioral code changes require explicit maintainer authorization. PR #1 was merged on 2026-10-09 only after that authorization was given (evaluator CLEAN verdict at `fe7dac22`, maintainer-approved merge `36952dce`).
+No historical plan may be resumed merely because it contains instructions or unfinished gates. Behavioral code changes require explicit maintainer authorization. PR #1 must not be merged without explicit maintainer authorization.
 
 ## 10. Successor boundary
 

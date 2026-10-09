@@ -1,11 +1,11 @@
 # ANVIL Successor Architecture (build-ready)
 
-**Status:** CURRENT — successor line merged into `main` (PR #1, merge `36952dce`, 2026-10-09)
+**Status:** CURRENT — successor integration branch `successor/anvil-build-ready`
 **Contract:** `zcode_packs/temporal_forge_anvil_zcode_pack_2026-10-05/BUILD_READY_CONTRACT.md`
 **Qualification:** [`ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](ANVIL_BUILD_READY_QUALIFICATION_20261005.md)  
 **Implementation/evidence head:** `b6fbc7b43b25399ce34bfdddfcbf1bf5dc5e335e`  
 **Literal branch-head CI:** Actions run `37875251102` — SUCCESS; both jobs explicitly checked out and verified this SHA  
-**Gate state:** `BUILD_READY_FOR_RESEARCH = TRUE` — adjudicated 2026-10-09 (independent evaluator CLEAN verdict at `fe7dac22` + maintainer merge of PR #1); never self-approved
+**Gate state:** candidate/pending independent evaluator; not self-approved
 
 ## What ANVIL is at this gate
 
@@ -224,7 +224,7 @@ anvil_runner --input clip.mp4 --output-dir out --start-frame 5 \
 ```
 git clone https://github.com/Rolaand-Jayz/Temporal-Forge-ANVIL.git
 cd Temporal-Forge-ANVIL
-# the successor lives on main since PR #1 was merged (36952dce, 2026-10-09)
+git checkout successor/anvil-build-ready
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure          # C++ + runner suites
