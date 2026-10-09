@@ -48,6 +48,9 @@ jobs:
         with:
           lfs: false
           fetch-depth: 1
+          # pull_request defaults to refs/pull/<n>/merge. Build-Ready
+          # provenance must validate the literal PR branch head instead.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       # The Arch job runs inside a container while the mounted checkout is
       # owned by the host runner. Git otherwise rejects it as dubious
@@ -55,6 +58,10 @@ jobs:
       # rebuild regression see "not a git checkout".
       - name: Trust checkout for Git provenance
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Verify branch-head checkout
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -83,6 +90,13 @@ jobs:
         with:
           lfs: false
           fetch-depth: 1
+          # pull_request defaults to refs/pull/<n>/merge. Build-Ready
+          # provenance must validate the literal PR branch head instead.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Verify branch-head checkout
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
 
       - name: Install deps
         run: |

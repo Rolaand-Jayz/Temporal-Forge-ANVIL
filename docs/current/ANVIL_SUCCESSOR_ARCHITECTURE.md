@@ -3,8 +3,8 @@
 **Status:** CURRENT — successor integration branch `successor/anvil-build-ready`
 **Contract:** `zcode_packs/temporal_forge_anvil_zcode_pack_2026-10-05/BUILD_READY_CONTRACT.md`
 **Qualification:** [`ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](ANVIL_BUILD_READY_QUALIFICATION_20261005.md)  
-**Implementation/evidence head:** `2477aa8d63e829922e3e6fc42e947f89ffa10685`  
-**Exact-head CI:** Actions run `37870651207` — SUCCESS  
+**Implementation/evidence head:** repair in progress after evaluator re-review at `862dcf77585c5d77d45965c9cbc829e24e5385c3`  
+**CI evidence:** prior runs `37870651207` / `37871252872` validated equivalent merge trees, not literal branch-head SHAs; branch-head validation is pending  
 **Gate state:** candidate/pending independent evaluator; not self-approved
 
 ## What ANVIL is at this gate
@@ -239,7 +239,7 @@ full test suites. The ANVIL targets themselves need only FFmpeg.
 
 ## Current validation snapshot
 
-At implementation/evidence head `2477aa8d63e829922e3e6fc42e947f89ffa10685`:
+Prior PR validation (merge-tree evidence, not literal branch-head provenance):
 
 - Actions run `37870651207`: SUCCESS.
 - CTest: **100% tests passed out of 32 non-disabled tests**. The provenance

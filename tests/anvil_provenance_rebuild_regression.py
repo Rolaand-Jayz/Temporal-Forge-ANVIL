@@ -17,14 +17,17 @@ embedded identity):
   2. cmake configure (Ninja, Release); build ONLY target anvil_runner
   3. run once: git_sha == HEAD, git_dirty == "false",
      git_dirty_hash null/absent, provenance_source == "build_generated"
-  4. mutate a tracked source; rebuild WITHOUT reconfigure; run again:
+  4. add an IGNORED src/anvil/*.cpp as the ONLY build-affecting difference;
+     ordinary porcelain must remain empty, provenance must become dirty, and
+     changing only that ignored file's bytes must change the dirty hash
+  5. mutate a tracked source; rebuild WITHOUT reconfigure; run again:
      must NOT claim (old HEAD, clean) — require git_dirty == "true" AND a
      non-empty git_dirty_hash
-  5. add an UNTRACKED src/anvil/*.cpp build input, rebuild, then change only
+  6. add an UNTRACKED src/anvil/*.cpp build input, rebuild, then change only
      that same file's bytes while status/path identity stays constant; the
      recorded dirty hash MUST change
-  6. commit the mutations; rebuild; run again: git_sha == NEW HEAD and clean
-  7. determinism: two further no-change rebuilds leave the runner binary
+  7. commit the mutations; rebuild; run again: git_sha == NEW HEAD and clean
+  8. determinism: two further no-change rebuilds leave the runner binary
      byte-identical (and untouched mtime — no recompilation churn)
 
 Exit codes: 0 pass, 1 fail, 77 deterministic skip (tooling unavailable).
@@ -86,11 +89,11 @@ def git(source_dir: Path, *args: str) -> str:
     return proc.stdout.strip()
 
 
-def run_build(build_dir: Path) -> None:
+def run_build(build_dir: Path, env=None) -> None:
     proc = subprocess.run(
         ["cmake", "--build", str(build_dir), "--target", "anvil_runner",
          "--parallel"],
-        capture_output=True, text=True)
+        capture_output=True, text=True, env=env)
     if proc.returncode != 0:
         fail(f"cmake --build failed:\n{proc.stdout}\n{proc.stderr}")
 
@@ -209,7 +212,63 @@ def main() -> None:
                  f"{prov(m, 'git_dirty_hash')!r}")
         out(f"clean identity verified: sha={head[:12]} dirty=false")
 
-        # --- phase 3: mutate a tracked source; rebuild WITHOUT reconfigure ---
+        # --- phase 3: ignored-only compiled input must make identity dirty ---
+        ignored = wt / "src" / "anvil" / "ProvenanceIgnoredProbe.cpp"
+        excludes = tmp / "ignored-build-input.exclude"
+        excludes.write_text("src/anvil/ProvenanceIgnoredProbe.cpp\n",
+                            encoding="utf-8")
+        ignored_env = dict(os.environ)
+        ignored_env["GIT_CONFIG_COUNT"] = "1"
+        ignored_env["GIT_CONFIG_KEY_0"] = "core.excludesFile"
+        ignored_env["GIT_CONFIG_VALUE_0"] = str(excludes)
+
+        ignored.write_text(
+            'extern "C" int anvil_provenance_ignored_probe() { return 1; }\n',
+            encoding="utf-8")
+        status_ignored = subprocess.run(
+            ["git", "-C", str(wt), "status", "--porcelain=v1",
+             "--untracked-files=all"],
+            capture_output=True, text=True, env=ignored_env)
+        if status_ignored.returncode != 0:
+            fail(f"ignored-only status failed: {status_ignored.stderr.strip()}")
+        if status_ignored.stdout:
+            fail("ignored-only fixture is visible to ordinary porcelain; "
+                 "test no longer isolates the ignored-input case")
+
+        run_build(build_dir, env=ignored_env)
+        m_ignored_a = run_runner(
+            runner, clip, tmp / "out_ignored_a", nonrepo)
+        assert_build_generated(m_ignored_a, "ignored-a")
+        ignored_hash_a = prov(m_ignored_a, "git_dirty_hash")
+        if prov(m_ignored_a, "git_dirty") != "true":
+            fail(f"ignored-a: ignored compiled source must make provenance dirty, "
+                 f"got {prov(m_ignored_a, 'git_dirty')!r}")
+        if not (isinstance(ignored_hash_a, str) and len(ignored_hash_a) == 64):
+            fail(f"ignored-a: expected 64-hex dirty hash, got {ignored_hash_a!r}")
+
+        ignored.write_text(
+            'extern "C" int anvil_provenance_ignored_probe() { return 2; }\n',
+            encoding="utf-8")
+        run_build(build_dir, env=ignored_env)
+        m_ignored_b = run_runner(
+            runner, clip, tmp / "out_ignored_b", nonrepo)
+        assert_build_generated(m_ignored_b, "ignored-b")
+        ignored_hash_b = prov(m_ignored_b, "git_dirty_hash")
+        if ignored_hash_b == ignored_hash_a:
+            fail("changing only the bytes of the same ignored compiled source "
+                 "did not change git_dirty_hash")
+        out("ignored-only compiled-input content identity verified: "
+            f"{ignored_hash_a[:12]}… -> {ignored_hash_b[:12]}…")
+
+        ignored.unlink()
+        run_build(build_dir)
+        m_clean_again = run_runner(
+            runner, clip, tmp / "out_clean_again", nonrepo)
+        if prov(m_clean_again, "git_dirty") != "false":
+            fail("removing the ignored-only build input did not restore clean "
+                 "provenance before ordinary dirty-state phases")
+
+        # --- phase 4: mutate a tracked source; rebuild WITHOUT reconfigure ---
         mutated = wt / "src" / "util" / "Log.cpp"
         with mutated.open("a", encoding="utf-8") as f:
             f.write(MUTATION_MARKER)
@@ -232,7 +291,7 @@ def main() -> None:
                  f"HEAD {head!r}, got {dirty_sha!r}")
         out(f"dirty identity verified: dirty=true dirty_hash={dirty_hash[:12]}…")
 
-        # --- phase 4: untracked compiled-input CONTENT must affect identity ---
+        # --- phase 5: untracked compiled-input CONTENT must affect identity ---
         untracked = wt / "src" / "anvil" / "ProvenanceUntrackedProbe.cpp"
         untracked.write_text(
             'extern "C" int anvil_provenance_untracked_probe() { return 1; }\n',
@@ -268,7 +327,7 @@ def main() -> None:
         out("untracked compiled-input content identity verified: "
             f"{hash_a[:12]}… -> {hash_b[:12]}…")
 
-        # --- phase 5: commit the mutations; rebuild; sha must advance ---
+        # --- phase 6: commit the mutations; rebuild; sha must advance ---
         git(wt, "add", "-A")
         git(wt, "-c", "user.name=anvil-provenance-regression",
             "-c", "user.email=anvil-provenance-regression@invalid",
@@ -290,7 +349,7 @@ def main() -> None:
                  f"{prov(m, 'git_dirty_hash')!r}")
         out(f"committed identity verified: sha={new_head[:12]} dirty=false")
 
-        # --- phase 6: determinism — no-change rebuilds must not churn ---
+        # --- phase 7: determinism — no-change rebuilds must not churn ---
         fp = binary_fingerprint(runner)
         for i in (1, 2):
             run_build(build_dir)
