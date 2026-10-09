@@ -116,8 +116,10 @@ and excluded from replay equality):
   reference consumption role
 - `output_files[]` — final artifact inventory (paths relative to the output
   dir; empty of frame artifacts under the null backend)
-- `provenance` — git SHA/dirty plus `git_dirty_hash` (SHA-256 over the dirty
-  state's porcelain status + tracked-content diff when dirty) and
+- `provenance` — git SHA/dirty plus `git_dirty_hash` (SHA-256 over a
+  content-complete dirty-tree fingerprint: porcelain state, full-index binary
+  tracked diff, ordered untracked path/blob hashes, and ignored `src/anvil`
+  build-input path/blob hashes; dirty hashing failures fail closed) and
   `provenance_source` (`build_generated` | `compile_macro` | `runtime_git` | `unknown`);
   identity is regenerated from Git state on every build, so an incremental
   rebuild after a commit or source mutation cannot present the prior clean
@@ -159,8 +161,9 @@ anvil_runner --input FILE --output-dir DIR
 by their native ticks in the input stream's own timebase, so distinct
 fine-timebase ticks that collide after microsecond rescaling stay
 individually addressable (exact match only; no nearest fallback; duplicate
-ticks are ambiguous and refused). `--start-pts-us` is exact within the
-microsecond domain.
+ticks are ambiguous and refused). `--start-pts-us` is exact within the microsecond domain and considers only
+frames with a resolved PTS/best-effort timestamp source. An untimestamped
+frame's internal zero-microsecond placeholder is never addressable.
 
 `--ground-truth` attaches HR reference truth to a target frame (repeatable).
 It is validated as P5/P6 reference truth and recorded with provenance in the
