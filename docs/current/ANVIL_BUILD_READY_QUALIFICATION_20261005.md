@@ -2,8 +2,8 @@
 
 **Date:** 2026-10-08
 **Branch:** `successor/anvil-build-ready`
-**Current implementation/evidence head:** `2477aa8d63e829922e3e6fc42e947f89ffa10685`
-**Exact-head CI:** Actions run `37870651207` — SUCCESS
+**Current implementation/evidence head:** `b6fbc7b43b25399ce34bfdddfcbf1bf5dc5e335e`
+**Literal branch-head CI:** Actions run `37875251102` — SUCCESS; both jobs explicitly checked out and verified this SHA
 **Contract evaluated:** `zcode_packs/temporal_forge_anvil_zcode_pack_2026-10-05/BUILD_READY_CONTRACT.md`
 **Evidence vocabulary:** per `docs/closure/EVALUATION_STANDARD.md`
 
@@ -33,9 +33,9 @@ This record does not launch the later adversarial campaign.
 | Item | Verdict | Evidence |
 |---|---|---|
 | Headless/offline deterministic runner | PASS | `anvil_runner` CLI; no window/GPU/network; all runner tests run headless in CI containers. |
-| Exact input frame indices/timestamps selectable | PASS | Review 4225401229 repaired and verified: exact microsecond selection excludes `timestamp_source=none` before comparing values, so an untimestamped internal `ptsUs=0` placeholder cannot fabricate timestamp 0 or make a real timestamp-zero frame ambiguous. Shared `selectFrameByMicroseconds` semantics are used by the runner; `anvil_timestamp_tests` includes the synthetic no-source + legitimate-zero case and passed in exact-head Actions run `37870651207`. Native-tick selection remains lossless/exact. |
+| Exact input frame indices/timestamps selectable | PASS | Review 4225401229 repaired and verified: exact microsecond selection excludes `timestamp_source=none` before comparing values, so an untimestamped internal `ptsUs=0` placeholder cannot fabricate timestamp 0 or make a real timestamp-zero frame ambiguous. Shared `selectFrameByMicroseconds` semantics are used by the runner; `anvil_timestamp_tests` includes the synthetic no-source + legitimate-zero case. Literal branch-head Actions run `37875251102` passed the full CTest suite with this repair. Native-tick selection remains lossless/exact. |
 | Exact configuration serialized in run manifest | PASS | `manifest.json` `config` section (all CLI parameters); `test_manifest_schema_and_provenance`. |
-| Git/build/input provenance captured | PENDING | Re-review 4226058183 found an ignored-only hole: ordinary porcelain omits ignored files, so the previous clean decision could happen before ignored GLOBbed `src/anvil/*.cpp` inputs were examined. The repair now enumerates ignored ANVIL build inputs before clean/dirty classification and hashes them when present. The regression adds an ignored source as the ONLY build-affecting difference, proves ordinary porcelain remains empty, requires provenance to become dirty, and requires a byte-only mutation of that same ignored source to change `git_dirty_hash`. Re-review 4226058380 also showed prior PR Actions used GitHub's synthetic merge commit; CI now explicitly checks out and verifies the literal PR branch-head SHA. Awaiting literal branch-head CI before restoring PASS. |
+| Git/build/input provenance captured | PASS | Re-reviews 4226058183/4226058380 repaired and verified at literal branch head `b6fbc7b43b25399ce34bfdddfcbf1bf5dc5e335e`. Ignored `src/anvil/*.cpp` inputs are enumerated before clean/dirty classification; an ignored-only build input therefore makes provenance dirty even when ordinary porcelain is empty. The regression proves a byte-only change to the same ignored compiled source changes `git_dirty_hash` (`5d201608a721… -> dc17a2c88d91…`), while the non-ignored untracked case still changes `1036514a2dc6… -> dbe47e262374…`. CI explicitly checks out the pull-request head SHA (falling back to the event SHA for non-PR runs) and verifies `git rev-parse HEAD` before build. Actions run `37875251102` checked out `b6fbc7b43b25399ce34bfdddfcbf1bf5dc5e335e` in both jobs; CTest and the required direct provenance regression both passed. |
 | Per-stage timing hooks | PASS | `stage_timings[]` covers decode, window_select, side_info_normalization, correspondence, correspondence_refinement, visibility, sample_geometry, confidence, color_convert, accumulate and output; `test_stage_timing_attribution` asserts exercised stages have meaningful timings, including that a converted frame carries TWO color_convert records (working-space decision + actual sws_scale transform) so naive by-name summation must expect the duplicate. Corrected 2026-10-08 (round 4, review 4209766876): the previous enumeration stated visibility → confidence → sample_geometry; the actual execution order (then and now) is visibility → sample_geometry → confidence, because estimated confidence measures the geometry-adjusted warp — the StageId enum encodes the same order. |
 | Intermediate numeric/image dumps per consequential stage | PASS | `--dump-dir/--dump-stages all`; `test_comprehensive_stage_capture_inventory` asserts decode source/MV evidence, window selection + exclusions, coarse correspondence, refined correspondence, per-neighbor visibility masks, sample geometry, per-neighbor confidence fields, color decision, accumulated reconstruction and final outputs. `dump_files[]` is normalized to dump-dir-relative paths and asserted equal to disk contents; replay is byte-identical. The output stage is a replaceable backend boundary (`--backend pnm|null`); the accumulate artifact is the backend's input, and backend identity is serialized in the manifest config. Corrected 2026-10-08 (round 4, review 4209765746): the previous note documented the pre-backend inline serialization. |
 | Oracle correspondence replaces estimates | PASS | `--correspondence oracle`; manifest records `oracle_used` events and `correspondence_source == "oracle"`. |
@@ -85,7 +85,7 @@ Codec support/limitation matrix (this host — re-probed per run):
 |---|---|---|
 | Clean configure/build on intended environment | PASS | Clean configure/build evidence is preserved from the original qualification and repeated by exact-head GitHub Actions. At `5f10b26`, Actions run `37855358002` configured and built the full Arch job successfully from a clean checkout. |
 | Existing applicable tests pass | PASS | Exact-head CTest at `2477aa8` in Actions run `37870651207` reports **100% tests passed out of 32 non-disabled tests**. The provenance rebuild regression now executes and passes; only `fsr4_weight_tests` and `fsr4_tensormap_tests` are explicitly skipped, while 4 historical GPU tests remain disabled by design. |
-| New unit/integration tests pass | PENDING | The strengthened provenance regression now includes the ignored-only GLOBbed-source case, and CI is configured to validate the literal PR branch head rather than the synthetic merge ref. Prior merge-tree runs remain useful code-content evidence but are not literal branch-head provenance evidence. Awaiting the repaired branch-head run before restoring PASS. |
+| New unit/integration tests pass | PASS | Literal branch-head Actions run `37875251102` is green: Python contract job **124 passed** (68 historical + 56 ANVIL); CTest reports **100% tests passed out of 32 non-disabled tests**; `anvil_provenance_rebuild_regression` executed and passed in CTest and again as the required non-skippable direct CI step. The regression now covers clean, ignored-only compiled input, tracked dirty, untracked compiled input, committed-SHA advance, and no-change binary determinism. |
 | Vulkan validation on exercised successor paths | N/A | **Justification:** the build-ready successor path exercises no Vulkan code — `anvil_lib`/`anvil_runner` do not link or call Vulkan, and no existing Vulkan path was modified (diff scope: `src/anvil/`, `tools/anvil/`, tests, CMake, CI). The historical player's Vulkan paths are unchanged and its tests remain green. Any future Vulkan successor backend re-opens this item with validation-layer evidence. |
 | No known resource lifetime/synchronization defect | PASS | CPU-only pipeline; ownership reviewed: AVPacket freed in probe (`CodecProbe.cpp`), decoder flush on EOF (delayed-frame drain), decoder/demuxer RAII via reused classes, no cross-thread sharing. |
 | Graceful fallback/error tested | PASS | Missing input → exit 1 with message; missing oracle → explicit error; absent encoders → capability notes; unknown color metadata → recorded unknown state. |
@@ -336,11 +336,18 @@ step, and routes microsecond selection through shared source-aware exact
 selection.
 
 Verification note: runs `37870651207` and `37871252872` validated the same
-trees as their branch heads but, under the default pull_request checkout,
+trees as their branch heads but, under the old default pull_request checkout,
 executed GitHub synthetic merge commits rather than the literal branch-head
-SHAs. Re-review 4226058380 correctly rejects the phrase "exact-head" for
-those runs. The current repair explicitly checks out and verifies the PR head
-SHA. Provenance/test rows remain PENDING until that branch-head run succeeds.
+SHAs. Re-review 4226058380 correctly rejected the phrase "exact-head" for
+those historical runs.
+
+The repair at `b6fbc7b43b25399ce34bfdddfcbf1bf5dc5e335e` changed CI to
+explicitly checkout and verify the PR head SHA. Actions run `37875251102`
+shows both jobs fetching/checking out that exact SHA. The provenance
+regression passed in CTest and in the required direct step; its ignored-only
+case changed the fingerprint `5d201608a721… -> dc17a2c88d91…`. The two
+affected qualification rows are therefore restored to PASS for independent
+evaluator adjudication.
 
 ## Repair addendum — internal review passes 3-7 (2026-10-08)
 
@@ -374,20 +381,22 @@ twice during passes 1-4.
 
 Current implementation/evidence head:
 
-- `2477aa8d63e829922e3e6fc42e947f89ffa10685` — evaluator-round repair
-  (content-complete dirty provenance, mandatory provenance CI gate, and
-  source-aware exact microsecond selection).
-- GitHub Actions run `37870651207`: **SUCCESS**.
+- `b6fbc7b43b25399ce34bfdddfcbf1bf5dc5e335e` — ignored-only provenance
+  repair + literal PR-head CI checkout.
+- GitHub Actions run `37875251102`: **SUCCESS, literal branch-head checkout**.
+  - Both jobs fetched, checked out, and verified `b6fbc7b43b25399ce34bfdddfcbf1bf5dc5e335e`.
   - Arch build + CTest: **100% tests passed out of 32 non-disabled tests**.
-  - `anvil_provenance_rebuild_regression` executed and passed (37.05 s);
-    only the two historical asset-dependent tests were skipped; four
-    historical GPU tests remain disabled by design.
-  - Required direct provenance regression: **PASS** (a skip/77 would fail CI).
+  - `anvil_provenance_rebuild_regression` executed and passed (44.76 s).
+  - Required direct provenance regression: **PASS**.
+  - Ignored-only content identity: `5d201608a721… -> dc17a2c88d91…`.
+  - Untracked content identity: `1036514a2dc6… -> dbe47e262374…`.
   - Python CI contract job: **124 passed** = 68 historical + 56 ANVIL.
 
-Recent exact-head evidence trail, newest first:
+Historical PR validation trail, newest first. Runs before `37875251102`
+used GitHub's default pull-request merge-ref checkout; they validated the
+corresponding code trees but are not literal branch-head provenance evidence:
 
-- `2477aa8d` — Actions `37870651207` SUCCESS.
+- `2477aa8d` tree — Actions `37870651207` SUCCESS (merge-ref checkout).
 - `5f10b26f` — Actions `37855358002` SUCCESS.
 - `99342ab5` — review-pass-6 README/comment repair; Actions `37850662565` SUCCESS.
 - `214ac453` — review-pass-4 evidence-trail completion; Actions `37795544542` SUCCESS.
@@ -397,8 +406,9 @@ Recent exact-head evidence trail, newest first:
 - `0e03af613bbaa904d8497857989ab1c88b9381ad` — round 3; Actions `37582895384` SUCCESS.
 
 The earlier clean-clone verification remains historical evidence for the
-documented clone/build instructions. Each Actions run above is evidence for
-its exact head. Documentation-only follow-up commits do not alter the code
+documented clone/build instructions. Each historical run above is evidence for its exercised tree. Only runs
+using the explicit branch-head checkout may be cited as literal Git-revision
+provenance evidence. Documentation-only follow-up commits do not alter the code
 evidence but must themselves remain CI-green before evaluator handoff.
 
 ### Documentation reconciliation — 2026-10-08

@@ -3,8 +3,8 @@
 **Status:** CURRENT — successor integration branch `successor/anvil-build-ready`
 **Contract:** `zcode_packs/temporal_forge_anvil_zcode_pack_2026-10-05/BUILD_READY_CONTRACT.md`
 **Qualification:** [`ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](ANVIL_BUILD_READY_QUALIFICATION_20261005.md)  
-**Implementation/evidence head:** repair in progress after evaluator re-review at `862dcf77585c5d77d45965c9cbc829e24e5385c3`  
-**CI evidence:** prior runs `37870651207` / `37871252872` validated equivalent merge trees, not literal branch-head SHAs; branch-head validation is pending  
+**Implementation/evidence head:** `b6fbc7b43b25399ce34bfdddfcbf1bf5dc5e335e`  
+**Literal branch-head CI:** Actions run `37875251102` — SUCCESS; both jobs explicitly checked out and verified this SHA  
 **Gate state:** candidate/pending independent evaluator; not self-approved
 
 ## What ANVIL is at this gate
@@ -239,19 +239,23 @@ full test suites. The ANVIL targets themselves need only FFmpeg.
 
 ## Current validation snapshot
 
-Prior PR validation (merge-tree evidence, not literal branch-head provenance):
+Literal branch-head validation at `b6fbc7b43b25399ce34bfdddfcbf1bf5dc5e335e`:
 
-- Actions run `37870651207`: SUCCESS.
+- Actions run `37875251102`: SUCCESS.
+- Both jobs explicitly fetched/checked out the PR head SHA and verified
+  `git rev-parse HEAD` equals that SHA before validation.
 - CTest: **100% tests passed out of 32 non-disabled tests**. The provenance
   rebuild regression executed and passed; only `fsr4_weight_tests` and
   `fsr4_tensormap_tests` were explicitly skipped, and four historical GPU
   tests remain disabled by design.
-- Required direct provenance rebuild regression: PASS. It proves the dirty
-  hash changes when only the bytes of the same untracked GLOBbed ANVIL source
-  change, and that no-change rebuilds remain byte-stable.
+- Required direct provenance rebuild regression: PASS. It proves an
+  ignored-only GLOBbed ANVIL source makes provenance dirty despite empty
+  ordinary porcelain, and a byte-only change changes the dirty hash
+  (`5d201608a721… -> dc17a2c88d91…`). The non-ignored untracked-content
+  case remains covered, and no-change rebuilds remain byte-stable.
 - Python CI contract job: 124 passed = 68 historical + 56 ANVIL tests.
 
-This validates the exact implementation/evidence head. It does not replace
+This validates the literal implementation/evidence head. It does not replace
 independent evaluator adjudication of the Build-Ready gate.
 
 ## Tests
