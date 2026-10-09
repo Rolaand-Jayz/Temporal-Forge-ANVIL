@@ -33,9 +33,9 @@ This record does not launch the later adversarial campaign.
 | Item | Verdict | Evidence |
 |---|---|---|
 | Headless/offline deterministic runner | PASS | `anvil_runner` CLI; no window/GPU/network; all runner tests run headless in CI containers. |
-| Exact input frame indices/timestamps selectable | PASS | `--start-frame/--frame-count`; exact `--start-pts-us` (microsecond domain; no nearest fallback; no-match is an error); exact `--start-pts-ticks` (native stream ticks — the lossless control: distinct fine-timebase ticks that collide after microsecond rescaling stay individually addressable, with match/no-match/ambiguity semantics); VFR regression `test_exact_pts_selection_on_vfr`; collision regression `test_start_pts_ticks_selects_exactly_one_colliding_frame` (10 MHz timebase fixture, adjacent ticks 0.5 µs apart sharing one rounded microsecond, truth derived via ffprobe). Manifest frames carry `pts_ticks`, `timebase_num/den`, `timestamp_source` (pts|best_effort|none) alongside the convenience `pts_us`. Corrected 2026-10-08 (round 4, review 4209783084). |
+| Exact input frame indices/timestamps selectable | PENDING | Repair for review 4225401229 is implemented: exact microsecond selection now excludes `timestamp_source=none` before comparing values, so an untimestamped internal `ptsUs=0` placeholder cannot fabricate timestamp 0 or make a real timestamp-zero frame ambiguous. Shared `selectFrameByMicroseconds` semantics are used by the runner and `anvil_timestamp_tests` includes the synthetic no-source + legitimate-zero regression. Native-tick selection remains lossless/exact. Awaiting exact-head CI before restoring PASS. |
 | Exact configuration serialized in run manifest | PASS | `manifest.json` `config` section (all CLI parameters); `test_manifest_schema_and_provenance`. |
-| Git/build/input provenance captured | PASS | Source identity is regenerated from Git state on EVERY build (`cmake/AnvilProvenance.cmake` → strong definitions linked beside weak defaults; unchanged Git state causes zero recompilation), so an incremental rebuild after a commit or source mutation cannot present the prior clean revision. Manifest carries `git_sha`, `git_dirty`, `git_dirty_hash` (SHA-256 over porcelain status + tracked-content diff when dirty), and `provenance_source` (build_generated|compile_macro|runtime_git|unknown). Regression `anvil_provenance_rebuild_regression` configures a detached worktree at HEAD, mutates source/Git state, rebuilds WITHOUT reconfigure (from a runtime-git-isolated cwd) and fails if the manifest claims the stale clean identity; input SHA-256 verified equal to an independent `hashlib` digest; FIPS 180-4 known-answer tests guard the hash. Corrected 2026-10-08 (round 4, review 4209766186): the previous PASS rested on fresh-configure-only evidence. |
+| Git/build/input provenance captured | PENDING | Repairs for reviews 4225400846/4225401031 are implemented. Build-time identity still refreshes on every build, while the dirty fingerprint now covers porcelain state, a full-index `git diff --binary` for tracked content, ordered untracked path/blob hashes, and ignored `src/anvil` build-input path/blob hashes; hashing failures fail the build instead of publishing a partial identity. The provenance regression now mutates only the bytes of the same untracked GLOBbed `src/anvil/*.cpp` while porcelain/path identity and tracked diff stay unchanged and requires `git_dirty_hash` to change. CI invokes that regression as a required direct step where exit 77 is a failure, not accepted coverage. Awaiting exact-head CI before restoring PASS. |
 | Per-stage timing hooks | PASS | `stage_timings[]` covers decode, window_select, side_info_normalization, correspondence, correspondence_refinement, visibility, sample_geometry, confidence, color_convert, accumulate and output; `test_stage_timing_attribution` asserts exercised stages have meaningful timings, including that a converted frame carries TWO color_convert records (working-space decision + actual sws_scale transform) so naive by-name summation must expect the duplicate. Corrected 2026-10-08 (round 4, review 4209766876): the previous enumeration stated visibility → confidence → sample_geometry; the actual execution order (then and now) is visibility → sample_geometry → confidence, because estimated confidence measures the geometry-adjusted warp — the StageId enum encodes the same order. |
 | Intermediate numeric/image dumps per consequential stage | PASS | `--dump-dir/--dump-stages all`; `test_comprehensive_stage_capture_inventory` asserts decode source/MV evidence, window selection + exclusions, coarse correspondence, refined correspondence, per-neighbor visibility masks, sample geometry, per-neighbor confidence fields, color decision, accumulated reconstruction and final outputs. `dump_files[]` is normalized to dump-dir-relative paths and asserted equal to disk contents; replay is byte-identical. The output stage is a replaceable backend boundary (`--backend pnm|null`); the accumulate artifact is the backend's input, and backend identity is serialized in the manifest config. Corrected 2026-10-08 (round 4, review 4209765746): the previous note documented the pre-backend inline serialization. |
 | Oracle correspondence replaces estimates | PASS | `--correspondence oracle`; manifest records `oracle_used` events and `correspondence_source == "oracle"`. |
@@ -85,7 +85,7 @@ Codec support/limitation matrix (this host — re-probed per run):
 |---|---|---|
 | Clean configure/build on intended environment | PASS | Clean configure/build evidence is preserved from the original qualification and repeated by exact-head GitHub Actions. At `5f10b26`, Actions run `37855358002` configured and built the full Arch job successfully from a clean checkout. |
 | Existing applicable tests pass | PASS | Exact-head CTest at `5f10b26` reports **100% tests passed out of 32 non-disabled tests**. Of 36 registered tests, 29 complete normally, 3 are explicitly skipped (`fsr4_weight_tests`, `fsr4_tensormap_tests`, `anvil_provenance_rebuild_regression`), and 4 historical GPU tests remain disabled by design. |
-| New unit/integration tests pass | PASS | Current dedicated ANVIL C++ targets include core, refinement, geometry-estimate, codec, side-info, output-backend, runner, timestamp, and provenance-rebuild coverage. `tests/test_anvil_contract.py` contains **56 ANVIL contract tests**; exact-head Python CI reports **124 passed** total = 68 historical + 56 ANVIL. |
+| New unit/integration tests pass | PENDING | The repaired inventory includes the source-aware microsecond timestamp regression and the strengthened untracked-content provenance regression. Required CI now executes `anvil_provenance_rebuild_regression.py` directly after CTest so a skip cannot be counted as a pass. Awaiting exact-head CI before restoring PASS. |
 | Vulkan validation on exercised successor paths | N/A | **Justification:** the build-ready successor path exercises no Vulkan code — `anvil_lib`/`anvil_runner` do not link or call Vulkan, and no existing Vulkan path was modified (diff scope: `src/anvil/`, `tools/anvil/`, tests, CMake, CI). The historical player's Vulkan paths are unchanged and its tests remain green. Any future Vulkan successor backend re-opens this item with validation-layer evidence. |
 | No known resource lifetime/synchronization defect | PASS | CPU-only pipeline; ownership reviewed: AVPacket freed in probe (`CodecProbe.cpp`), decoder flush on EOF (delayed-frame drain), decoder/demuxer RAII via reused classes, no cross-thread sharing. |
 | Graceful fallback/error tested | PASS | Missing input → exit 1 with message; missing oracle → explicit error; absent encoders → capability notes; unknown color metadata → recorded unknown state. |
@@ -317,6 +317,24 @@ equivalent combined suite 124 passed + 39 subtests; GitHub Actions run
   ptsTicks member comment updated; sample-geometry dump no longer prints
   relative_offset for unapplied (Unknown) neighbors; the contraction-bias
   figure hedged to the independently reproduced 0.08–0.09 px range.
+
+## Repair addendum — evaluator round after `babcc68c` (2026-10-08)
+
+Independent evaluator review of `babcc68ca1f61dd906b3e417736fff83115a3ef6`
+closed the previous seven findings and opened three new P1 blockers:
+
+- 4225400846: dirty provenance did not include untracked/binary bytes;
+- 4225401031: the mandatory provenance rebuild regression was skipped in
+  exact-head CI while still cited as PASS coverage;
+- 4225401229: exact `--start-pts-us 0` could select an untimestamped frame
+  whose internal convenience `ptsUs` value is zero.
+
+The repair now makes tracked binary diffs content-sensitive, hashes untracked
+and ignored ANVIL build-input bytes, strengthens the rebuild regression with a
+same-path untracked-content mutation, makes that regression a required CI
+step, and routes microsecond selection through shared source-aware exact
+selection. The affected qualification rows remain PENDING until exact-head CI
+executes these repairs successfully.
 
 ## Repair addendum — internal review passes 3-7 (2026-10-08)
 
