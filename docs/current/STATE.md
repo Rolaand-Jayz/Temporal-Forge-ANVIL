@@ -75,7 +75,7 @@ This value was never self-promoted: internal repair/review loops and green CI we
 - Implementation/evidence head `b6fbc7b43b25399ce34bfdddfcbf1bf5dc5e335e`: literal branch-head Actions run `37875251102` — **SUCCESS** (both jobs verified this exact SHA)
 - Final evaluator-reviewed branch head `fe7dac22` (documentation-only beyond `b6fbc7b4`): evaluator verdict **CLEAN**
 - Merged `main` head `36952dce`: Actions run `37890647442` — **SUCCESS**
-  - Arch build + CTest: **32 passed** (2 asset-dependent tests skipped; 4 historical GPU tests disabled by design)
+  - Arch build + CTest: **32 non-disabled tests, 0 failures** — 30 passed normally and 2 asset-dependent tests skipped; 4 additional historical GPU tests were disabled by design
   - Python CI contract job: **124 passed** (68 historical + 56 ANVIL contract tests)
 - ANVIL test inventory includes dedicated C++ refinement, geometry-estimate, side-info, output-backend, timestamp, codec, core, runner, and provenance-rebuild targets.
 

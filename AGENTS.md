@@ -2,11 +2,11 @@
 
 ## Repository status
 
-**FSR ERA CLOSED — SUCCESSOR PROGRAM AUTHORIZED — 2026-10-05**
+**FSR ERA CLOSED — ANVIL BUILD-READY TRUE — SUCCESSOR ON `main` — 2026-10-09**
 
 This repository preserves the FSR-centered Temporal Forge Player research era as a closed historical line. Its closure evidence and the prohibitions on reinterpreting that evidence remain in force.
 
-On 2026-10-05 the maintainer authorized the successor "Temporal Forge / ANVIL" build program via the execution pack under [`zcode_packs/`](zcode_packs/README.md). This repository (`/mnt/workdrive/Temporal-Forge-ANVIL`, remote `origin-anvil`) is the designated mutable working repository and push target for that program. Historical `main` must not be rewritten; successor work proceeds on a dedicated branch per the pack.
+On 2026-10-05 the maintainer authorized the successor "Temporal Forge / ANVIL" build program via the execution pack under [`zcode_packs/`](zcode_packs/README.md). This repository (`/mnt/workdrive/Temporal-Forge-ANVIL`, remote `origin-anvil`) is the designated mutable working repository and push target for that program. The successor was developed on `successor/anvil-build-ready` and, after independent Build-Ready adjudication plus explicit maintainer authorization, PR #1 merged it into `main` at `36952dce` on 2026-10-09. Current successor work proceeds from `main` unless the maintainer explicitly directs another branch. The pre-successor history must remain intact; do not rewrite Git history to make ANVIL appear to have always been on `main`.
 
 The FSR-centered campaign is not reopened by this authorization. There is still **no standing instruction** to continue FSR 4.1 optimization, expected-input reconstruction, motion/jitter tuning, or campaign capture.
 
