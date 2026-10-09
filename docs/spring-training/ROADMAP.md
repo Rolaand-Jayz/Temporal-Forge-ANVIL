@@ -5,7 +5,7 @@
 
 ## At a glance
 
-\`\`\`text
+```text
 Build-Ready gate (already adjudicated true; engineering qualification)
        |
        v
@@ -24,11 +24,11 @@ Roster Selection        — select complementary contributors for a
 Training Camp           — optimize measured team bottlenecks and runtime
        |
        +----> Minor leagues / callbacks — new evidence may reopen a tryout
-\`\`\`
+```
 
 ## Gate 0 — Engineering readiness
 
-**Historical status:** ANVIL's successor Build-Ready gate was adjudicated \`TRUE\` on 2026-10-09. This validates research-rig engineering requirements, **not** image quality or production performance.
+**Historical status:** ANVIL's successor Build-Ready gate was adjudicated `TRUE` on 2026-10-09. This validates research-rig engineering requirements, **not** image quality or production performance.
 
 Evidence resides in [current successor status](../current/STATE.md) and the [Build-Ready qualification](../current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md).
 
@@ -59,7 +59,7 @@ Deliver:
 - Measure individual position performance and potential team contribution.
 - Record costs, failed qualifications, neutral outcomes, and causal limitations.
 
-**Advance only when:** each surviving prospect has a scoped, defensible hypothesis and a scouting report that explains the next experiment. Methods can enter \`bench\`, \`minor\`, or \`cut\` where evidence warrants; invitation alone confers no roster spot.
+**Advance only when:** each surviving prospect has a scoped, defensible hypothesis and a scouting report that explains the next experiment. Methods can enter `bench`, `minor`, or `cut` where evidence warrants; invitation alone confers no roster spot.
 
 ## Gate 3 — Spring Training
 
@@ -82,8 +82,8 @@ Deliver:
 - Allocate positions to complementary contributors based on incremental value.
 - Recognize hidden supporting roles; ask whether excluding one degrades the whole.
 - Document tradeoffs between quality, stability, complexity, and performance.
-- Keep baseline frozen, even if selected candidates later merge into \`main\`.
-- Mark \`rookie\` only with demonstrated unmerged value; \`starter\` only with authorized accepted integration and actual merge.
+- Keep baseline frozen, even if selected candidates later merge into `main`.
+- Mark `rookie` only with demonstrated unmerged value; `starter` only with authorized accepted integration and actual merge.
 - Preserve rejected/minor-league candidate evidence and callback triggers.
 
 **Advance only when:** an explicit authorized architectural decision identifies the roster and cites comparative evidence. The first lineup remains revisable.
@@ -98,7 +98,7 @@ Any speedup must preserve validated quality and temporal behavior in matched tes
 
 ## Minor-league loop
 
-\`\`\`text
+```text
 candidate not selected
     |
     +--> minor (specific plausible value + measurable callback condition)
@@ -110,7 +110,7 @@ candidate not selected
     +--> cut (bounded evidence-backed lack of value)
             |
             +--> preserve history; reassessment requires a new reason
-\`\`\`
+```
 
 ## Milestones not yet authorized
 
