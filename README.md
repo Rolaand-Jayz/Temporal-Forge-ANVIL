@@ -2,7 +2,7 @@
 
 > **FSR-era research closed 2026-09-15 · ANVIL successor program authorized 2026-10-05**
 
-**Successor program (Build-Ready gate adjudicated):** the maintainer-authorized "Temporal Forge / ANVIL" successor program completed its Build-Ready qualification. The independent evaluator's final re-review at `fe7dac22` was **CLEAN** ("no remaining basis to withhold `BUILD_READY_FOR_RESEARCH = TRUE`"), and the maintainer merged PR #1 into `main` at `36952dce` on 2026-10-09. The successor code now lives on `main`; `successor/anvil-build-ready` is retained as merged history. The later adversarial research campaign has **not** been launched. The current architecture is documented in [`docs/current/ANVIL_SUCCESSOR_ARCHITECTURE.md`](docs/current/ANVIL_SUCCESSOR_ARCHITECTURE.md), the current gate/evidence record is [`docs/current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](docs/current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md), and live repository status is [`docs/current/STATE.md`](docs/current/STATE.md). The governing execution pack remains under [`zcode_packs/README.md`](zcode_packs/README.md).
+**Successor program (active):** the maintainer authorized the "Temporal Forge / ANVIL" successor build program and the build-ready successor candidate now exists on the dedicated `successor/anvil-build-ready` branch under draft PR #1. Historical `main` is not rewritten, and PR #1 must not be merged without explicit maintainer authorization. The current architecture is documented in [`docs/current/ANVIL_SUCCESSOR_ARCHITECTURE.md`](docs/current/ANVIL_SUCCESSOR_ARCHITECTURE.md), the current gate/evidence record is [`docs/current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](docs/current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md), and live repository status is [`docs/current/STATE.md`](docs/current/STATE.md). The governing execution pack remains under [`zcode_packs/README.md`](zcode_packs/README.md).
 
 **Preserved FSR-era record (closed):** this tree also preserves the engineering and evidence record of Temporal Forge's attempt to adapt **AMD FSR 4.1 temporal reconstruction/upscaling to ordinary decoded video**. The closure does **not** claim that FSR 4.1 can never work for video — it records a narrower evidence-based decision: the accumulated results no longer justify keeping FSR-specific expected-input reconstruction as Temporal Forge's primary research architecture.
 
@@ -108,7 +108,7 @@ Start with [`docs/README.md`](docs/README.md). The key historical/closure entry 
 
 - [`docs/current/STATE.md`](docs/current/STATE.md) — current repository/program status
 - [`docs/current/ANVIL_SUCCESSOR_ARCHITECTURE.md`](docs/current/ANVIL_SUCCESSOR_ARCHITECTURE.md) — current ANVIL build-ready architecture and controls
-- [`docs/current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](docs/current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md) — Build-Ready gate/evidence record (gate adjudicated TRUE 2026-10-09)
+- [`docs/current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](docs/current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md) — current candidate gate/evidence record
 - [`docs/closure/`](docs/closure/) — final FSR-era adjudication, evaluation standard, claim ledger, and limitations
 - [`docs/decisions/TECHNICAL_HISTORY.md`](docs/decisions/TECHNICAL_HISTORY.md) — causal direction changes
 - [`docs/FSR4_RE_STATUS.md`](docs/FSR4_RE_STATUS.md) — dated FSR 4.1 RE reconstruction history
@@ -159,7 +159,7 @@ Vendored build dependencies include miniaudio v0.11.25 and the repository's Vulk
 ### ANVIL successor runner
 
 ```sh
-# successor code is on main since PR #1 was merged (36952dce, 2026-10-09)
+git checkout successor/anvil-build-ready
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure

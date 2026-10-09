@@ -1,23 +1,23 @@
 # Temporal Forge current state
 
-**Status:** CURRENT — **FSR ERA CLOSED · ANVIL BUILD-READY GATE ADJUDICATED TRUE · SUCCESSOR MERGED TO `main`**  
-**As of:** 2026-10-09  
-**Historical closure base:** `285a5788f89787bce0ca26f8e8e8ca312890723f` (pre-successor `main`)  
-**Successor line:** PR #1 **merged** into `main` at `36952dcee574040decdfc96d8143c5bae6cd3895` (2026-10-09, maintainer-authorized); `successor/anvil-build-ready` retained as merged history  
-**Independent evaluator verdict:** **CLEAN** at `fe7dac22` — "no unresolved evaluator findings remain … no remaining basis to withhold `BUILD_READY_FOR_RESEARCH = TRUE`" (2026-10-09)  
-**Implementation/evidence head:** `b6fbc7b43b25399ce34bfdddfcbf1bf5dc5e335e` — literal branch-head Actions run `37875251102` SUCCESS  
-**Merged-`main` head CI:** Actions run `37890647442` on `36952dce` — SUCCESS
+**Status:** CURRENT — **FSR ERA CLOSED · ANVIL BUILD-READY CANDIDATE ACTIVE**  
+**As of:** 2026-10-08  
+**Historical closure base:** `main` @ `285a5788f89787bce0ca26f8e8e8ca312890723f`  
+**Successor branch:** `successor/anvil-build-ready`  
+**Draft review:** PR #1 — **DO NOT MERGE without explicit maintainer authorization**  
+**Current implementation/evidence head before this documentation reconciliation:** `5f10b26f84ba89293e1b38622521acde37ee0732`  
+**Exact-head CI:** Actions run `37855358002` — SUCCESS
 
 ## Current program state
 
 Temporal Forge now has two deliberately separate states:
 
 1. The **FSR-centered research era is closed**. Its evidence, negative results, provenance boundaries, historical player, and closure adjudication remain preserved and must not be reinterpreted as an active FSR campaign.
-2. The **Temporal Forge / ANVIL successor program passed its Build-Ready gate**. The successor rig lives on `main` (PR #1 merged, `36952dce`); `BUILD_READY_FOR_RESEARCH = TRUE` was adjudicated on 2026-10-09 by the independent evaluator's CLEAN verdict plus the maintainer's merge authorization. The later adversarial research campaign has **not** been launched.
+2. The **Temporal Forge / ANVIL successor program is active**. A minimum scientifically testable build-ready candidate exists on `successor/anvil-build-ready` and is being qualified under the authorized ANVIL execution pack.
 
 The successor does not inherit FSR-specific jitter, motion, history, scaling, composition, tensor, or backend assumptions merely because they existed in the historical player.
 
-## Current ANVIL successor
+## Current ANVIL candidate
 
 The current successor is a deterministic, headless/offline, CPU ANVIL research rig isolated under `src/anvil/`. Its active pipeline is:
 
@@ -62,24 +62,31 @@ The current evidence record is:
 
 [`ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](ANVIL_BUILD_READY_QUALIFICATION_20261005.md)
 
-The independent evaluator pass on 2026-10-07 left seven findings open (meaningful residual refinement, executable estimated sample geometry, independent side-info normalization, replaceable output backend, non-stale build provenance, native timestamp identity, and correct sample-geometry/confidence documentation order); later evaluator rounds added and repaired further findings (ignored-input provenance coverage, literal-head CI validation, dirty-fingerprint completeness, missing-timestamp µs selection). Every finding was repaired with focused regressions, and the evaluator re-reviewed each repaired head. The final re-review at `fe7dac22` (2026-10-09) was **CLEAN** with no unresolved findings and "no remaining basis to withhold `BUILD_READY_FOR_RESEARCH = TRUE`". The maintainer then merged PR #1. Therefore:
+The independent evaluator pass on 2026-10-07 left seven findings open: meaningful residual refinement, executable estimated sample geometry, independent side-info normalization, replaceable output backend, non-stale build provenance, native timestamp identity, and correct sample-geometry/confidence documentation order.
+
+All seven now have implementation repairs and focused regressions on the successor branch. Their GitHub review threads remain intentionally unresolved until the independent evaluator verifies the repaired head. Therefore:
 
 ```text
-BUILD_READY_FOR_RESEARCH = TRUE   (adjudicated 2026-10-09: evaluator CLEAN + maintainer merge)
+BUILD_READY_FOR_RESEARCH = CANDIDATE / PENDING INDEPENDENT EVALUATOR
 ```
 
-This value was never self-promoted: internal repair/review loops and green CI were recorded as evidence only, and the gate closed only on the independent evaluator's verdict and the maintainer's explicit merge authorization.
+This repository must not self-promote that value to TRUE merely because internal repair/review loops or CI are green.
 
 ## Current validation snapshot
 
-- Implementation/evidence head `b6fbc7b43b25399ce34bfdddfcbf1bf5dc5e335e`: literal branch-head Actions run `37875251102` — **SUCCESS** (both jobs verified this exact SHA)
-- Final evaluator-reviewed branch head `fe7dac22` (documentation-only beyond `b6fbc7b4`): evaluator verdict **CLEAN**
-- Merged `main` head `36952dce`: Actions run `37890647442` — **SUCCESS**
-  - Arch build + CTest: **32 passed** (2 asset-dependent tests skipped; 4 historical GPU tests disabled by design)
-  - Python CI contract job: **124 passed** (68 historical + 56 ANVIL contract tests)
-- ANVIL test inventory includes dedicated C++ refinement, geometry-estimate, side-info, output-backend, timestamp, codec, core, runner, and provenance-rebuild targets.
+Exact implementation/evidence head `5f10b26f84ba89293e1b38622521acde37ee0732`:
 
-Green CI is necessary evidence, not an independent gate decision; the gate decision is the 2026-10-09 adjudication recorded above.
+- GitHub Actions run `37855358002`: **SUCCESS**
+- Arch build + CTest: CTest reported **100% tests passed out of 32 non-disabled tests**
+  - 29 tests completed normally
+  - 3 tests were explicitly skipped: `fsr4_weight_tests`, `fsr4_tensormap_tests`, and `anvil_provenance_rebuild_regression`
+  - 4 historical GPU tests remain disabled by design
+- Python CI contract job: **124 passed**
+  - 68 historical Python tests
+  - 56 ANVIL contract tests
+- Current ANVIL test inventory also includes dedicated C++ refinement, geometry-estimate, side-info, output-backend, timestamp, codec, core, and runner targets.
+
+Green CI is necessary evidence, not an independent gate decision.
 
 ## FSR-era state
 
