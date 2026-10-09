@@ -167,7 +167,7 @@ governing successor contract + explicit maintainer decisions
         ↓
 validated current implementation behavior
         ↓
-current source/tests and exact-head evidence
+current source/tests and revision-specific evidence
         ↓
 current successor architecture / qualification / state docs
         ↓
@@ -220,20 +220,20 @@ No historical plan may be resumed merely because it contains instructions or unf
 
 ## 10. Successor boundary
 
-The successor now lives in this repository on a dedicated branch rather than in a separate successor repository.
+The successor now lives on `main` in this repository after development on `successor/anvil-build-ready` and the maintainer-authorized merge of PR #1, rather than in a separate successor repository.
 
 That topology change does **not** collapse the evidence boundary:
 
 - FSR-era closure remains historical authority for the closed campaign.
 - ANVIL contracts, implementation, tests, and current successor documents govern the active successor.
 - FSR-specific assumptions are not inherited unless independently justified.
-- Historical `main` is not rewritten to make the successor appear to have always existed.
+- Pre-successor `main` history is preserved; do not rewrite history to make the successor appear to have always existed there.
 
 ## 11. Maintenance
 
 Current documentation maintenance may include:
 
-- reconciling current ANVIL status, architecture, qualification, and PR evidence with the exact branch state;
+- reconciling current ANVIL status, architecture, qualification, and PR evidence with the exact repository/revision state;
 - correcting broken links or demonstrably false current-status claims;
 - clarifying false or ambiguous historical claims without rewriting historical outcomes;
 - improving reproducibility without changing established evidence;
@@ -241,4 +241,4 @@ Current documentation maintenance may include:
 - evidence indexing;
 - explicitly requested restoration or historical investigation.
 
-Do not create a new standing FSR quality plan by editing current docs. Do not self-promote ANVIL to `BUILD_READY_FOR_RESEARCH = TRUE`; that remains an evidence/adjudication gate.
+Do not create a new standing FSR quality plan by editing current docs. The ANVIL Build-Ready gate was adjudicated `TRUE` on 2026-10-09; any future gate or status promotion must likewise come from evidence plus the required adjudication/maintainer authority, never from documentation edits alone.

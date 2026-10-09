@@ -49,8 +49,9 @@ Resolved by direct maintainer instruction in a working session:
   `BUILD_READY_FOR_RESEARCH = TRUE`".
 - Implementation/evidence head: `b6fbc7b43b25399ce34bfdddfcbf1bf5dc5e335e`;
   literal branch-head CI run `37875251102`: SUCCESS. Merged-`main` head CI
-  run `37890647442` on `36952dce`: SUCCESS (CTest 32 passed with 2 asset
-  skips and 4 historical GPU tests disabled; Python CI contract job 124
+  run `37890647442` on `36952dce`: SUCCESS (CTest: 32 non-disabled tests,
+  0 failures — 30 passed normally and 2 asset-dependent tests skipped; 4
+  additional historical GPU tests disabled; Python CI contract job 124
   passed = 68 historical + 56 ANVIL).
 - Current architecture: [`../docs/current/ANVIL_SUCCESSOR_ARCHITECTURE.md`](../docs/current/ANVIL_SUCCESSOR_ARCHITECTURE.md).
 - Qualification record (gate adjudicated TRUE 2026-10-09):

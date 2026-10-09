@@ -1,6 +1,7 @@
 # ANVIL BUILD_READY_FOR_RESEARCH Qualification Record
 
-**Date:** 2026-10-08
+**Record initiated:** 2026-10-08  
+**Gate adjudicated:** 2026-10-09
 **Integration branch (merged into `main` by PR #1, `36952dce`, 2026-10-09):** `successor/anvil-build-ready`
 **Current implementation/evidence head:** `b6fbc7b43b25399ce34bfdddfcbf1bf5dc5e335e`
 **Literal branch-head CI:** Actions run `37875251102` — SUCCESS; both jobs explicitly checked out and verified this SHA

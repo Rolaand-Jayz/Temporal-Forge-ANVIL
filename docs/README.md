@@ -4,7 +4,7 @@ This is the documentation entry point.
 
 The **FSR-centered research line is closed as of 2026-09-15**. The **Temporal Forge / ANVIL successor program completed its Build-Ready gate**: the independent evaluator's final re-review was CLEAN at `fe7dac22`, the maintainer merged PR #1 into `main` (`36952dce`, 2026-10-09), and `BUILD_READY_FOR_RESEARCH = TRUE` is the adjudicated gate state. Those are separate facts: successor work does not reopen the closed FSR campaign, and the later adversarial research campaign remains unlaunched.
 
-The historical documentation model remains defined by [`DOCUMENTATION_SYSTEM.md`](DOCUMENTATION_SYSTEM.md). The closure set is authoritative for interpreting FSR-era evidence; the current ANVIL documents below are authoritative for the successor branch.
+The historical documentation model remains defined by [`DOCUMENTATION_SYSTEM.md`](DOCUMENTATION_SYSTEM.md). The closure set is authoritative for interpreting FSR-era evidence; the current ANVIL documents below are authoritative for the successor line on `main`.
 
 | Need | Start here |
 |---|---|
@@ -27,7 +27,7 @@ Root-level [`README.md`](../README.md) is the public repository overview. Root-l
 
 ## Authority map
 
-For the successor branch:
+For the successor line on `main`:
 
 1. **Explicit maintainer direction** governs authorization and protected actions.
 2. **ANVIL execution-pack contracts** under [`../zcode_packs/temporal_forge_anvil_zcode_pack_2026-10-05/`](../zcode_packs/temporal_forge_anvil_zcode_pack_2026-10-05/) govern Build-Ready requirements.
