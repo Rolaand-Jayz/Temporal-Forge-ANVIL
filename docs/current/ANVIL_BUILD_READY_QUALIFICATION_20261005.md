@@ -83,8 +83,8 @@ Codec support/limitation matrix (this host — re-probed per run):
 
 | Item | Verdict | Evidence |
 |---|---|---|
-| Clean configure/build on intended environment | PASS | Clean configure/build evidence is preserved from the original qualification and repeated by exact-head GitHub Actions. At `5f10b26`, Actions run `37855358002` configured and built the full Arch job successfully from a clean checkout. |
-| Existing applicable tests pass | PASS | Exact-head CTest at `2477aa8` in Actions run `37870651207` reports **100% tests passed out of 32 non-disabled tests**. The provenance rebuild regression now executes and passes; only `fsr4_weight_tests` and `fsr4_tensormap_tests` are explicitly skipped, while 4 historical GPU tests remain disabled by design. |
+| Clean configure/build on intended environment | PASS | Literal branch-head Actions run `37875251102` checked out and verified implementation/evidence head `b6fbc7b43b25399ce34bfdddfcbf1bf5dc5e335e`, then configured and built the full Arch job successfully from that clean checkout. Older PR runs remain historical merge-tree evidence only. |
+| Existing applicable tests pass | PASS | Literal branch-head CTest in Actions run `37875251102` at `b6fbc7b43b25399ce34bfdddfcbf1bf5dc5e335e` reports **100% tests passed out of 32 non-disabled tests**. The provenance rebuild regression executes and passes; only `fsr4_weight_tests` and `fsr4_tensormap_tests` are explicitly skipped, while 4 historical GPU tests remain disabled by design. |
 | New unit/integration tests pass | PASS | Literal branch-head Actions run `37875251102` is green: Python contract job **124 passed** (68 historical + 56 ANVIL); CTest reports **100% tests passed out of 32 non-disabled tests**; `anvil_provenance_rebuild_regression` executed and passed in CTest and again as the required non-skippable direct CI step. The regression now covers clean, ignored-only compiled input, tracked dirty, untracked compiled input, committed-SHA advance, and no-change binary determinism. |
 | Vulkan validation on exercised successor paths | N/A | **Justification:** the build-ready successor path exercises no Vulkan code — `anvil_lib`/`anvil_runner` do not link or call Vulkan, and no existing Vulkan path was modified (diff scope: `src/anvil/`, `tools/anvil/`, tests, CMake, CI). The historical player's Vulkan paths are unchanged and its tests remain green. Any future Vulkan successor backend re-opens this item with validation-layer evidence. |
 | No known resource lifetime/synchronization defect | PASS | CPU-only pipeline; ownership reviewed: AVPacket freed in probe (`CodecProbe.cpp`), decoder flush on EOF (delayed-frame drain), decoder/demuxer RAII via reused classes, no cross-thread sharing. |
@@ -325,7 +325,8 @@ closed the previous seven findings and opened three new P1 blockers:
 
 - 4225400846: dirty provenance did not include untracked/binary bytes;
 - 4225401031: the mandatory provenance rebuild regression was skipped in
-  exact-head CI while still cited as PASS coverage;
+  the then-current PR merge-ref CI while still cited as exact-head PASS
+  coverage;
 - 4225401229: exact `--start-pts-us 0` could select an untimestamped frame
   whose internal convenience `ptsUs` value is zero.
 
@@ -369,8 +370,8 @@ review passes; any material finding resets the count. Status after pass 7:
 - Pass 7: 1 material finding — this record's own Command-evidence section
   lagged the heads above and no addendum recorded passes 3-6. Repaired in
   `5f10b26f` (head list + this addendum + role-based closing language);
-  Actions run `37855358002` is green on that exact head. Clean-pass count
-  after that repair reset to 0 per protocol.
+  Actions run `37855358002` is green on the corresponding PR merge-ref
+  tree. Clean-pass count after that repair reset to 0 per protocol.
 
 Review-scratch policy note: reviewer briefs now direct all scratch work to
 /mnt/workdrive/.review-scratch/ (disk-backed) — /tmp is a RAM-backed tmpfs
@@ -397,12 +398,12 @@ used GitHub's default pull-request merge-ref checkout; they validated the
 corresponding code trees but are not literal branch-head provenance evidence:
 
 - `2477aa8d` tree — Actions `37870651207` SUCCESS (merge-ref checkout).
-- `5f10b26f` — Actions `37855358002` SUCCESS.
-- `99342ab5` — review-pass-6 README/comment repair; Actions `37850662565` SUCCESS.
-- `214ac453` — review-pass-4 evidence-trail completion; Actions `37795544542` SUCCESS.
-- `2715eef8` — review-pass-3 evidence identifiers; Actions `37786744274` SUCCESS.
-- `c0533c7c` — round-4 + review-pass-2 code repairs; Actions `37782937886` SUCCESS.
-- `598823e1` — round-4 integration + review-pass-1 repairs; Actions `37744340628` SUCCESS.
+- `5f10b26f` tree — Actions `37855358002` SUCCESS (merge-ref checkout).
+- `99342ab5` tree — review-pass-6 README/comment repair; Actions `37850662565` SUCCESS (merge-ref checkout).
+- `214ac453` tree — review-pass-4 evidence-trail completion; Actions `37795544542` SUCCESS (merge-ref checkout).
+- `2715eef8` tree — review-pass-3 evidence identifiers; Actions `37786744274` SUCCESS (merge-ref checkout).
+- `c0533c7c` tree — round-4 + review-pass-2 code repairs; Actions `37782937886` SUCCESS (merge-ref checkout).
+- `598823e1` tree — round-4 integration + review-pass-1 repairs; Actions `37744340628` SUCCESS (merge-ref checkout).
 - `0e03af613bbaa904d8497857989ab1c88b9381ad` — round 3; Actions `37582895384` SUCCESS.
 
 The earlier clean-clone verification remains historical evidence for the
