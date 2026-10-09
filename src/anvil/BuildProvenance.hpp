@@ -27,10 +27,11 @@ extern const char* gitSha;
 // "true"/"false" from "git status --porcelain" at build time; "" when the
 // repository state could not be captured.
 extern const char* gitDirty;
-// SHA-256 over the concatenation of the raw "git status --porcelain" output
-// and the raw "git diff HEAD" output at build time (lowercase 64-hex) when
-// the tree was dirty; "" when the tree was clean, not a repository, or the
-// capture failed. Untracked files are covered by name/status only.
+// SHA-256 over a content-complete dirty-tree fingerprint at build time:
+// porcelain status + full-index binary tracked diff + ordered untracked
+// path/blob identities + ignored src/anvil build-input path/blob identities.
+// "" when the tree is clean or source identity is unavailable. Dirty-state
+// fingerprint capture fails closed rather than publishing a partial hash.
 extern const char* gitDirtyHash;
 // Identity marker of the capture mechanism itself: "build_generated".
 extern const char* origin;

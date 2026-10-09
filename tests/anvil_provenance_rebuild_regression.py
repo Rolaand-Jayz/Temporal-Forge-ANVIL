@@ -20,8 +20,11 @@ embedded identity):
   4. mutate a tracked source; rebuild WITHOUT reconfigure; run again:
      must NOT claim (old HEAD, clean) — require git_dirty == "true" AND a
      non-empty git_dirty_hash
-  5. commit the mutation; rebuild; run again: git_sha == NEW HEAD and clean
-  6. determinism: two further no-change rebuilds leave the runner binary
+  5. add an UNTRACKED src/anvil/*.cpp build input, rebuild, then change only
+     that same file's bytes while status/path identity stays constant; the
+     recorded dirty hash MUST change
+  6. commit the mutations; rebuild; run again: git_sha == NEW HEAD and clean
+  7. determinism: two further no-change rebuilds leave the runner binary
      byte-identical (and untouched mtime — no recompilation churn)
 
 Exit codes: 0 pass, 1 fail, 77 deterministic skip (tooling unavailable).
@@ -229,7 +232,43 @@ def main() -> None:
                  f"HEAD {head!r}, got {dirty_sha!r}")
         out(f"dirty identity verified: dirty=true dirty_hash={dirty_hash[:12]}…")
 
-        # --- phase 4: commit the mutation; rebuild; sha must advance ---
+        # --- phase 4: untracked compiled-input CONTENT must affect identity ---
+        untracked = wt / "src" / "anvil" / "ProvenanceUntrackedProbe.cpp"
+        untracked.write_text(
+            'extern "C" int anvil_provenance_untracked_probe() { return 1; }\n',
+            encoding="utf-8")
+        run_build(build_dir)
+        m_untracked_a = run_runner(runner, clip, tmp / "out_untracked_a", nonrepo)
+        assert_build_generated(m_untracked_a, "untracked-a")
+        hash_a = prov(m_untracked_a, "git_dirty_hash")
+        if not (isinstance(hash_a, str) and len(hash_a) == 64):
+            fail(f"untracked-a: expected 64-hex dirty hash, got {hash_a!r}")
+        status_a = git(wt, "status", "--porcelain=v1", "--untracked-files=all")
+        diff_a = git(wt, "diff", "--binary", "--full-index", "HEAD", "--")
+
+        untracked.write_text(
+            'extern "C" int anvil_provenance_untracked_probe() { return 2; }\n',
+            encoding="utf-8")
+        status_b = git(wt, "status", "--porcelain=v1", "--untracked-files=all")
+        diff_b = git(wt, "diff", "--binary", "--full-index", "HEAD", "--")
+        if status_b != status_a:
+            fail("content-only untracked mutation changed porcelain identity")
+        if diff_b != diff_a:
+            fail("content-only untracked mutation changed tracked diff")
+
+        run_build(build_dir)
+        m_untracked_b = run_runner(runner, clip, tmp / "out_untracked_b", nonrepo)
+        assert_build_generated(m_untracked_b, "untracked-b")
+        hash_b = prov(m_untracked_b, "git_dirty_hash")
+        if not (isinstance(hash_b, str) and len(hash_b) == 64):
+            fail(f"untracked-b: expected 64-hex dirty hash, got {hash_b!r}")
+        if hash_b == hash_a:
+            fail("changing only the bytes of the same untracked compiled file "
+                 "did not change git_dirty_hash")
+        out("untracked compiled-input content identity verified: "
+            f"{hash_a[:12]}… -> {hash_b[:12]}…")
+
+        # --- phase 5: commit the mutations; rebuild; sha must advance ---
         git(wt, "add", "-A")
         git(wt, "-c", "user.name=anvil-provenance-regression",
             "-c", "user.email=anvil-provenance-regression@invalid",
@@ -251,7 +290,7 @@ def main() -> None:
                  f"{prov(m, 'git_dirty_hash')!r}")
         out(f"committed identity verified: sha={new_head[:12]} dirty=false")
 
-        # --- phase 5: determinism — no-change rebuilds must not churn ---
+        # --- phase 6: determinism — no-change rebuilds must not churn ---
         fp = binary_fingerprint(runner)
         for i in (1, 2):
             run_build(build_dir)

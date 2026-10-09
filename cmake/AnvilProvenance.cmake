@@ -10,12 +10,13 @@
 #   gitSha       — "git rev-parse HEAD", 40-hex validated, "" when unavailable
 #   gitDirty     — "true"/"false" from "git status --porcelain", "" when
 #                  Git itself failed
-#   gitDirtyHash — SHA-256 (lowercase hex) over the exact concatenation of the
-#                  raw "git status --porcelain" output and the raw
-#                  "git diff HEAD" output when the tree is dirty; "" when the
-#                  tree is clean or the repository is unavailable. Covers
-#                  tracked-content changes and untracked entries BY NAME ONLY
-#                  (git diff HEAD does not include untracked file contents).
+#   gitDirtyHash — SHA-256 (lowercase hex) over a content-complete dirty-tree
+#                  fingerprint: porcelain status; a full-index --binary diff
+#                  for tracked changes; ordered untracked path names + Git
+#                  blob hashes; and ignored src/anvil inputs + blob hashes.
+#                  "" when the tree is clean or the repository is unavailable.
+#                  Any dirty-state hashing failure is fatal: a build must not
+#                  publish an incomplete source identity.
 #   origin       — always "build_generated"
 #
 # Determinism: the file contains no timestamps or other volatile content, so
@@ -52,29 +53,101 @@ if(ANVIL_PROV_SHA_RC EQUAL 0
 endif()
 
 execute_process(
-    COMMAND git status --porcelain
+    COMMAND git status --porcelain=v1 --untracked-files=all
     WORKING_DIRECTORY "${SOURCE_DIR}"
     RESULT_VARIABLE ANVIL_PROV_STATUS_RC
     OUTPUT_VARIABLE ANVIL_PROV_STATUS_OUT
-    ERROR_QUIET)
+    ERROR_VARIABLE ANVIL_PROV_STATUS_ERR)
 if(ANVIL_PROV_STATUS_RC EQUAL 0)
     if(ANVIL_PROV_STATUS_OUT STREQUAL "")
         set(ANVIL_PROV_DIRTY "false")
     else()
         set(ANVIL_PROV_DIRTY "true")
-        # Raw outputs (no whitespace stripping) so the hash input is exactly
-        # reproducible: porcelain lines + diff output, byte for byte.
+
         execute_process(
-            COMMAND git diff HEAD
+            COMMAND git diff --binary --full-index --no-ext-diff HEAD --
             WORKING_DIRECTORY "${SOURCE_DIR}"
             RESULT_VARIABLE ANVIL_PROV_DIFF_RC
             OUTPUT_VARIABLE ANVIL_PROV_DIFF_OUT
-            ERROR_QUIET)
-        if(ANVIL_PROV_DIFF_RC EQUAL 0)
-            string(SHA256 ANVIL_PROV_DIRTY_HASH
-                "${ANVIL_PROV_STATUS_OUT}${ANVIL_PROV_DIFF_OUT}")
+            ERROR_VARIABLE ANVIL_PROV_DIFF_ERR)
+        if(NOT ANVIL_PROV_DIFF_RC EQUAL 0)
+            message(FATAL_ERROR
+                "ANVIL provenance: failed to capture tracked dirty content: "
+                "${ANVIL_PROV_DIFF_ERR}")
         endif()
+
+        execute_process(
+            COMMAND git ls-files --others --exclude-standard
+            WORKING_DIRECTORY "${SOURCE_DIR}"
+            RESULT_VARIABLE ANVIL_PROV_UNTRACKED_LIST_RC
+            OUTPUT_VARIABLE ANVIL_PROV_UNTRACKED_PATHS
+            ERROR_VARIABLE ANVIL_PROV_UNTRACKED_LIST_ERR)
+        if(NOT ANVIL_PROV_UNTRACKED_LIST_RC EQUAL 0)
+            message(FATAL_ERROR
+                "ANVIL provenance: failed to enumerate untracked files: "
+                "${ANVIL_PROV_UNTRACKED_LIST_ERR}")
+        endif()
+        set(ANVIL_PROV_UNTRACKED_HASHES "")
+        if(NOT ANVIL_PROV_UNTRACKED_PATHS STREQUAL "")
+            execute_process(
+                COMMAND git ls-files --others --exclude-standard
+                COMMAND git hash-object --no-filters --stdin-paths
+                WORKING_DIRECTORY "${SOURCE_DIR}"
+                RESULTS_VARIABLE ANVIL_PROV_UNTRACKED_HASH_RCS
+                OUTPUT_VARIABLE ANVIL_PROV_UNTRACKED_HASHES
+                ERROR_VARIABLE ANVIL_PROV_UNTRACKED_HASH_ERR)
+            foreach(ANVIL_PROV_RC IN LISTS ANVIL_PROV_UNTRACKED_HASH_RCS)
+                if(NOT ANVIL_PROV_RC EQUAL 0)
+                    message(FATAL_ERROR
+                        "ANVIL provenance: failed to hash untracked content: "
+                        "${ANVIL_PROV_UNTRACKED_HASH_ERR}")
+                endif()
+            endforeach()
+        endif()
+
+        # CONFIGURE_DEPENDS can compile ignored files under src/anvil if they
+        # match the source glob, so include those build inputs as well.
+        execute_process(
+            COMMAND git ls-files --others --ignored --exclude-standard -- src/anvil
+            WORKING_DIRECTORY "${SOURCE_DIR}"
+            RESULT_VARIABLE ANVIL_PROV_IGNORED_LIST_RC
+            OUTPUT_VARIABLE ANVIL_PROV_IGNORED_PATHS
+            ERROR_VARIABLE ANVIL_PROV_IGNORED_LIST_ERR)
+        if(NOT ANVIL_PROV_IGNORED_LIST_RC EQUAL 0)
+            message(FATAL_ERROR
+                "ANVIL provenance: failed to enumerate ignored ANVIL inputs: "
+                "${ANVIL_PROV_IGNORED_LIST_ERR}")
+        endif()
+        set(ANVIL_PROV_IGNORED_HASHES "")
+        if(NOT ANVIL_PROV_IGNORED_PATHS STREQUAL "")
+            execute_process(
+                COMMAND git ls-files --others --ignored --exclude-standard -- src/anvil
+                COMMAND git hash-object --no-filters --stdin-paths
+                WORKING_DIRECTORY "${SOURCE_DIR}"
+                RESULTS_VARIABLE ANVIL_PROV_IGNORED_HASH_RCS
+                OUTPUT_VARIABLE ANVIL_PROV_IGNORED_HASHES
+                ERROR_VARIABLE ANVIL_PROV_IGNORED_HASH_ERR)
+            foreach(ANVIL_PROV_RC IN LISTS ANVIL_PROV_IGNORED_HASH_RCS)
+                if(NOT ANVIL_PROV_RC EQUAL 0)
+                    message(FATAL_ERROR
+                        "ANVIL provenance: failed to hash ignored ANVIL input: "
+                        "${ANVIL_PROV_IGNORED_HASH_ERR}")
+                endif()
+            endforeach()
+        endif()
+
+        string(SHA256 ANVIL_PROV_DIRTY_HASH
+            "status\n${ANVIL_PROV_STATUS_OUT}"
+            "tracked-binary-diff\n${ANVIL_PROV_DIFF_OUT}"
+            "untracked-paths\n${ANVIL_PROV_UNTRACKED_PATHS}"
+            "untracked-blobs\n${ANVIL_PROV_UNTRACKED_HASHES}"
+            "ignored-anvil-paths\n${ANVIL_PROV_IGNORED_PATHS}"
+            "ignored-anvil-blobs\n${ANVIL_PROV_IGNORED_HASHES}")
     endif()
+elseif(NOT ANVIL_PROV_SHA STREQUAL "")
+    message(FATAL_ERROR
+        "ANVIL provenance: Git HEAD was available but dirty-state capture failed: "
+        "${ANVIL_PROV_STATUS_ERR}")
 endif()
 
 set(ANVIL_PROV_CONTENT "// AnvilBuildProvenance.cpp — GENERATED by \
