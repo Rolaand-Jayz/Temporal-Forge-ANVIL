@@ -35,13 +35,16 @@ struct MvEntry {
     uint8_t w = 0;          // block width
     uint8_t h = 0;          // block height
     int8_t  source = 0;     // <0 = backward (past ref), >0 = forward (future ref)
+    int32_t motionScale = 0; // AVMotionVector::motion_scale divisor, verbatim
     float confidence = 1.0f; // optional history trust, 1.0 for ordinary codec vectors
 };
 
 struct DecodedVideoFrame {
     int64_t ptsUs = 0;          // presentation timestamp, microseconds
     int64_t durationUs = 0;     // frame duration, microseconds
-    int64_t ptsTicks = -1;      // raw pts in stream timebase (-1 = none)
+    int64_t ptsTicks = -1;      // native tick of the DISPLAYED timestamp
+                                 // (pts, else best_effort; -1 only when both
+                                 // are AV_NOPTS_VALUE — see ptsSource below)
     int64_t durationTicks = 0;
     int width = 0;
     int height = 0;
@@ -62,6 +65,11 @@ struct DecodedVideoFrame {
     // PlaybackEngine uses this marker for the integrated causal-history guard.
     bool bFrame = false;
     int hwFrameFormat = -1;     // AVPixelFormat for the hardware frame, if any
+    // HDR side-data presence carried through from the decoded AVFrame so
+    // downstream consumers can reflect actual source evidence (never
+    // inferred from container or codec defaults).
+    bool hasMasteringDisplay = false;
+    bool hasContentLightLevel = false;
     // Retains mapped DRM PRIME descriptors and their DMA-BUF file descriptors
     // until the Vulkan uploader has imported the frame.
     std::shared_ptr<AVFrame> hwFrameOwner;
@@ -94,6 +102,25 @@ struct DecodedVideoFrame {
     // them — e.g. intra-only streams, or export disabled). These feed the
     // motion-texture synthesis in SideBufferTextures (MotionMode::Codec).
     std::vector<MvEntry> motionVectors;
+
+    // Native timestamp identity (appended for review 4209783084). tbNum/tbDen
+    // are the packet timebase given to the decoder at open() (the stream
+    // timebase ptsTicks/durationTicks are denominated in; the same timebase
+    // used for the ptsUs rescale, with the historical 1/1 fallback when the
+    // container declares none). ptsSource records which AVFrame timestamp
+    // produced ptsUs AND ptsTicks — one resolution (media/TimestampResolve.hpp)
+    // supplies ticks, microseconds and the label together, so they agree on
+    // every frame:
+    //   0 = none (AVFrame::pts and best_effort_timestamp both AV_NOPTS_VALUE;
+    //       ptsTicks is -1)
+    //   1 = AVFrame::pts (ptsTicks mirrors pts)
+    //   2 = best_effort_timestamp (ptsTicks mirrors best_effort — the native
+    //       identity of a best-effort frame is preserved, not discarded)
+    // A timebase finer than 1/1000000 can collapse distinct ptsTicks to the
+    // same ptsUs, so exact frame identity must use (ptsTicks, tbNum, tbDen).
+    int tbNum = 0;
+    int tbDen = 0;
+    int ptsSource = 0;
 };
 
 class VideoDecoder {
@@ -138,6 +165,10 @@ public:
     [[nodiscard]] bool gpuFriendlyFormat() const;
     [[nodiscard]] Timebase timebase() const;
     [[nodiscard]] bool hwaccelEnabled() const { return hwaccelEnabled_; }
+    // Codec name of the opened decoder (e.g. "h264", "hevc", "av1"), or
+    // nullptr when no codec is open. Lets callers derive per-codec capability
+    // instead of applying the global probe matrix to any input.
+    [[nodiscard]] const char* codecName() const;
 
     // sendPacket: feed one demuxed packet to the decoder.
     //
@@ -145,6 +176,7 @@ public:
     // Returns:   number of frames produced (0 or 1 typically; B-frames may
     //            delay output until later packets).
     int sendPacket(AVPacket* pkt);
+    [[nodiscard]] int lastSendError() const { return lastSendError_; }
 
     // receiveFrame: pull the next decoded frame (with YUV planes + motion vectors).
     //
@@ -153,6 +185,7 @@ public:
     //            into DecodedVideoFrame::motionVectors when present.
     // Returns:   false if no frame is ready yet (caller feeds more packets).
     bool receiveFrame(DecodedVideoFrame& out);
+    [[nodiscard]] int lastReceiveError() const { return lastReceiveError_; }
 
     // drainComplete: true once avcodec_receive_frame reported AVERROR_EOF —
     //                the decoder has emitted every frame of the stream and
@@ -187,6 +220,8 @@ private:
     bool hwaccelEnabled_ = false;
     bool motionMetadataRequested_ = false;
     bool drainComplete_ = false;
+    int lastSendError_ = 0;
+    int lastReceiveError_ = 0;
 };
 
 } // namespace temporal_forge

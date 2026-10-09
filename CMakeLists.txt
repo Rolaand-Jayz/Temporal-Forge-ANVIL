@@ -155,6 +155,9 @@ file(GLOB_RECURSE TFORGE_LIB_SOURCES CONFIGURE_DEPENDS
 )
 list(FILTER TFORGE_LIB_SOURCES EXCLUDE REGEX "${CMAKE_CURRENT_SOURCE_DIR}/external/.*")
 list(FILTER TFORGE_LIB_SOURCES EXCLUDE REGEX "${CMAKE_CURRENT_SOURCE_DIR}/src/main\\.cpp$")
+# ANVIL successor isolation: the successor builds as its own FFmpeg-only
+# library and must not be absorbed into the FSR-era player library.
+list(FILTER TFORGE_LIB_SOURCES EXCLUDE REGEX "${CMAKE_CURRENT_SOURCE_DIR}/src/anvil/.*")
 
 add_library(temporal_forge_lib STATIC ${TFORGE_LIB_SOURCES} ${FSR4_SHADER_FILES}
     ${FSR1_SHADER_FILES})
@@ -216,6 +219,92 @@ set_target_properties(temporal_forge_player PROPERTIES
     WIN32_EXECUTABLE FALSE
     MACOSX_BUNDLE FALSE
 )
+
+# --- ANVIL successor (non-FSR, Qt-free, Vulkan-free, deterministic) ---
+# Source identity is captured at BUILD time, not configure time (review
+# 4209766186): provenance captured only at configure goes stale as soon as a
+# source file changes or a new revision is checked out and ninja recompiles
+# without re-running configure, so a rebuilt binary could report a wrong or
+# even contradictorily clean identity. cmake/AnvilProvenance.cmake regenerates
+# the provenance translation unit below on every build and rewrites the file
+# ONLY when the captured content changes, so an unchanged Git state costs zero
+# recompilation.
+set(ANVIL_PROVENANCE_DIR "${CMAKE_BINARY_DIR}/anvil_provenance")
+set(ANVIL_PROVENANCE_SOURCE "${ANVIL_PROVENANCE_DIR}/AnvilBuildProvenance.cpp")
+# Configure-time generation guarantees the translation unit exists before any
+# compilation; the anvil_provenance target refreshes it from then on.
+execute_process(
+    COMMAND "${CMAKE_COMMAND}"
+        "-DOUT_FILE=${ANVIL_PROVENANCE_SOURCE}"
+        "-DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/AnvilProvenance.cmake"
+    RESULT_VARIABLE ANVIL_PROVENANCE_RC)
+if(NOT ANVIL_PROVENANCE_RC EQUAL 0 OR NOT EXISTS "${ANVIL_PROVENANCE_SOURCE}")
+    message(FATAL_ERROR
+        "ANVIL: failed to generate build-time provenance source "
+        "${ANVIL_PROVENANCE_SOURCE}")
+endif()
+set_source_files_properties("${ANVIL_PROVENANCE_SOURCE}" PROPERTIES
+    GENERATED TRUE)
+# Custom targets are phony in Ninja: anvil_provenance runs on every build.
+add_custom_target(anvil_provenance
+    COMMAND "${CMAKE_COMMAND}"
+        "-DOUT_FILE=${ANVIL_PROVENANCE_SOURCE}"
+        "-DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/AnvilProvenance.cmake"
+    BYPRODUCTS "${ANVIL_PROVENANCE_SOURCE}"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    COMMENT "ANVIL: capturing build-time Git provenance"
+    VERBATIM)
+
+file(GLOB ANVIL_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/anvil/*.cpp")
+# Reused historical decode shell: justified independently of FSR (FFmpeg
+# correctness, MV side-data extraction, color metadata). Compiled into the
+# successor lib so no Qt/Vulkan dependency is inherited.
+list(APPEND ANVIL_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/media/Demuxer.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/media/VideoDecoder.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/util/Log.cpp")
+# Build-time provenance definitions are strong and override the weak
+# fallbacks compiled from src/anvil/BuildProvenance.cpp (part of the GLOB).
+list(APPEND ANVIL_SOURCES "${ANVIL_PROVENANCE_SOURCE}")
+add_library(anvil_lib STATIC ${ANVIL_SOURCES})
+target_include_directories(anvil_lib PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_compile_features(anvil_lib PUBLIC cxx_std_23)
+target_compile_definitions(anvil_lib PRIVATE
+    ANVIL_BUILD_TYPE="${CMAKE_BUILD_TYPE}"
+    ANVIL_COMPILER_ID="${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+add_dependencies(anvil_lib anvil_provenance)
+foreach(lib ${FFMPEG_LIBRARIES})
+    target_link_libraries(anvil_lib PUBLIC ${lib})
+endforeach()
+target_link_directories(anvil_lib PUBLIC ${FFMPEG_LIBRARY_DIRS})
+target_include_directories(anvil_lib PUBLIC ${FFMPEG_INCLUDE_DIRS})
+target_link_libraries(anvil_lib PUBLIC Threads::Threads)
+
+add_executable(anvil_runner tools/anvil/main.cpp)
+target_include_directories(anvil_runner PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_compile_features(anvil_runner PRIVATE cxx_std_23)
+target_link_libraries(anvil_runner PRIVATE anvil_lib)
+
+# Deterministic fine-timebase fixture generator (libavformat/libavcodec
+# only). The FFmpeg CLI tick-fixture route (settb+setpts with -enc_time_base
+# 1/10000000) is version-sensitive: it completes instantly on ffmpeg 9 but
+# degenerates into a ~10-minute frame explosion on ubuntu-24.04's ffmpeg 6.1
+# (measured in CI run 37741621706), so both the C++ and python tick
+# regressions take their fixture from this tool.
+add_executable(make_tick_fixture tools/anvil/make_tick_fixture.cpp)
+target_compile_features(make_tick_fixture PRIVATE cxx_std_23)
+foreach(lib ${FFMPEG_LIBRARIES})
+    target_link_libraries(make_tick_fixture PRIVATE ${lib})
+endforeach()
+target_link_directories(make_tick_fixture PRIVATE ${FFMPEG_LIBRARY_DIRS})
+target_include_directories(make_tick_fixture PRIVATE ${FFMPEG_INCLUDE_DIRS})
+target_compile_definitions(anvil_runner PRIVATE
+    ANVIL_BUILD_TYPE="${CMAKE_BUILD_TYPE}"
+    ANVIL_COMPILER_ID="${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 
 # --- tests ---
 enable_testing()

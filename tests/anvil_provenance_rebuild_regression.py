@@ -1,0 +1,377 @@
+#!/usr/bin/env python3
+"""Rebuild-time provenance regression (review 4209766186).
+
+Guard: a rebuilt binary must never claim a stale Git source identity.
+
+This fails on the fd6fd9b4 design, where ANVIL_GIT_SHA / ANVIL_GIT_DIRTY are
+captured only by CMake configure (execute_process) and preferred
+unconditionally by detectGitSha()/detectGitDirty(): editing a source file (or
+committing a new revision) and re-running ninja recompiles the changed
+sources WITHOUT re-running configure, so the rebuilt binary keeps embedding
+the configure-time SHA and can even claim git_dirty=false for a mutated tree.
+
+Flow (all runner invocations happen with cwd set to a NON-REPOSITORY
+directory — the runtime-git detection tier must not be able to mask a stale
+embedded identity):
+  1. git worktree add --detach <tmp>/wt HEAD   (clean tree at HEAD)
+  2. cmake configure (Ninja, Release); build ONLY target anvil_runner
+  3. run once: git_sha == HEAD, git_dirty == "false",
+     git_dirty_hash null/absent, provenance_source == "build_generated"
+  4. add an IGNORED src/anvil/*.cpp as the ONLY build-affecting difference;
+     ordinary porcelain must remain empty, provenance must become dirty, and
+     changing only that ignored file's bytes must change the dirty hash
+  5. mutate a tracked source; rebuild WITHOUT reconfigure; run again:
+     must NOT claim (old HEAD, clean) — require git_dirty == "true" AND a
+     non-empty git_dirty_hash
+  6. add an UNTRACKED src/anvil/*.cpp build input, rebuild, then change only
+     that same file's bytes while status/path identity stays constant; the
+     recorded dirty hash MUST change
+  7. commit the mutations; rebuild; run again: git_sha == NEW HEAD and clean
+  8. determinism: two further no-change rebuilds leave the runner binary
+     byte-identical (and untouched mtime — no recompilation churn)
+
+Exit codes: 0 pass, 1 fail, 77 deterministic skip (tooling unavailable).
+"""
+
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+MUTATION_MARKER = "// provenance-rebuild-regression mutation\n"
+
+
+def fail(msg: str) -> "None":
+    print(f"FAIL anvil_provenance_rebuild_regression: {msg}")
+    sys.exit(1)
+
+
+def skip(msg: str) -> "None":
+    print(f"SKIP anvil_provenance_rebuild_regression: {msg}")
+    sys.exit(77)
+
+
+def out(msg: str) -> "None":
+    print(f"anvil_provenance_rebuild_regression: {msg}")
+
+
+def check_tools(source_dir: Path) -> None:
+    for tool in ("git", "cmake", "ninja", "ffmpeg"):
+        if shutil.which(tool) is None:
+            skip(f"'{tool}' binary unavailable")
+    enc = subprocess.run(
+        ["ffmpeg", "-hide_banner", "-encoders"],
+        capture_output=True, text=True)
+    if enc.returncode != 0 or "libx264" not in enc.stdout:
+        skip("ffmpeg libx264 encoder unavailable")
+    if not shutil.which("pkg-config"):
+        skip("pkg-config unavailable (FFmpeg dev libs required to build)")
+    probe = subprocess.run(
+        ["pkg-config", "--exists", "libavformat libavcodec libavutil libswscale"])
+    if probe.returncode != 0:
+        skip("FFmpeg dev libraries (libavformat/libavcodec/libavutil/libswscale) unavailable")
+    top = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"], cwd=source_dir,
+        capture_output=True, text=True)
+    if top.returncode != 0:
+        skip(f"source dir is not a git checkout: {source_dir}")
+
+
+def git(source_dir: Path, *args: str) -> str:
+    proc = subprocess.run(["git", "-C", str(source_dir), *args],
+                          capture_output=True, text=True)
+    if proc.returncode != 0:
+        fail(f"git {' '.join(args)} failed: {proc.stderr.strip()}")
+    return proc.stdout.strip()
+
+
+def run_build(build_dir: Path, env=None) -> None:
+    proc = subprocess.run(
+        ["cmake", "--build", str(build_dir), "--target", "anvil_runner",
+         "--parallel"],
+        capture_output=True, text=True, env=env)
+    if proc.returncode != 0:
+        fail(f"cmake --build failed:\n{proc.stdout}\n{proc.stderr}")
+
+
+def run_runner(runner: Path, clip: Path, out_dir: Path, cwd: Path):
+    out_dir.mkdir(parents=True, exist_ok=True)
+    # GIT_CEILING_DIRECTORIES pins the runtime-git fallback tier OFF: git
+    # invoked from `cwd` never ascends past the scratch root, so no host
+    # repository can supply identity. This makes the non-repo cwd property
+    # hold on any filesystem layout instead of requiring the scratch to
+    # physically live outside every repository (impossible when TMPDIR is
+    # inside the main checkout, e.g. a build-dir TMPDIR).
+    env = dict(os.environ)
+    env["GIT_CEILING_DIRECTORIES"] = str(cwd.parent)
+    proc = subprocess.run(
+        [str(runner), "--output-dir", str(out_dir), "--input", str(clip),
+         "--frame-count", "1"],
+        cwd=str(cwd), capture_output=True, text=True, env=env)
+    if proc.returncode != 0:
+        fail(f"anvil_runner failed from non-repo cwd {cwd}:\n"
+             f"{proc.stdout}\n{proc.stderr}")
+    manifest_path = out_dir / "manifest.json"
+    if not manifest_path.is_file():
+        fail(f"manifest.json missing in {out_dir}")
+    return json.loads(manifest_path.read_text())
+
+
+def prov(manifest: dict, key: str):
+    return manifest.get("provenance", {}).get(key, "<absent>")
+
+
+def assert_build_generated(manifest: dict, phase: str) -> None:
+    if prov(manifest, "provenance_source") != "build_generated":
+        fail(f"{phase}: provenance_source must be 'build_generated', got "
+             f"{prov(manifest, 'provenance_source')!r}")
+
+
+def binary_fingerprint(path: Path):
+    data = path.read_bytes()
+    return hashlib.sha256(data).hexdigest(), path.stat().st_mtime
+
+
+def main() -> None:
+    if len(sys.argv) != 2:
+        fail("usage: anvil_provenance_rebuild_regression.py <source_dir>")
+    source_dir = Path(sys.argv[1]).resolve()
+
+    check_tools(source_dir)
+
+    tmp = Path(tempfile.mkdtemp(prefix="anvil_prov_rebuild_"))
+    wt = tmp / "wt"
+    build_dir = tmp / "build"
+    nonrepo = tmp / "nonrepo_cwd"
+    nonrepo.mkdir(parents=True)
+    clip = tmp / "clip.mp4"
+    runner = build_dir / "anvil_runner"
+    worktree_added = False
+    try:
+        # Sanity-check the runtime-git masking: with GIT_CEILING_DIRECTORIES
+        # pinned at the scratch root (see run_runner), git invoked from the
+        # non-repo cwd must NOT discover any repository — including a host
+        # repository that physically contains this scratch dir.
+        ceiling = dict(os.environ)
+        ceiling["GIT_CEILING_DIRECTORIES"] = str(nonrepo.parent)
+        inside = subprocess.run(
+            ["git", "rev-parse", "--git-dir"], cwd=str(nonrepo),
+            capture_output=True, text=True, env=ceiling)
+        if inside.returncode == 0:
+            skip(f"GIT_CEILING_DIRECTORIES did not isolate {nonrepo}; "
+                 "runtime-git masking cannot be guaranteed")
+
+        # --- fixture: tiny deterministic x264 clip ---
+        enc = subprocess.run(
+            ["ffmpeg", "-y", "-loglevel", "error",
+             "-f", "lavfi", "-i", "testsrc2=size=64x64:rate=10:duration=1",
+             "-c:v", "libx264", "-pix_fmt", "yuv420p", str(clip)],
+            capture_output=True, text=True)
+        if enc.returncode != 0:
+            fail(f"ffmpeg clip generation failed: {enc.stderr.strip()}")
+        if not clip.is_file():
+            fail("ffmpeg clip generation produced no file")
+
+        # --- phase 0: clean detached worktree at HEAD ---
+        add = subprocess.run(
+            ["git", "worktree", "add", "--detach", str(wt), "HEAD"],
+            cwd=str(source_dir), capture_output=True, text=True)
+        if add.returncode != 0:
+            fail(f"git worktree add failed: {add.stderr.strip()}")
+        worktree_added = True
+        head = git(wt, "rev-parse", "HEAD")
+        dirty0 = git(wt, "status", "--porcelain")
+        if dirty0:
+            fail(f"fresh worktree is not clean: {dirty0!r}")
+
+        # --- phase 1: configure + build target anvil_runner ---
+        cfg = subprocess.run(
+            ["cmake", "-S", str(wt), "-B", str(build_dir), "-G", "Ninja",
+             "-DCMAKE_BUILD_TYPE=Release"],
+            capture_output=True, text=True)
+        if cfg.returncode != 0:
+            fail(f"cmake configure failed:\n{cfg.stdout}\n{cfg.stderr}")
+        run_build(build_dir)
+        if not runner.is_file():
+            fail(f"runner binary missing at {runner}")
+
+        # --- phase 2: clean identity at HEAD, from a non-repo cwd ---
+        m = run_runner(runner, clip, tmp / "out_clean", nonrepo)
+        assert_build_generated(m, "clean-at-HEAD")
+        if prov(m, "git_sha") != head:
+            fail(f"clean-at-HEAD: git_sha {prov(m, 'git_sha')!r} != HEAD {head!r}")
+        if prov(m, "git_dirty") != "false":
+            fail(f"clean-at-HEAD: git_dirty must be \"false\", got "
+                 f"{prov(m, 'git_dirty')!r}")
+        if prov(m, "git_dirty_hash") not in (None, "<absent>"):
+            fail(f"clean-at-HEAD: git_dirty_hash must be null/absent, got "
+                 f"{prov(m, 'git_dirty_hash')!r}")
+        out(f"clean identity verified: sha={head[:12]} dirty=false")
+
+        # --- phase 3: ignored-only compiled input must make identity dirty ---
+        ignored = wt / "src" / "anvil" / "ProvenanceIgnoredProbe.cpp"
+        excludes = tmp / "ignored-build-input.exclude"
+        excludes.write_text("src/anvil/ProvenanceIgnoredProbe.cpp\n",
+                            encoding="utf-8")
+        ignored_env = dict(os.environ)
+        ignored_env["GIT_CONFIG_COUNT"] = "1"
+        ignored_env["GIT_CONFIG_KEY_0"] = "core.excludesFile"
+        ignored_env["GIT_CONFIG_VALUE_0"] = str(excludes)
+
+        ignored.write_text(
+            'extern "C" int anvil_provenance_ignored_probe() { return 1; }\n',
+            encoding="utf-8")
+        status_ignored = subprocess.run(
+            ["git", "-C", str(wt), "status", "--porcelain=v1",
+             "--untracked-files=all"],
+            capture_output=True, text=True, env=ignored_env)
+        if status_ignored.returncode != 0:
+            fail(f"ignored-only status failed: {status_ignored.stderr.strip()}")
+        if status_ignored.stdout:
+            fail("ignored-only fixture is visible to ordinary porcelain; "
+                 "test no longer isolates the ignored-input case")
+
+        run_build(build_dir, env=ignored_env)
+        m_ignored_a = run_runner(
+            runner, clip, tmp / "out_ignored_a", nonrepo)
+        assert_build_generated(m_ignored_a, "ignored-a")
+        ignored_hash_a = prov(m_ignored_a, "git_dirty_hash")
+        if prov(m_ignored_a, "git_dirty") != "true":
+            fail(f"ignored-a: ignored compiled source must make provenance dirty, "
+                 f"got {prov(m_ignored_a, 'git_dirty')!r}")
+        if not (isinstance(ignored_hash_a, str) and len(ignored_hash_a) == 64):
+            fail(f"ignored-a: expected 64-hex dirty hash, got {ignored_hash_a!r}")
+
+        ignored.write_text(
+            'extern "C" int anvil_provenance_ignored_probe() { return 2; }\n',
+            encoding="utf-8")
+        run_build(build_dir, env=ignored_env)
+        m_ignored_b = run_runner(
+            runner, clip, tmp / "out_ignored_b", nonrepo)
+        assert_build_generated(m_ignored_b, "ignored-b")
+        ignored_hash_b = prov(m_ignored_b, "git_dirty_hash")
+        if ignored_hash_b == ignored_hash_a:
+            fail("changing only the bytes of the same ignored compiled source "
+                 "did not change git_dirty_hash")
+        out("ignored-only compiled-input content identity verified: "
+            f"{ignored_hash_a[:12]}… -> {ignored_hash_b[:12]}…")
+
+        ignored.unlink()
+        run_build(build_dir)
+        m_clean_again = run_runner(
+            runner, clip, tmp / "out_clean_again", nonrepo)
+        if prov(m_clean_again, "git_dirty") != "false":
+            fail("removing the ignored-only build input did not restore clean "
+                 "provenance before ordinary dirty-state phases")
+
+        # --- phase 4: mutate a tracked source; rebuild WITHOUT reconfigure ---
+        mutated = wt / "src" / "util" / "Log.cpp"
+        with mutated.open("a", encoding="utf-8") as f:
+            f.write(MUTATION_MARKER)
+        run_build(build_dir)  # ninja only — no cmake reconfigure
+        m = run_runner(runner, clip, tmp / "out_dirty", nonrepo)
+        assert_build_generated(m, "dirty-rebuild")
+        dirty_sha, dirty_hash = prov(m, "git_sha"), prov(m, "git_dirty_hash")
+        if prov(m, "git_dirty") == "false" and dirty_sha == head:
+            fail("dirty-rebuild still claims the stale clean identity "
+                 f"(git_dirty=false, git_sha==HEAD {head!r}) — configure-time "
+                 "capture regressed")
+        if prov(m, "git_dirty") != "true":
+            fail(f"dirty-rebuild: git_dirty must be \"true\", got "
+                 f"{prov(m, 'git_dirty')!r}")
+        if not (isinstance(dirty_hash, str) and len(dirty_hash) == 64):
+            fail(f"dirty-rebuild: git_dirty_hash must be a non-empty 64-hex "
+                 f"string, got {dirty_hash!r}")
+        if dirty_sha != head:
+            fail(f"dirty-rebuild: uncommitted mutation must keep git_sha at "
+                 f"HEAD {head!r}, got {dirty_sha!r}")
+        out(f"dirty identity verified: dirty=true dirty_hash={dirty_hash[:12]}…")
+
+        # --- phase 5: untracked compiled-input CONTENT must affect identity ---
+        untracked = wt / "src" / "anvil" / "ProvenanceUntrackedProbe.cpp"
+        untracked.write_text(
+            'extern "C" int anvil_provenance_untracked_probe() { return 1; }\n',
+            encoding="utf-8")
+        run_build(build_dir)
+        m_untracked_a = run_runner(runner, clip, tmp / "out_untracked_a", nonrepo)
+        assert_build_generated(m_untracked_a, "untracked-a")
+        hash_a = prov(m_untracked_a, "git_dirty_hash")
+        if not (isinstance(hash_a, str) and len(hash_a) == 64):
+            fail(f"untracked-a: expected 64-hex dirty hash, got {hash_a!r}")
+        status_a = git(wt, "status", "--porcelain=v1", "--untracked-files=all")
+        diff_a = git(wt, "diff", "--binary", "--full-index", "HEAD", "--")
+
+        untracked.write_text(
+            'extern "C" int anvil_provenance_untracked_probe() { return 2; }\n',
+            encoding="utf-8")
+        status_b = git(wt, "status", "--porcelain=v1", "--untracked-files=all")
+        diff_b = git(wt, "diff", "--binary", "--full-index", "HEAD", "--")
+        if status_b != status_a:
+            fail("content-only untracked mutation changed porcelain identity")
+        if diff_b != diff_a:
+            fail("content-only untracked mutation changed tracked diff")
+
+        run_build(build_dir)
+        m_untracked_b = run_runner(runner, clip, tmp / "out_untracked_b", nonrepo)
+        assert_build_generated(m_untracked_b, "untracked-b")
+        hash_b = prov(m_untracked_b, "git_dirty_hash")
+        if not (isinstance(hash_b, str) and len(hash_b) == 64):
+            fail(f"untracked-b: expected 64-hex dirty hash, got {hash_b!r}")
+        if hash_b == hash_a:
+            fail("changing only the bytes of the same untracked compiled file "
+                 "did not change git_dirty_hash")
+        out("untracked compiled-input content identity verified: "
+            f"{hash_a[:12]}… -> {hash_b[:12]}…")
+
+        # --- phase 6: commit the mutations; rebuild; sha must advance ---
+        git(wt, "add", "-A")
+        git(wt, "-c", "user.name=anvil-provenance-regression",
+            "-c", "user.email=anvil-provenance-regression@invalid",
+            "commit", "-m", "provenance rebuild regression mutation")
+        new_head = git(wt, "rev-parse", "HEAD")
+        if new_head == head:
+            fail("commit produced no new HEAD")
+        run_build(build_dir)
+        m = run_runner(runner, clip, tmp / "out_committed", nonrepo)
+        assert_build_generated(m, "committed-rebuild")
+        if prov(m, "git_sha") != new_head:
+            fail(f"committed-rebuild: git_sha {prov(m, 'git_sha')!r} != new "
+                 f"HEAD {new_head!r}")
+        if prov(m, "git_dirty") != "false":
+            fail(f"committed-rebuild: git_dirty must be \"false\", got "
+                 f"{prov(m, 'git_dirty')!r}")
+        if prov(m, "git_dirty_hash") not in (None, "<absent>"):
+            fail(f"committed-rebuild: git_dirty_hash must be null/absent, got "
+                 f"{prov(m, 'git_dirty_hash')!r}")
+        out(f"committed identity verified: sha={new_head[:12]} dirty=false")
+
+        # --- phase 7: determinism — no-change rebuilds must not churn ---
+        fp = binary_fingerprint(runner)
+        for i in (1, 2):
+            run_build(build_dir)
+            fp2 = binary_fingerprint(runner)
+            if fp2 != fp:
+                fail(f"no-change rebuild {i} changed the runner binary "
+                     f"(sha256 {fp[0][:12]}… -> {fp2[0][:12]}…, mtime "
+                     f"{fp[1]} -> {fp2[1]}): provenance regeneration is not "
+                     "content-guarded")
+        out("determinism verified: two no-change rebuilds left the binary "
+            f"byte-identical (sha256 {fp[0][:12]}…, mtime untouched)")
+
+        print("PASS anvil_provenance_rebuild_regression")
+    finally:
+        if worktree_added:
+            subprocess.run(
+                ["git", "worktree", "remove", "--force", str(wt)],
+                cwd=str(source_dir), capture_output=True, text=True)
+            subprocess.run(["git", "worktree", "prune"],
+                           cwd=str(source_dir), capture_output=True, text=True)
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+if __name__ == "__main__":
+    main()

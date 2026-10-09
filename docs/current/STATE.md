@@ -1,64 +1,113 @@
 # Temporal Forge current state
 
-**Status:** CURRENT — **FSR ERA CLOSED — ANVIL SUCCESSOR PROGRAM AUTHORIZED**  
-**As of:** 2026-10-05  
-**Closure base:** `main` @ `285a5788f89787bce0ca26f8e8e8ca312890723f`  
-**Successor authorization:** maintainer directive, 2026-10-05 (see "Successor program state" below)
+**Status:** CURRENT — **FSR ERA CLOSED · ANVIL BUILD-READY CANDIDATE ACTIVE**  
+**As of:** 2026-10-08  
+**Historical closure base:** `main` @ `285a5788f89787bce0ca26f8e8e8ca312890723f`  
+**Successor branch:** `successor/anvil-build-ready`  
+**Draft review:** PR #1 — **DO NOT MERGE without explicit maintainer authorization**  
+**Current implementation/evidence head before this documentation reconciliation:** `5f10b26f84ba89293e1b38622521acde37ee0732`  
+**Exact-head CI:** Actions run `37855358002` — SUCCESS
 
-## Project state
+## Current program state
 
-This repository is the closed historical record of the FSR-centered Temporal Forge Player research line.
+Temporal Forge now has two deliberately separate states:
 
-The player remains an operational GPU-native Linux/Vulkan local-video player and the repository retains its FSR 4.1 RE experimental path, spatial fallback, tests, benchmark tooling, evidence, provenance, and reproducibility work. Those implementation facts remain useful historical artifacts.
+1. The **FSR-centered research era is closed**. Its evidence, negative results, provenance boundaries, historical player, and closure adjudication remain preserved and must not be reinterpreted as an active FSR campaign.
+2. The **Temporal Forge / ANVIL successor program is active**. A minimum scientifically testable build-ready candidate exists on `successor/anvil-build-ready` and is being qualified under the authorized ANVIL execution pack.
 
-There is **no active FSR quality campaign** and no standing plan to continue FSR-specific expected-input reconstruction, motion/jitter tuning, graph adaptation, or quality promotion.
+The successor does not inherit FSR-specific jitter, motion, history, scaling, composition, tensor, or backend assumptions merely because they existed in the historical player.
 
-The closure authority is [`../closure/README.md`](../closure/README.md), especially:
+## Current ANVIL candidate
+
+The current successor is a deterministic, headless/offline, CPU ANVIL research rig isolated under `src/anvil/`. Its active pipeline is:
+
+```text
+decode
+→ window_select
+→ side_info_normalization
+→ correspondence
+→ correspondence_refinement
+→ visibility
+→ sample_geometry
+→ confidence
+→ color_convert
+→ accumulate
+→ output backend
+```
+
+The order of `sample_geometry` before `confidence` is intentional: estimated confidence measures the geometry-adjusted warp.
+
+Current research controls include:
+
+- configurable past/future temporal windows and exact per-neighbor ablation;
+- exact frame, microsecond timestamp, and native-tick timestamp selection;
+- explicit raw codec side-info normalization with a truthful bypass;
+- coarse image correspondence, meaningful residual refinement, strict oracle correspondence, codec side-info mode, and no-correspondence control;
+- visibility and confidence controls/oracles;
+- sample geometry with reachable `unknown`, `estimated`, and `known/oracle` states;
+- deterministic temporal reconstruction independent of FSR;
+- replaceable `pnm` and `null` output backends;
+- per-stage timings/dumps, run manifests, input/oracle hashes, exact build/Git provenance, and deterministic replay;
+- HR reference attachment for controlled fixtures without reconstruction contamination.
+
+See [`ANVIL_SUCCESSOR_ARCHITECTURE.md`](ANVIL_SUCCESSOR_ARCHITECTURE.md) for the detailed interface and evidence model.
+
+## Qualification and evaluator state
+
+The governing Build-Ready contract is:
+
+[`../../zcode_packs/temporal_forge_anvil_zcode_pack_2026-10-05/BUILD_READY_CONTRACT.md`](../../zcode_packs/temporal_forge_anvil_zcode_pack_2026-10-05/BUILD_READY_CONTRACT.md)
+
+The current evidence record is:
+
+[`ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](ANVIL_BUILD_READY_QUALIFICATION_20261005.md)
+
+The independent evaluator pass on 2026-10-07 left seven findings open: meaningful residual refinement, executable estimated sample geometry, independent side-info normalization, replaceable output backend, non-stale build provenance, native timestamp identity, and correct sample-geometry/confidence documentation order.
+
+All seven now have implementation repairs and focused regressions on the successor branch. Their GitHub review threads remain intentionally unresolved until the independent evaluator verifies the repaired head. Therefore:
+
+```text
+BUILD_READY_FOR_RESEARCH = CANDIDATE / PENDING INDEPENDENT EVALUATOR
+```
+
+This repository must not self-promote that value to TRUE merely because internal repair/review loops or CI are green.
+
+## Current validation snapshot
+
+Exact implementation/evidence head `5f10b26f84ba89293e1b38622521acde37ee0732`:
+
+- GitHub Actions run `37855358002`: **SUCCESS**
+- Arch build + CTest: CTest reported **100% tests passed out of 32 non-disabled tests**
+  - 29 tests completed normally
+  - 3 tests were explicitly skipped: `fsr4_weight_tests`, `fsr4_tensormap_tests`, and `anvil_provenance_rebuild_regression`
+  - 4 historical GPU tests remain disabled by design
+- Python CI contract job: **124 passed**
+  - 68 historical Python tests
+  - 56 ANVIL contract tests
+- Current ANVIL test inventory also includes dedicated C++ refinement, geometry-estimate, side-info, output-backend, timestamp, codec, core, and runner targets.
+
+Green CI is necessary evidence, not an independent gate decision.
+
+## FSR-era state
+
+There is **no active FSR quality campaign** and no standing plan to resume FSR-specific expected-input reconstruction, motion/jitter tuning, graph adaptation, or quality promotion.
+
+The closure authority remains [`../closure/README.md`](../closure/README.md), especially:
 
 - [`../closure/FSR41_FINAL_ADJUDICATION_20260915.md`](../closure/FSR41_FINAL_ADJUDICATION_20260915.md)
 - [`../closure/CLAIM_EVIDENCE_LEDGER.md`](../closure/CLAIM_EVIDENCE_LEDGER.md)
 - [`../closure/LIMITATIONS_AND_OPEN_QUESTIONS.md`](../closure/LIMITATIONS_AND_OPEN_QUESTIONS.md)
 - [`../closure/EVALUATION_STANDARD.md`](../closure/EVALUATION_STANDARD.md)
 
-## Final FSR-era engineering state
-
-The default backend in this tree remains FSR4-RE Experimental INT8 when its proof gates and required assets are satisfied on supported RDNA3 hardware, with fallback behavior as documented in [`../reference/ARCHITECTURE.md`](../reference/ARCHITECTURE.md). The FSR 3.1.5 SDK tier remains source-visible but compiled out of the redistributable clean-clone build; the spatial path is the reliability floor.
-
-The checked-in `config/quality_lab.json` remains part of the historical executable behavior of this tree. Closure does not promote new quality settings or rewrite the final runtime policy.
-
-## Final evidence state
-
-The repository preserves:
-
-- the completed 288-key multi-frame motion campaign;
-- real-world spatial/temporal corpus results and rejected probes;
-- M6 matrix and recapture evidence;
-- supersampling evidence;
-- the lattice-corruption reopen/adjudication history;
-- the qualified clean-clone portability/remediation campaign;
-- licensing and reverse-engineering provenance boundaries;
-- the final Expected-Food checkpoint merged to `main` on 2026-09-12.
-
-The central closure finding is not that temporal inputs are irrelevant. They measurably participate in output. The stronger expected-input proposition — that increasingly plausible FSR-side surrogate inputs would expose sufficient repeatable reconstruction headroom to justify FSR as the continuing architecture — was not supported strongly enough by the accumulated evidence.
-
-## Architectural decision
-
-FSR 4.1 adaptation is no longer the architectural center of Temporal Forge.
-
-Future Temporal Forge work should begin from the broader objective of recovering genuine source-supported detail from temporally distributed video observations. It must not inherit FSR-specific assumptions by default. On 2026-10-05 the maintainer authorized the concrete successor build program recorded under [`../../zcode_packs/`](../../zcode_packs/README.md); see "Successor program state" below.
-
-## Successor program state (2026-10-05)
-
-- The maintainer has authorized the successor "Temporal Forge / ANVIL" build program via the execution pack ingested and adapted under [`../../zcode_packs/`](../../zcode_packs/README.md).
-- This repository (`/mnt/workdrive/Temporal-Forge-ANVIL`, remote `origin-anvil`) is the designated mutable working repository and push target; historical `main` must not be rewritten — successor work proceeds on a dedicated branch per the pack.
-- As of this entry the program has **not** been executed: no successor branch exists, no `BUILD_READY_FOR_RESEARCH` claim has been made, and no successor quality campaign has run.
-- The FSR-era prohibitions in this document and in `AGENTS.md` remain in force for all historical material.
+The preserved historical player remains an operational GPU-native Linux/Vulkan application with its FSR 4.1 RE experimental path, spatial fallback, tests, benchmark tooling, evidence, and provenance record. Those are historical implementation facts, not an ANVIL architectural mandate.
 
 ## Repository authority
 
-- Executable code remains the truth for what this historical player does.
-- Closure documents are the truth for whether the FSR campaign is active: it is not.
-- Archived plans and progress logs are historical evidence, even where their original text contains imperative language.
-- No archived document can reactivate work without an explicit maintainer decision.
+- Explicit maintainer direction controls authorization, including merge authority.
+- The ANVIL execution pack and Build-Ready contract govern successor requirements.
+- Executable source/tests establish what the successor actually does.
+- The qualification record summarizes evidence but does not outrank the governing contract or independent evaluation.
+- Closure documents govern interpretation of the FSR era.
+- Archived plans/progress logs remain historical evidence and cannot reactivate a closed campaign by themselves.
 
-The FSR-era record in this repository is evidence, not an active architectural mandate. Authority for successor behavioral work is the maintainer's explicit directive plus the pack's contracts and evidence guardrails.
+The FSR-era record is evidence, not a solution template. The active successor program must remain evidence-driven and vendor-agnostic.

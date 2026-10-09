@@ -31,6 +31,13 @@ struct StreamInfo {
     int height = 0;
     double frameRate = 0.0;        // computed fps (num/den) at demux time
     double sampleAspectRatio = 1.0;
+    // Container-declared stream timebase of the video track (0/0 when the
+    // container does not declare one — never a fabricated default). This is
+    // the timebase the decoder's native pts ticks are denominated in;
+    // rescaling to microseconds can collapse distinct ticks for any timebase
+    // finer than 1/1000000 (review 4209783084).
+    int timebaseNum = 0;
+    int timebaseDen = 0;
     // audio-only
     int sampleRate = 0;
     int channels = 0;
@@ -100,6 +107,9 @@ public:
     //            final packet. Blocking unless requestAbort() was called.
     // Notes:     out.isFlush is set on flush packets emitted after a seek.
     bool readPacket(Packet& out);
+    // Last libavformat read status: 0 after a successful read, AVERROR_EOF on
+    // clean end-of-stream, another negative value on failure/abort.
+    [[nodiscard]] int lastReadError() const { return lastReadError_; }
 
     // seekUs: seek to targetUs microseconds (stream-agnostic via AV_TIME_BASE).
     //
@@ -124,6 +134,7 @@ private:
     AVFormatContext* ctx_ = nullptr;
     MediaInfo info_;
     std::atomic<bool> abort_{false};
+    int lastReadError_ = 0;
 };
 
 } // namespace temporal_forge

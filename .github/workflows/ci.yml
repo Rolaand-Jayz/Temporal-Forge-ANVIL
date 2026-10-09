@@ -48,6 +48,20 @@ jobs:
         with:
           lfs: false
           fetch-depth: 1
+          # pull_request defaults to refs/pull/<n>/merge. Build-Ready
+          # provenance must validate the literal PR branch head instead.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      # The Arch job runs inside a container while the mounted checkout is
+      # owned by the host runner. Git otherwise rejects it as dubious
+      # ownership, which made both build-time provenance and the mandatory
+      # rebuild regression see "not a git checkout".
+      - name: Trust checkout for Git provenance
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Verify branch-head checkout
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -57,6 +71,13 @@ jobs:
 
       - name: CTest
         run: ctest --test-dir build --output-on-failure
+
+      # Mandatory Build-Ready evidence. CTest keeps this regression skippable
+      # on generic developer hosts; in CI, exit 77 is a visible job failure.
+      - name: Required ANVIL provenance rebuild regression
+        run: |
+          TMPDIR="$(dirname "$GITHUB_WORKSPACE")" \
+            python3 tests/anvil_provenance_rebuild_regression.py "$GITHUB_WORKSPACE"
 
   python-contracts:
     name: Python contract suite
@@ -69,13 +90,49 @@ jobs:
         with:
           lfs: false
           fetch-depth: 1
+          # pull_request defaults to refs/pull/<n>/merge. Build-Ready
+          # provenance must validate the literal PR branch head instead.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Install pytest
+      - name: Verify branch-head checkout
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+
+      - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pytest
+          sudo apt-get install -y python3-pytest ffmpeg pkg-config libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libva-dev libdrm-dev
 
-      - name: Run PR #7 contract suite
+      # The ANVIL targets need only FFmpeg. The historical player requires
+      # Qt6 >= 6.6, which ubuntu-24.04 apt does not provide, so the full
+      # CMake configure cannot run here (the Arch build job covers that
+      # path, including the ANVIL CTest targets). Compile the runner
+      # directly from the same sources instead.
+      - name: Build anvil_runner (ANVIL contract binary)
+        run: |
+          mkdir -p build-py
+          GIT_SHA="$(git rev-parse HEAD)"
+          if [ -n "$(git status --porcelain)" ]; then GIT_DIRTY=true; else GIT_DIRTY=false; fi
+          g++ -std=c++23 -O2 -Isrc \
+            -DANVIL_BUILD_TYPE="\"g++-direct\"" \
+            -DANVIL_COMPILER_ID="\"g++ $(g++ -dumpversion)\"" \
+            -DANVIL_GIT_SHA="\"$GIT_SHA\"" \
+            -DANVIL_GIT_DIRTY="\"$GIT_DIRTY\"" \
+            tools/anvil/main.cpp \
+            src/anvil/*.cpp \
+            src/media/Demuxer.cpp src/media/VideoDecoder.cpp src/util/Log.cpp \
+            $(pkg-config --cflags --libs libavformat libavcodec libavutil libswscale) \
+            -pthread -o build-py/anvil_runner
+          # Fine-timebase fixture generator for the tick-collision
+          # regression: the ffmpeg-CLI fixture route is version-sensitive
+          # (hangs ~10 min on ubuntu-24.04's ffmpeg 6.1), so the python
+          # suite consumes the libavformat tool instead.
+          g++ -std=c++23 -O2 tools/anvil/make_tick_fixture.cpp \
+            $(pkg-config --cflags --libs libavformat libavcodec libavutil) \
+            -o build-py/make_tick_fixture
+          ./build-py/anvil_runner --help > /dev/null
+
+      - name: Run historical + ANVIL contract suites
         run: |
           python3 -m pytest -q \
             tests/test_all_candidate_matrix.py \
@@ -83,4 +140,8 @@ jobs:
             tests/test_harness_capture_contract.py \
             tests/test_temporal_matrix.py \
             tests/test_quality_runner_contract.py \
-            tests/test_event_trace_assembly.py
+            tests/test_event_trace_assembly.py \
+            tests/test_anvil_contract.py
+        env:
+          ANVIL_RUNNER: ${{ github.workspace }}/build-py/anvil_runner
+          ANVIL_MAKE_TICK_FIXTURE: ${{ github.workspace }}/build-py/make_tick_fixture

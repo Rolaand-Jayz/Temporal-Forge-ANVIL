@@ -1,5 +1,7 @@
 // VideoDecoder.cpp
 #include "media/VideoDecoder.hpp"
+
+#include "media/TimestampResolve.hpp"
 #include "util/Log.hpp"
 
 extern "C" {
@@ -16,6 +18,7 @@ extern "C" {
 #include <cstring>
 #include <cstdlib>
 #include <algorithm>
+#include <limits>
 
 namespace temporal_forge {
 
@@ -47,6 +50,7 @@ static MvEntry codecMvToCurrentPrevious(const AVMotionVector& motion) {
     entry.w = motion.w;
     entry.h = motion.h;
     entry.source = static_cast<int8_t>(std::clamp(motion.source, -128, 127));
+    entry.motionScale = motion.motion_scale;
     return entry;
 }
 
@@ -77,8 +81,10 @@ VideoDecoder::VideoDecoder() = default;
 VideoDecoder::~VideoDecoder() { close(); }
 
 bool VideoDecoder::open(AVFormatContext* fmt, int streamIndex) {
-    drainComplete_ = false;
     close();
+    drainComplete_ = false;
+    lastSendError_ = 0;
+    lastReceiveError_ = 0;
     if (!fmt || streamIndex < 0 || streamIndex >= static_cast<int>(fmt->nb_streams)) {
         logError("VideoDecoder: invalid stream index {}", streamIndex);
         return false;
@@ -178,6 +184,9 @@ void VideoDecoder::close() {
     frameCounter_ = 0;
     hwPixFmt_ = AV_PIX_FMT_NONE;
     hwaccelEnabled_ = false;
+    drainComplete_ = false;
+    lastSendError_ = 0;
+    lastReceiveError_ = 0;
 }
 
 Timebase VideoDecoder::timebase() const {
@@ -186,9 +195,14 @@ Timebase VideoDecoder::timebase() const {
             static_cast<int>(codec_->pkt_timebase.den)};
 }
 
+const char* VideoDecoder::codecName() const {
+    return codec_ ? avcodec_get_name(codec_->codec_id) : nullptr;
+}
+
 int VideoDecoder::sendPacket(AVPacket* pkt) {
     if (!codec_) return 0;
     int err = avcodec_send_packet(codec_, pkt);
+    lastSendError_ = err;
     if (err < 0 && err != AVERROR(EAGAIN) && err != AVERROR_EOF) {
         char buf[128] = {0}; av_strerror(err, buf, sizeof(buf));
         logWarn("VideoDecoder: send_packet error: {}", buf);
@@ -212,8 +226,9 @@ bool VideoDecoder::receiveFrame(DecodedVideoFrame& out) {
     for (auto& layer : out.drmLayerPlane)
         for (auto& plane : layer) plane = {};
     int err = avcodec_receive_frame(codec_, frame_);
+    lastReceiveError_ = err;
     if (err == AVERROR_EOF) drainComplete_ = true;
-    if (err < 0) return false; // EAGAIN or EOF
+    if (err < 0) return false; // EAGAIN, EOF, or fatal error (inspect accessor)
 
     const AVPixelFormat decodedFmt = static_cast<AVPixelFormat>(frame_->format);
     const bool decodedHwFrame = isHardwarePixelFormat(decodedFmt) || isDrmPrimeFrame(frame_);
@@ -289,6 +304,12 @@ bool VideoDecoder::receiveFrame(DecodedVideoFrame& out) {
     out.chromaLocation = sourceFrame->chroma_location != AVCHROMA_LOC_UNSPECIFIED
                              ? sourceFrame->chroma_location
                              : codec_->chroma_sample_location;
+    out.hasMasteringDisplay =
+        av_frame_get_side_data(const_cast<AVFrame*>(sourceFrame),
+                               AV_FRAME_DATA_MASTERING_DISPLAY_METADATA) != nullptr;
+    out.hasContentLightLevel =
+        av_frame_get_side_data(const_cast<AVFrame*>(sourceFrame),
+                               AV_FRAME_DATA_CONTENT_LIGHT_LEVEL) != nullptr;
     const AVPixFmtDescriptor *sourceDesc =
         av_pix_fmt_desc_get(static_cast<AVPixelFormat>(sourceFrame->format));
     out.bitDepth = sourceDesc && sourceDesc->comp[0].depth > 0
@@ -304,17 +325,26 @@ bool VideoDecoder::receiveFrame(DecodedVideoFrame& out) {
     out.drmObjects = 0;
     out.keyframe = (sourceFrame->flags & AV_FRAME_FLAG_KEY) != 0;
     out.frameIndex = frameCounter_++;
-    out.ptsTicks = sourceFrame->pts != AV_NOPTS_VALUE ? sourceFrame->pts : -1;
     out.durationTicks = sourceFrame->duration;
 
-    // Convert PTS/duration to microseconds using the stream timebase.
+    // Convert the display timestamp to microseconds using the stream
+    // timebase, and record the effective timebase plus the provenance of
+    // the displayed timestamp beside the µs value. Ticks, microseconds and
+    // the source label all come from ONE resolution (pts when present,
+    // else best_effort), so a best-effort frame keeps its native tick too —
+    // a timebase finer than 1/1000000 can rescale distinct ticks to the
+    // same microsecond, making ptsUs alone insufficient as a frame identity
+    // (review 4209783084).
     AVRational tb = codec_->pkt_timebase;
     if (tb.den == 0) tb = {1, 1};
-    if (sourceFrame->pts != AV_NOPTS_VALUE) {
-        out.ptsUs = av_rescale_q(sourceFrame->pts, tb, {1, 1000000});
-    } else if (sourceFrame->best_effort_timestamp != AV_NOPTS_VALUE) {
-        out.ptsUs = av_rescale_q(sourceFrame->best_effort_timestamp, tb, {1, 1000000});
-    }
+    out.tbNum = tb.num;
+    out.tbDen = tb.den;
+    const temporal_forge::ResolvedTimestamp resolved =
+        temporal_forge::resolveDisplayTimestamp(
+            sourceFrame->pts, sourceFrame->best_effort_timestamp, tb);
+    out.ptsTicks = resolved.ticks;
+    out.ptsUs = resolved.microseconds;
+    out.ptsSource = resolved.source;
     if (sourceFrame->duration > 0) {
         out.durationUs = av_rescale_q(sourceFrame->duration, tb, {1, 1000000});
     }
@@ -337,10 +367,33 @@ bool VideoDecoder::receiveFrame(DecodedVideoFrame& out) {
         for (int i = 0; i < out.planes; ++i) {
             int planeH = out.height;
             if (desc && i > 0) planeH = AV_CEIL_RSHIFT(out.height, desc->log2_chroma_h);
-            int ls = sourceFrame->linesize[i];
-            size_t bytes = static_cast<size_t>(ls) * planeH;
-            out.linesize[i] = ls;
-            out.plane[i].assign(sourceFrame->data[i], sourceFrame->data[i] + bytes);
+            const int sourceStride = sourceFrame->linesize[i];
+            const int64_t stride64 = sourceStride < 0
+                ? -static_cast<int64_t>(sourceStride)
+                : static_cast<int64_t>(sourceStride);
+            if (!sourceFrame->data[i] || planeH <= 0 || stride64 <= 0
+                || stride64 > std::numeric_limits<int>::max()
+                || static_cast<uint64_t>(stride64)
+                    > std::numeric_limits<size_t>::max()
+                        / static_cast<uint64_t>(planeH)) {
+                logWarn("VideoDecoder: invalid decoded plane {} stride={} height={}",
+                        i, sourceStride, planeH);
+                lastReceiveError_ = AVERROR_INVALIDDATA;
+                if (transferredFrame) av_frame_free(&transferredFrame);
+                av_frame_unref(frame_);
+                return false;
+            }
+            const size_t rowBytes = static_cast<size_t>(stride64);
+            const size_t bytes = rowBytes * static_cast<size_t>(planeH);
+            out.linesize[i] = static_cast<int>(stride64);
+            out.plane[i].resize(bytes);
+            for (int y = 0; y < planeH; ++y) {
+                const uint8_t* srcRow = sourceFrame->data[i]
+                    + static_cast<ptrdiff_t>(y) * sourceStride;
+                std::memcpy(out.plane[i].data()
+                                + static_cast<size_t>(y) * rowBytes,
+                            srcRow, rowBytes);
+            }
         }
     } else if (drmFrame) {
         const auto* drm = reinterpret_cast<const AVDRMFrameDescriptor*>(drmFrame->data[0]);
@@ -458,6 +511,8 @@ void VideoDecoder::flush() {
     if (codec_) avcodec_flush_buffers(codec_);
     frameCounter_ = 0;
     drainComplete_ = false;
+    lastSendError_ = 0;
+    lastReceiveError_ = 0;
 }
 
 } // namespace temporal_forge

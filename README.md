@@ -2,7 +2,7 @@
 
 > **FSR-era research closed 2026-09-15 · ANVIL successor program authorized 2026-10-05**
 
-**Successor program (active):** the maintainer has authorized the "Temporal Forge / ANVIL" successor build program; this repository is its designated working repository and push target. The program pack, contracts, and mapping decision live under [`zcode_packs/README.md`](zcode_packs/README.md). As of authorization, successor work has not yet started (no successor branch; historical `main` is not rewritten).
+**Successor program (active):** the maintainer authorized the "Temporal Forge / ANVIL" successor build program and the build-ready successor candidate now exists on the dedicated `successor/anvil-build-ready` branch under draft PR #1. Historical `main` is not rewritten, and PR #1 must not be merged without explicit maintainer authorization. The current architecture is documented in [`docs/current/ANVIL_SUCCESSOR_ARCHITECTURE.md`](docs/current/ANVIL_SUCCESSOR_ARCHITECTURE.md), the current gate/evidence record is [`docs/current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](docs/current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md), and live repository status is [`docs/current/STATE.md`](docs/current/STATE.md). The governing execution pack remains under [`zcode_packs/README.md`](zcode_packs/README.md).
 
 **Preserved FSR-era record (closed):** this tree also preserves the engineering and evidence record of Temporal Forge's attempt to adapt **AMD FSR 4.1 temporal reconstruction/upscaling to ordinary decoded video**. The closure does **not** claim that FSR 4.1 can never work for video — it records a narrower evidence-based decision: the accumulated results no longer justify keeping FSR-specific expected-input reconstruction as Temporal Forge's primary research architecture.
 
@@ -106,7 +106,9 @@ git lfs pull
 
 Start with [`docs/README.md`](docs/README.md). The key historical/closure entry points are:
 
-- [`docs/current/STATE.md`](docs/current/STATE.md) — current repository status
+- [`docs/current/STATE.md`](docs/current/STATE.md) — current repository/program status
+- [`docs/current/ANVIL_SUCCESSOR_ARCHITECTURE.md`](docs/current/ANVIL_SUCCESSOR_ARCHITECTURE.md) — current ANVIL build-ready architecture and controls
+- [`docs/current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](docs/current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md) — current candidate gate/evidence record
 - [`docs/closure/`](docs/closure/) — final FSR-era adjudication, evaluation standard, claim ledger, and limitations
 - [`docs/decisions/TECHNICAL_HISTORY.md`](docs/decisions/TECHNICAL_HISTORY.md) — causal direction changes
 - [`docs/FSR4_RE_STATUS.md`](docs/FSR4_RE_STATUS.md) — dated FSR 4.1 RE reconstruction history
@@ -118,7 +120,21 @@ Historical plans and progress logs are archived. There is no active FSR campaign
 
 ## Requirements
 
-The runtime requires a **Vulkan 1.3** driver.
+### ANVIL successor
+
+The ANVIL runner itself is CPU/FFmpeg-based and does **not** require Qt or
+Vulkan at runtime. Building the full repository through the top-level CMake
+configuration still requires the historical player's Qt/Vulkan development
+dependencies; the CI Python-contract job demonstrates a direct ANVIL-only
+build path with FFmpeg development libraries.
+
+Core ANVIL requirements: C++23, FFmpeg ≥ 5.1 development libraries, and
+Threads. The full contract-test path additionally uses Python 3 + pytest,
+`ffmpeg`, and `ffprobe`.
+
+### Historical player
+
+The historical player runtime requires a **Vulkan 1.3** driver.
 
 | Package | Role | Required? | Behavior when missing |
 |---|---|---|---|
@@ -140,6 +156,20 @@ Vendored build dependencies include miniaudio v0.11.25 and the repository's Vulk
 
 ## Build
 
+### ANVIL successor runner
+
+```sh
+git checkout successor/anvil-build-ready
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+ANVIL_RUNNER=$PWD/build/anvil_runner python3 -m pytest -q tests/test_anvil_contract.py
+```
+
+The ANVIL targets are headless and FFmpeg-based; see the current architecture document for the exact runner controls, evidence model, and clean-clone requirements.
+
+### Historical player
+
 ```sh
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
@@ -147,7 +177,7 @@ ctest --test-dir build --output-on-failure
 ./build/temporal_forge_player
 ```
 
-Set `TFORGE_VK_VALIDATE=1` to enable the Vulkan validation layer.
+Set `TFORGE_VK_VALIDATE=1` to enable the Vulkan validation layer for the historical Vulkan player.
 
 ## Reliability behavior
 
