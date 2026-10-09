@@ -41,7 +41,7 @@ This research policy supplements, but **does not amend**, the repository's exist
 
 For research-claim discipline, reuse the definitions and safeguards of the [existing evaluation standard](../closure/EVALUATION_STANDARD.md), while recognizing that document's formal authority over the **closed FSR-era** campaign. The new successor campaign's policy must not silently promote an archived FSR plan into active authority.
 
-**This branch intentionally adds only these standalone policy files.** It does not edit \`AGENTS.md\`, the root/docs index, existing contracts, application code, tests, or the historical review harness. Cross-links into the main documentation navigation and executable details are deferred to coordinated post-implementation reconciliation.
+**This branch intentionally adds only these standalone policy files.** It does not edit `AGENTS.md`, the root/docs index, existing contracts, application code, tests, or the historical review harness. Cross-links into the main documentation navigation and executable details are deferred to coordinated post-implementation reconciliation.
 
 ## Publication state
 
