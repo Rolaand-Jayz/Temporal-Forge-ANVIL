@@ -50,7 +50,7 @@ The entries below are **questions to verify**, not predictions of exact technica
 ## 3. Safe synchronization protocol
 
 1. Keep this policy PR **separate** and unmerged while the Home Field Exhibition implementation proceeds.
-2. Avoid simultaneous changes to \`AGENTS.md\`, current state/architecture files, existing contracts, experiment source, the original review harness, and ZCode-owned feature files.
+2. Avoid simultaneous changes to `AGENTS.md`, current state/architecture files, existing contracts, experiment source, the original review harness, and ZCode-owned feature files.
 3. After ZCode presents its PR, inspect its **exact head SHA**, changed files, actual tests, and captures. Do not infer features from a design document.
 4. Compare the proposed policy to the implementation and its authorized brief.
 5. Classify each mismatch:
@@ -61,7 +61,7 @@ The entries below are **questions to verify**, not predictions of exact technica
 6. For documentation gaps, describe tested behavior accurately.
 7. For implementation gaps, request a specific repair through the relevant coding branch/PR; do not redefine success to cover the omission.
 8. For policy ambiguity or material tradeoffs, record a maintainer decision before altering authoritative intent.
-9. Once interfaces and evidence are stable, integrate discoverability links in \`docs/README.md\` and optionally root \`README.md\` through a coordinated, reviewed change.
+9. Once interfaces and evidence are stable, integrate discoverability links in `docs/README.md` and optionally root `README.md` through a coordinated, reviewed change.
 10. Keep baseline snapshots, technical candidate identities, and historic scouting findings reproducible as both documentation and code evolve.
 
 ## 4. Authority and approval limits
@@ -76,7 +76,7 @@ An evaluator may find incompatibility and request changes, but neither evaluator
 
 Before presenting the standalone policy PR, verify:
 
-- It adds **only** files inside \`docs/spring-training/\`.
+- It adds **only** files inside `docs/spring-training/`.
 - It does **not** edit root or docs navigation, current implementation documentation, governing contracts, code, tests, or historical evidence.
 - It does not claim quality results or roster decisions that have not occurred.
 - It does not prescribe data schema/API/UI framework choices to ZCode.
