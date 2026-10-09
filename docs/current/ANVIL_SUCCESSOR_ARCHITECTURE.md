@@ -3,8 +3,8 @@
 **Status:** CURRENT — successor integration branch `successor/anvil-build-ready`
 **Contract:** `zcode_packs/temporal_forge_anvil_zcode_pack_2026-10-05/BUILD_READY_CONTRACT.md`
 **Qualification:** [`ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](ANVIL_BUILD_READY_QUALIFICATION_20261005.md)  
-**Implementation/evidence head:** `5f10b26f84ba89293e1b38622521acde37ee0732`  
-**Exact-head CI:** Actions run `37855358002` — SUCCESS  
+**Implementation/evidence head:** `2477aa8d63e829922e3e6fc42e947f89ffa10685`  
+**Exact-head CI:** Actions run `37870651207` — SUCCESS  
 **Gate state:** candidate/pending independent evaluator; not self-approved
 
 ## What ANVIL is at this gate
@@ -239,14 +239,16 @@ full test suites. The ANVIL targets themselves need only FFmpeg.
 
 ## Current validation snapshot
 
-At implementation/evidence head `5f10b26f84ba89293e1b38622521acde37ee0732`:
+At implementation/evidence head `2477aa8d63e829922e3e6fc42e947f89ffa10685`:
 
-- Actions run `37855358002`: SUCCESS.
-- CTest: **100% tests passed out of 32 non-disabled tests**. Of the 36
-  registered tests, 29 completed normally, three were explicitly skipped
-  (`fsr4_weight_tests`, `fsr4_tensormap_tests`,
-  `anvil_provenance_rebuild_regression`), and four historical GPU tests
-  remain disabled by design.
+- Actions run `37870651207`: SUCCESS.
+- CTest: **100% tests passed out of 32 non-disabled tests**. The provenance
+  rebuild regression executed and passed; only `fsr4_weight_tests` and
+  `fsr4_tensormap_tests` were explicitly skipped, and four historical GPU
+  tests remain disabled by design.
+- Required direct provenance rebuild regression: PASS. It proves the dirty
+  hash changes when only the bytes of the same untracked GLOBbed ANVIL source
+  change, and that no-change rebuilds remain byte-stable.
 - Python CI contract job: 124 passed = 68 historical + 56 ANVIL tests.
 
 This validates the exact implementation/evidence head. It does not replace
@@ -265,13 +267,15 @@ independent evaluator adjudication of the Build-Ready gate.
   semantics, purity, determinism, fail-closed control values
 - `tests/anvil_output_backend_tests.cpp` — factory + polymorphic
   substitution, byte-identical PNM serialization, null bypass, fail-closed
-- `tests/anvil_timestamp_tests.cpp` — exact tick-selection semantics +
-  decode-level collision regression on a fine-timebase fixture
+- `tests/anvil_timestamp_tests.cpp` — exact tick-selection semantics,
+  source-aware microsecond selection (including no-source vs legitimate zero),
+  plus a decode-level collision regression on a fine-timebase fixture
   (10 MHz track timescale, 0.5 µs-spaced ticks colliding after µs rescale)
 - `tests/anvil_provenance_rebuild_regression.py` — configures a detached
-  worktree at HEAD, mutates source/Git state, rebuilds WITHOUT reconfigure:
-  the manifest must not claim the stale clean identity (dirty hash appears
-  on dirty rebuilds; the SHA advances on commit)
+  worktree at HEAD, mutates source/Git state, rebuilds WITHOUT reconfigure,
+  and changes only the bytes of one untracked GLOBbed `src/anvil/*.cpp`:
+  the dirty content identity must change, the SHA must advance on commit,
+  and no-change rebuilds must remain byte-stable
 - `tests/anvil_codec_tests.cpp` — measured codec capability truthfulness
 - `tests/anvil_runner_tests.cpp` — end-to-end CLI on generated fixtures
   (SDR full-metadata, PQ-HDR, unspecified-metadata)
