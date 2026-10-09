@@ -16,11 +16,14 @@ below preserves the provenance of the original archive.
   (sha256 + size) after extraction; file modes preserved from the archive.
 - **Status:** the archive was initially ingested as inert provenance, then the
   maintainer explicitly authorized the ANVIL successor program on 2026-10-05.
-  The Build-Ready portion of the pack has since been executed on
-  `successor/anvil-build-ready` under draft PR #1. Placement in this directory
-  was never authorization by itself; the explicit maintainer directive is what
-  activated the work. The later broad adversarial quality/research campaign
-  remains unlaunched pending Build-Ready qualification.
+  The Build-Ready portion of the pack was executed on
+  `successor/anvil-build-ready` under PR #1 and qualified to completion: the
+  independent evaluator's final re-review at `fe7dac22` was CLEAN, the
+  maintainer merged PR #1 into `main` (`36952dce`, 2026-10-09), and
+  `BUILD_READY_FOR_RESEARCH = TRUE` is the adjudicated gate state. Placement
+  in this directory was never authorization by itself; the explicit maintainer
+  directive is what activated the work. The later broad adversarial
+  quality/research campaign remains unlaunched.
 
 ## Mapping decision — 2026-10-05
 
@@ -36,21 +39,23 @@ Resolved by direct maintainer instruction in a working session:
   pack text; the historical Player repository is no longer the working target.
 
 
-## Current execution status — 2026-10-08
+## Current execution status — 2026-10-09
 
-- Active branch: `successor/anvil-build-ready`.
-- Draft PR: #1; merge remains explicitly maintainer-controlled.
-- Current implementation/evidence head before documentation reconciliation:
-  `5f10b26f84ba89293e1b38622521acde37ee0732`.
-- Exact-head CI run `37855358002`: SUCCESS (CTest: 100% tests passed out
-  of 32 non-disabled tests; 29 normal passes, 3 explicit skips, 4 historical
-  GPU tests disabled; Python CI contract job 124 passed = 68 historical +
-  56 ANVIL).
+- Successor line: PR #1 **merged** into `main` at `36952dce`
+  (maintainer-authorized, 2026-10-09); `successor/anvil-build-ready` is
+  retained as merged history.
+- Independent evaluator verdict: **CLEAN** at `fe7dac22` — "no unresolved
+  evaluator findings remain … no remaining basis to withhold
+  `BUILD_READY_FOR_RESEARCH = TRUE`".
+- Implementation/evidence head: `b6fbc7b43b25399ce34bfdddfcbf1bf5dc5e335e`;
+  literal branch-head CI run `37875251102`: SUCCESS. Merged-`main` head CI
+  run `37890647442` on `36952dce`: SUCCESS (CTest 32 passed with 2 asset
+  skips and 4 historical GPU tests disabled; Python CI contract job 124
+  passed = 68 historical + 56 ANVIL).
 - Current architecture: [`../docs/current/ANVIL_SUCCESSOR_ARCHITECTURE.md`](../docs/current/ANVIL_SUCCESSOR_ARCHITECTURE.md).
-- Current candidate qualification record:
+- Qualification record (gate adjudicated TRUE 2026-10-09):
   [`../docs/current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](../docs/current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md).
-- The seven findings from the 2026-10-07 independent evaluator pass have repair
-  implementations and focused regressions, but their threads remain open for
-  evaluator verification. `BUILD_READY_FOR_RESEARCH` therefore remains
-  candidate/pending rather than self-approved.
+- `BUILD_READY_FOR_RESEARCH = TRUE` (adjudicated by the independent
+  evaluator's CLEAN verdict plus the maintainer's merge authorization; never
+  self-approved).
 - The later broad quality/research campaign has not started.

@@ -2,7 +2,7 @@
 
 This is the documentation entry point.
 
-The **FSR-centered research line is closed as of 2026-09-15**. The **Temporal Forge / ANVIL successor program is active** on `successor/anvil-build-ready` under draft PR #1. Those are separate facts: successor work does not reopen the closed FSR campaign.
+The **FSR-centered research line is closed as of 2026-09-15**. The **Temporal Forge / ANVIL successor program completed its Build-Ready gate**: the independent evaluator's final re-review was CLEAN at `fe7dac22`, the maintainer merged PR #1 into `main` (`36952dce`, 2026-10-09), and `BUILD_READY_FOR_RESEARCH = TRUE` is the adjudicated gate state. Those are separate facts: successor work does not reopen the closed FSR campaign, and the later adversarial research campaign remains unlaunched.
 
 The historical documentation model remains defined by [`DOCUMENTATION_SYSTEM.md`](DOCUMENTATION_SYSTEM.md). The closure set is authoritative for interpreting FSR-era evidence; the current ANVIL documents below are authoritative for the successor branch.
 
@@ -32,7 +32,7 @@ For the successor branch:
 1. **Explicit maintainer direction** governs authorization and protected actions.
 2. **ANVIL execution-pack contracts** under [`../zcode_packs/temporal_forge_anvil_zcode_pack_2026-10-05/`](../zcode_packs/temporal_forge_anvil_zcode_pack_2026-10-05/) govern Build-Ready requirements.
 3. **Current executable source and tests** establish implementation truth.
-4. **[`current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md)** records the candidate gate evidence; it does not self-approve the gate.
+4. **[`current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md)** records the Build-Ready gate evidence and the 2026-10-09 adjudication that closed it TRUE (independent evaluator verdict + maintainer merge; never a self-approval).
 5. **[`current/ANVIL_SUCCESSOR_ARCHITECTURE.md`](current/ANVIL_SUCCESSOR_ARCHITECTURE.md)** describes the current successor architecture.
 6. **[`current/STATE.md`](current/STATE.md)** summarizes repository/program status.
 
@@ -48,7 +48,7 @@ For historical FSR material:
 
 The active engineering line is **ANVIL**, not FSR.
 
-The build-ready successor candidate exists on `successor/anvil-build-ready` under draft PR #1. The seven findings from the 2026-10-07 independent evaluator pass have implementation repairs and focused regressions on the branch, but their review threads intentionally remain open for independent evaluator verification. The qualification record therefore remains **candidate/pending**, not self-approved.
+The build-ready successor was qualified through successive independent evaluator passes: every finding from the 2026-10-07 pass (and the later rounds) was repaired with focused regressions, the evaluator re-reviewed each repaired head, and the final re-review at `fe7dac22` was **CLEAN** — "no unresolved evaluator findings remain … no remaining basis to withhold `BUILD_READY_FOR_RESEARCH = TRUE`". The maintainer then merged PR #1 into `main` (`36952dce`, 2026-10-09). The gate state is **TRUE (adjudicated)**; the successor code now lives on `main`.
 
 The broad adversarial reconstruction-quality campaign has **not** been launched. Unit, integration, reproducibility, provenance, and contract verification continue because they are prerequisites to that later campaign.
 

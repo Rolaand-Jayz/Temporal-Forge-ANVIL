@@ -1,17 +1,29 @@
 # ANVIL BUILD_READY_FOR_RESEARCH Qualification Record
 
 **Date:** 2026-10-08
-**Branch:** `successor/anvil-build-ready`
+**Integration branch (merged into `main` by PR #1, `36952dce`, 2026-10-09):** `successor/anvil-build-ready`
 **Current implementation/evidence head:** `b6fbc7b43b25399ce34bfdddfcbf1bf5dc5e335e`
 **Literal branch-head CI:** Actions run `37875251102` — SUCCESS; both jobs explicitly checked out and verified this SHA
 **Contract evaluated:** `zcode_packs/temporal_forge_anvil_zcode_pack_2026-10-05/BUILD_READY_CONTRACT.md`
 **Evidence vocabulary:** per `docs/closure/EVALUATION_STANDARD.md`
 
 Every mandatory contract item is recorded below with concrete implementation
-evidence. The current repair head is a **candidate** for
-`BUILD_READY_FOR_RESEARCH = TRUE`; the independent PR evaluator re-review is
-still pending and remains authoritative for closing the open review threads.
-This record does not launch the later adversarial campaign.
+evidence.
+
+**Gate adjudication (2026-10-09):** the independent evaluator's final
+re-review at `fe7dac22` returned **CLEAN** — "no unresolved evaluator
+findings remain … no remaining basis to withhold
+`BUILD_READY_FOR_RESEARCH = TRUE`" — and the maintainer merged PR #1 into
+`main` at `36952dce` (Actions run `37890647442` SUCCESS on that merge head).
+Therefore:
+
+```text
+BUILD_READY_FOR_RESEARCH = TRUE   (adjudicated 2026-10-09; never self-approved)
+```
+
+The per-round audit trail below is preserved verbatim as historical evidence;
+its dated addenda describe the heads and runs of their time. This record does
+not launch the later adversarial campaign.
 
 ## Mandatory architecture conditions
 
