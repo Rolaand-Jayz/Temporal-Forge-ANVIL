@@ -72,3 +72,10 @@ __pycache__/
 # Local ZCode agent state (workflow drafts, run journals) — session-local tool
 # state in the same category as .vscode/ and .remember/, not for version control.
 .zcode/
+
+# ANVIL Home Field Exhibition: regenerated media and local review state stay
+# out of git (regenerate via anvil_exhibit gen-scenes/prep-real/run/measure).
+# Tracked evidence: experiment definitions, run manifests, metrics, catalog,
+# roster, baseline identity, and reports.
+exhibitions/*/artifacts/
+exhibitions/*/findings/
