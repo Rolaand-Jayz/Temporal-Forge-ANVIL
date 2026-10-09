@@ -58,6 +58,13 @@ jobs:
       - name: CTest
         run: ctest --test-dir build --output-on-failure
 
+      # Mandatory Build-Ready evidence. CTest keeps this regression skippable
+      # on generic developer hosts; in CI, exit 77 is a visible job failure.
+      - name: Required ANVIL provenance rebuild regression
+        run: |
+          TMPDIR="$(dirname "$GITHUB_WORKSPACE")" \
+            python3 tests/anvil_provenance_rebuild_regression.py "$GITHUB_WORKSPACE"
+
   python-contracts:
     name: Python contract suite
     runs-on: ubuntu-24.04

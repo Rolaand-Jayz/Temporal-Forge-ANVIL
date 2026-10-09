@@ -101,10 +101,12 @@ public:
     struct Provenance {
         std::optional<std::string> gitSha;     // nullopt recorded as null
         std::optional<std::string> gitDirty;   // "true"/"false" when known
-        // SHA-256 over (porcelain status + "git diff HEAD") captured when the
-        // tree was dirty at build time; nullopt recorded as null. nullopt is
-        // the truthful value for a clean tree, a non-repository, or an
-        // unprovable state — it must never be guessed.
+        // SHA-256 over the build-time dirty source fingerprint: porcelain
+        // status, full-index binary tracked diff, untracked path/blob hashes,
+        // and ignored src/anvil build-input path/blob hashes. nullopt is the
+        // truthful value for a clean tree, non-repository, or unprovable
+        // state; dirty capture fails closed instead of publishing a partial
+        // identity.
         std::optional<std::string> gitDirtyHash;
         // Which tier supplied the source identity (never guessed):
         //   "build_generated" | "compile_macro" | "runtime_git" | "unknown"
