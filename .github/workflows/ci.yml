@@ -49,6 +49,13 @@ jobs:
           lfs: false
           fetch-depth: 1
 
+      # The Arch job runs inside a container while the mounted checkout is
+      # owned by the host runner. Git otherwise rejects it as dubious
+      # ownership, which made both build-time provenance and the mandatory
+      # rebuild regression see "not a git checkout".
+      - name: Trust checkout for Git provenance
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
