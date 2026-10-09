@@ -48,7 +48,7 @@ Keep measured facts, observations, inferences, hypotheses, unresolved questions,
 
 ## Documentation model
 
-[`docs/README.md`](docs/README.md) is the documentation entry point. [`docs/DOCUMENTATION_SYSTEM.md`](docs/DOCUMENTATION_SYSTEM.md) defines the historical documentation model.
+[`docs/README.md`](docs/README.md) is the documentation entry point. [`docs/DOCUMENTATION_SYSTEM.md`](docs/DOCUMENTATION_SYSTEM.md) defines the repository documentation model, including the active ANVIL authority chain and the historical-integrity rules for the closed FSR era.
 
 The closure set supersedes stale imperative language in older active-era documents. Completed plans and progress records belong in the archive and must not regain authority through quotation or relocation.
 

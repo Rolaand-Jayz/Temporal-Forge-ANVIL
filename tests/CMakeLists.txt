@@ -280,3 +280,224 @@ tforge_add_test(vulkan_capability_plan_tests
             ../src/render/VulkanContext.cpp
             ../src/util/Log.cpp)
 target_link_libraries(vulkan_capability_plan_tests PRIVATE Vulkan::Vulkan)
+
+# --- ANVIL successor tests (Qt-free, FFmpeg-only) ---
+pkg_check_modules(FFMPEG_ANVIL IMPORTED_TARGET libavformat libavcodec libavutil libswscale)
+
+function(anvil_add_test name)
+    cmake_parse_arguments(ARG "" "" "SOURCES" ${ARGN})
+    add_executable(${name} ${ARG_SOURCES})
+    target_include_directories(${name} PRIVATE "${CMAKE_SOURCE_DIR}/src")
+    target_compile_features(${name} PRIVATE cxx_std_23)
+    target_compile_definitions(${name} PRIVATE
+        ANVIL_BUILD_TYPE="${CMAKE_BUILD_TYPE}"
+        ANVIL_COMPILER_ID="${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+    if(FFMPEG_ANVIL_FOUND)
+        target_link_libraries(${name} PRIVATE PkgConfig::FFMPEG_ANVIL)
+    endif()
+    add_test(NAME ${name} COMMAND ${name})
+endfunction()
+
+anvil_add_test(anvil_core_tests
+    SOURCES anvil_core_tests.cpp
+            ../src/anvil/Core.cpp
+            ../src/anvil/JsonWriter.cpp
+            ../src/anvil/ColorMeta.cpp
+            ../src/anvil/Manifest.cpp
+            ../src/anvil/BuildProvenance.cpp
+            ../src/anvil/Oracle.cpp
+            ../src/anvil/Pnm.cpp
+            ../src/anvil/Reconstruct.cpp
+            ../src/anvil/Sha256.cpp)
+# Build-time provenance (review 4209766186): link the GENERATED strong
+# definitions too so detectGitSha()/detectGitDirty() are exercised through
+# the build_generated tier alongside the weak fallbacks (strong wins at
+# link time; the pair must coexist without duplicate-symbol errors).
+set(ANVIL_PROVENANCE_SOURCE "${CMAKE_BINARY_DIR}/anvil_provenance/AnvilBuildProvenance.cpp")
+target_sources(anvil_core_tests PRIVATE "${ANVIL_PROVENANCE_SOURCE}")
+set_source_files_properties("${ANVIL_PROVENANCE_SOURCE}" PROPERTIES GENERATED TRUE)
+add_dependencies(anvil_core_tests anvil_provenance)
+# git-provenance regression runs inside the checkout so detectGitSha() can
+# be compared against `git rev-parse HEAD`.
+set_tests_properties(anvil_core_tests PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+if(NOT FFMPEG_ANVIL_FOUND)
+    set_tests_properties(anvil_core_tests PROPERTIES DISABLED ON)
+endif()
+
+# Coarse/refinement resolution-hierarchy regression (review 4209751753):
+# the even-lattice coarse prior plus +/-1 residual refinement must change a
+# deliberately imperfect coarse field on odd true displacements and leave
+# even/boundary optima unchanged.
+anvil_add_test(anvil_refinement_tests
+    SOURCES anvil_refinement_tests.cpp
+            ../src/anvil/Core.cpp
+            ../src/anvil/Reconstruct.cpp)
+if(NOT FFMPEG_ANVIL_FOUND)
+    set_tests_properties(anvil_refinement_tests PROPERTIES DISABLED ON)
+endif()
+
+# Sample-geometry estimation contract: the fixture knows the true sampling
+# grid offset, the estimator sees only image planes. Covers the estimated
+# arm's accuracy, zero-offset, fail-closed inputs, the flow-application sign
+# proof, determinism, and codec-MV independence.
+anvil_add_test(anvil_geometry_estimate_tests
+    SOURCES anvil_geometry_estimate_tests.cpp
+            ../src/anvil/BuildProvenance.cpp
+            ../src/anvil/Core.cpp
+            ../src/anvil/JsonWriter.cpp
+            ../src/anvil/ColorMeta.cpp
+            ../src/anvil/Manifest.cpp
+            ../src/anvil/Oracle.cpp
+            ../src/anvil/Pnm.cpp
+            ../src/anvil/Reconstruct.cpp
+            ../src/anvil/SampleGeometryEstimate.cpp
+            ../src/anvil/Sha256.cpp)
+if(NOT FFMPEG_ANVIL_FOUND)
+    set_tests_properties(anvil_geometry_estimate_tests PROPERTIES DISABLED ON)
+endif()
+
+anvil_add_test(anvil_codec_tests
+    SOURCES anvil_codec_tests.cpp
+            ../src/anvil/CodecProbe.cpp)
+if(NOT FFMPEG_ANVIL_FOUND)
+    set_tests_properties(anvil_codec_tests PROPERTIES DISABLED ON)
+endif()
+
+# Side-info normalization stage (review 4209763208): the raw -> normalized
+# prior boundary must be an explicit, independently bypassable stage (pack
+# capability D), not an internal step of the codec correspondence arm.
+# Pure CPU; Core.cpp is linked because the stage delegates to normalizeCodecMv.
+anvil_add_test(anvil_side_info_tests
+    SOURCES anvil_side_info_tests.cpp
+            ../src/anvil/Core.cpp
+            ../src/anvil/SideInfoNormalize.cpp)
+if(NOT FFMPEG_ANVIL_FOUND)
+    set_tests_properties(anvil_side_info_tests PROPERTIES DISABLED ON)
+endif()
+
+# anvil_output_backend_tests: the replaceable/bypassable output stage boundary
+# (execution pack capability D). "pnm" must reproduce the runner's former
+# inline serialization byte-for-byte; "null" is the zero-artifact bypass.
+anvil_add_test(anvil_output_backend_tests
+    SOURCES anvil_output_backend_tests.cpp
+            ../src/anvil/OutputBackend.cpp
+            ../src/anvil/Pnm.cpp
+            ../src/anvil/Reconstruct.cpp)
+if(NOT FFMPEG_ANVIL_FOUND)
+    set_tests_properties(anvil_output_backend_tests PROPERTIES DISABLED ON)
+endif()
+
+# anvil_runner_tests: end-to-end CLI on a synthetic deterministic clip.
+if(FFMPEG_ANVIL_FOUND AND FFMPEG_BIN)
+    add_executable(anvil_runner_tests anvil_runner_tests.cpp)
+    target_include_directories(anvil_runner_tests PRIVATE "${CMAKE_SOURCE_DIR}/src")
+    target_compile_features(anvil_runner_tests PRIVATE cxx_std_23)
+    target_link_libraries(anvil_runner_tests PRIVATE anvil_lib)
+    add_dependencies(anvil_runner_tests anvil_runner)
+    set(ANVIL_CLIP "${CMAKE_CURRENT_BINARY_DIR}/anvil_fixture.mp4")
+    set(ANVIL_CLIP_HDR "${CMAKE_CURRENT_BINARY_DIR}/anvil_fixture_hdr.mp4")
+    set(ANVIL_CLIP_NOMETA "${CMAKE_CURRENT_BINARY_DIR}/anvil_fixture_nometa.mp4")
+    add_custom_command(
+        OUTPUT ${ANVIL_CLIP}
+        COMMAND ${FFMPEG_BIN} -y -loglevel error
+            -f lavfi -i "testsrc2=size=64x64:rate=10:duration=1"
+            -c:v libx264 -pix_fmt yuv420p
+            -x264-params "keyint=10:bframes=0:colorprim=bt709:transfer=bt709:colorrange=tv:colormatrix=bt709"
+            ${ANVIL_CLIP}
+        DEPENDS ""
+        COMMENT "Generating anvil_fixture.mp4 (SDR, full color metadata)"
+        VERBATIM)
+    add_custom_command(
+        OUTPUT ${ANVIL_CLIP_HDR}
+        COMMAND ${FFMPEG_BIN} -y -loglevel error
+            -f lavfi -i "testsrc2=size=64x64:rate=10:duration=1"
+            -c:v libx264 -pix_fmt yuv420p10le
+            -x264-params "keyint=10:bframes=0:colorprim=bt2020:transfer=smpte2084:colorrange=tv:colormatrix=bt2020nc"
+            ${ANVIL_CLIP_HDR}
+        DEPENDS ""
+        COMMENT "Generating anvil_fixture_hdr.mp4 (PQ transfer, no conversion)"
+        VERBATIM)
+    add_custom_command(
+        OUTPUT ${ANVIL_CLIP_NOMETA}
+        COMMAND ${FFMPEG_BIN} -y -loglevel error
+            -f lavfi -i "testsrc2=size=64x64:rate=10:duration=1"
+            -c:v libx264 -pix_fmt yuv420p -x264-params "keyint=10:bframes=0"
+            ${ANVIL_CLIP_NOMETA}
+        DEPENDS ""
+        COMMENT "Generating anvil_fixture_nometa.mp4 (unspecified color metadata)"
+        VERBATIM)
+    add_custom_target(anvil_fixture DEPENDS ${ANVIL_CLIP} ${ANVIL_CLIP_HDR}
+        ${ANVIL_CLIP_NOMETA})
+    add_dependencies(anvil_runner_tests anvil_fixture)
+    add_test(NAME anvil_runner_tests COMMAND anvil_runner_tests
+        $<TARGET_FILE:anvil_runner> "${ANVIL_CLIP}" "${ANVIL_CLIP_HDR}"
+        "${ANVIL_CLIP_NOMETA}")
+    set_tests_properties(anvil_runner_tests PROPERTIES
+        SKIP_RETURN_CODE 77)
+elseif(NOT FFMPEG_BIN)
+    message(STATUS "ANVIL: ffmpeg binary not found; anvil_runner_tests disabled")
+endif()
+
+# anvil_timestamp_tests: native-timestamp identity (review 4209783084).
+# Unit tests for exact tick selection plus a decode-level regression on a
+# fine-timebase fixture (mp4 track timescale 10 MHz) containing two frames
+# whose adjacent frames sit 5 ticks (0.5 us) apart and collapse to the same
+# microsecond after av_rescale_q. Fixture expectations are derived at runtime
+# from ffprobe, never hardcoded.
+find_program(FFPROBE_BIN ffprobe)
+if(FFMPEG_ANVIL_FOUND AND FFMPEG_BIN)
+    set(ANVIL_TICK_CLIP "${CMAKE_CURRENT_BINARY_DIR}/anvil_tick_fixture.mp4")
+    # Fixture via make_tick_fixture (libavformat, version-proof): the CLI
+    # route with settb/setpts + -enc_time_base 1/10000000 explodes on older
+    # ffmpeg (ubuntu-24.04 / 6.1); see the root CMakeLists note.
+    add_custom_command(
+        OUTPUT ${ANVIL_TICK_CLIP}
+        COMMAND $<TARGET_FILE:make_tick_fixture>
+                ${ANVIL_TICK_CLIP} 5 10000000 8
+        DEPENDS make_tick_fixture
+        COMMENT "Generating anvil_tick_fixture.mp4 (10 MHz timebase, 0.5 us tick spacing)"
+        VERBATIM)
+    add_custom_target(anvil_tick_fixture DEPENDS ${ANVIL_TICK_CLIP})
+    anvil_add_test(anvil_timestamp_tests
+        SOURCES anvil_timestamp_tests.cpp
+                ../src/media/Demuxer.cpp
+                ../src/media/VideoDecoder.cpp
+                ../src/util/Log.cpp)
+    add_dependencies(anvil_timestamp_tests anvil_tick_fixture)
+    # The C++ test shells out to ffprobe for runtime-derived truth.
+    if(FFPROBE_BIN)
+        set(ANVIL_FFPROBE_VAL "${FFPROBE_BIN}")
+    else()
+        set(ANVIL_FFPROBE_VAL "ffprobe")
+    endif()
+    set_tests_properties(anvil_timestamp_tests PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        ENVIRONMENT "ANVIL_TICK_FIXTURE=${ANVIL_TICK_CLIP};ANVIL_FFPROBE=${ANVIL_FFPROBE_VAL}"
+        SKIP_RETURN_CODE 77)
+endif()
+
+# Regression for review 4209766186 (configure-time provenance staleness):
+# configures a detached worktree at HEAD, mutates source and Git state, and
+# rebuilds WITHOUT re-running configure; the manifest must never claim the
+# stale clean identity (git_dirty_hash must appear on dirty rebuilds and the
+# sha must advance on commit). Deterministic skip (exit 77) when git/cmake/
+# ninja/ffmpeg/python3 are unavailable.
+find_program(ANVIL_PYTHON3 python3)
+if(ANVIL_PYTHON3 AND FFMPEG_ANVIL_FOUND AND FFMPEG_BIN)
+    add_test(
+        NAME anvil_provenance_rebuild_regression
+        COMMAND "${ANVIL_PYTHON3}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/anvil_provenance_rebuild_regression.py"
+                "${CMAKE_SOURCE_DIR}")
+    set_tests_properties(anvil_provenance_rebuild_regression PROPERTIES
+        SKIP_RETURN_CODE 77
+        TIMEOUT 1200
+        # The regression materializes a full worktree of the source tree; keep
+        # its scratch on the same filesystem as the build. On hosts where /tmp
+        # is a small or restricted tmpfs, checking ~30k tracked files into it
+        # fails ("unable to write file" -> "Could not reset index"), which
+        # would masquerade as a provenance defect.
+        ENVIRONMENT "TMPDIR=${CMAKE_BINARY_DIR}")
+elseif(NOT ANVIL_PYTHON3)
+    message(STATUS "ANVIL: python3 not found; anvil_provenance_rebuild_regression disabled")
+endif()

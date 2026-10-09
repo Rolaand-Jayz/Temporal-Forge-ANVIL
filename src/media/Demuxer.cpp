@@ -97,6 +97,12 @@ void Demuxer::fillStreamInfo() {
         if (s.type == StreamInfo::Type::Video) {
             s.width = cp->width;
             s.height = cp->height;
+            // Native video-track timebase, carried verbatim (0/0 when the
+            // container declares none). Additive: existing consumers are
+            // unchanged; ANVIL observation identity reads this instead of
+            // assuming a microsecond grid (review 4209783084).
+            s.timebaseNum = st->time_base.num;
+            s.timebaseDen = st->time_base.den;
             if (st->avg_frame_rate.den)
                 s.frameRate = static_cast<double>(st->avg_frame_rate.num) /
                               static_cast<double>(st->avg_frame_rate.den);
@@ -135,6 +141,7 @@ bool Demuxer::open(const std::string& url) {
     // false and can keep the previous playlist item or report an error.
     close();
     abort_ = false;
+    lastReadError_ = 0;
     info_ = {};
 
     if (avformat_open_input(&ctx_, url.c_str(), nullptr, nullptr) < 0 || !ctx_) {
@@ -173,16 +180,19 @@ void Demuxer::close() {
     }
     info_ = {};
     abort_ = false;
+    lastReadError_ = 0;
 }
 
 bool Demuxer::readPacket(Packet& out) {
     // Read one packet from the container. EOF is represented as false because
     // PlaybackEngine owns the higher-level EOF/playlist transition; streamIndex
     // lets that consumer route a successful packet to the proper decoder.
-    if (!ctx_) return false;
-    if (abort_) return false;
+    lastReadError_ = 0;
+    if (!ctx_) { lastReadError_ = -1; return false; }
+    if (abort_) { lastReadError_ = -1; return false; }
     int err = av_read_frame(ctx_, out.av);
     if (err < 0) {
+        lastReadError_ = err;
         if (err == AVERROR_EOF) return false;
         if (abort_) return false;
         char errbuf[128] = {0};

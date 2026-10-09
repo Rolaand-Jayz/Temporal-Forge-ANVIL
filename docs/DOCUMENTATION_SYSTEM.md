@@ -1,8 +1,8 @@
 # Temporal Forge Documentation System
 
 **Status:** CURRENT  
-**As of:** 2026-09-15  
-**Purpose:** Define authority, historical integrity, and evidence navigation for the closed FSR-era repository.
+**As of:** 2026-10-08  
+**Purpose:** Define authority, historical integrity, and evidence navigation for a repository that now contains both the closed FSR-era record and the active Temporal Forge / ANVIL successor program.
 
 ## 1. Governing principle
 
@@ -11,32 +11,49 @@ The repository must make it easy to distinguish:
 ```text
 WHAT IS TRUE NOW
         ↓
+WHAT GOVERNS THE ACTIVE ANVIL SUCCESSOR
+        ↓
 WHY THE FSR ERA ENDED
         ↓
 HOW THE HISTORICAL PLAYER WORKS
         ↓
-WHAT THE EXPERIMENTS FOUND
+WHAT THE HISTORICAL EXPERIMENTS FOUND
         ↓
 WHAT WAS BELIEVED OR PLANNED AT EACH TIME
         ↓
-WHERE THE PRIMARY EVIDENCE LIVES
+WHERE PRIMARY EVIDENCE LIVES
 ```
 
-Historical truth must be preserved without allowing historical instructions to become current authority.
+Historical truth must be preserved without allowing historical instructions to become current authority. Successor work must remain separately identifiable from the closed FSR campaign even though both now live in the same repository.
 
 ## 2. Current authority
 
-Authority order for project direction is:
+### Successor program
 
-1. [`current/STATE.md`](current/STATE.md) — what this repository is now.
-2. [`closure/`](closure/) — final FSR-era adjudication, evaluation standard, claim dispositions, limitations, and successor boundary.
-3. [`reference/`](reference/) — how the preserved historical implementation works.
-4. [`decisions/TECHNICAL_HISTORY.md`](decisions/TECHNICAL_HISTORY.md) — causal direction changes.
-5. primary benchmark manifests/artifacts and dated reports — experiment evidence.
-6. [`archive/`](archive/) and former `active/` records — historical context only.
-7. exploratory research, hypotheses, prompts, and unverified narrative.
+Authority for the active ANVIL branch is:
 
-Executable code remains authoritative for what the preserved player actually does. Closure documents remain authoritative for whether FSR work is active: **it is not**.
+1. Explicit maintainer direction — authorization, protected actions, and merge authority.
+2. The governing ANVIL execution-pack contracts under [`../zcode_packs/temporal_forge_anvil_zcode_pack_2026-10-05/`](../zcode_packs/temporal_forge_anvil_zcode_pack_2026-10-05/).
+3. Current executable source and tests — implementation truth.
+4. [`current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md) — candidate gate/evidence record; never self-approves the gate.
+5. [`current/ANVIL_SUCCESSOR_ARCHITECTURE.md`](current/ANVIL_SUCCESSOR_ARCHITECTURE.md) — current successor architecture/reference.
+6. [`current/STATE.md`](current/STATE.md) — concise repository/program status summary.
+7. Current PR/evaluator evidence for the exact candidate revision.
+
+When these conflict, governing contracts and validated current implementation/evidence outrank stale narrative summaries.
+
+### Historical FSR record
+
+Authority for interpreting the closed FSR era remains:
+
+1. [`closure/`](closure/) — final adjudication, evaluation standard, claim dispositions, limitations, and successor boundary.
+2. [`reference/`](reference/) — how the preserved historical implementation works.
+3. [`decisions/TECHNICAL_HISTORY.md`](decisions/TECHNICAL_HISTORY.md) — causal direction changes.
+4. Primary benchmark manifests/artifacts and dated reports — experiment evidence.
+5. [`archive/`](archive/) and former `active/` records — historical context only.
+6. Exploratory research, hypotheses, prompts, and unverified narrative.
+
+Closure documents remain authoritative for whether the FSR-centered campaign is active: **it is not**.
 
 ## 3. Documentation classes
 
@@ -44,19 +61,31 @@ Executable code remains authoritative for what the preserved player actually doe
 
 Answers: **What is true now?**
 
-Maintain one concise current-state document. It should identify closure status, relevant source identity, final implementation state, evidence state, boundaries, and current authority.
+[`current/STATE.md`](current/STATE.md) is the concise cross-program state summary. It identifies the FSR closure boundary, active ANVIL branch, current candidate evidence head, evaluator/gate state, and current authority.
+
+### Current successor architecture
+
+Answers: **How does the active ANVIL candidate work?**
+
+[`current/ANVIL_SUCCESSOR_ARCHITECTURE.md`](current/ANVIL_SUCCESSOR_ARCHITECTURE.md) must match current successor code or explicitly state divergence. It is not a rewrite of the historical FSR player architecture.
+
+### Current successor qualification
+
+Answers: **What evidence supports the Build-Ready candidate and what remains pending?**
+
+[`current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md`](current/ANVIL_BUILD_READY_QUALIFICATION_20261005.md) records contract-by-contract evidence, evaluator repair history, exact-head CI evidence, and non-blocking risks. It must remain candidate/pending until independent evaluator adjudication closes the gate.
 
 ### Closure
 
-Answers: **Why did this research era end, what survived evaluation, and what may be carried forward?**
+Answers: **Why did the FSR research era end, what survived evaluation, and what may be carried forward?**
 
-Closure documents are not a rewrite of history. They synthesize the historical record while keeping measured facts, inference, unresolved questions, and project decisions distinct.
+Closure documents are not rewritten to make the successor look inevitable. They synthesize the historical record while keeping measured facts, inference, unresolved questions, and project decisions distinct.
 
-### Reference / architecture
+### Historical reference / architecture
 
-Answers: **How does the preserved implementation work?**
+Answers: **How does the preserved FSR-era implementation work?**
 
-Reference documents must match code or explicitly state divergence. After closure they describe the historical player; they do not imply that its architecture is the successor architecture.
+Reference documents describe the historical player. They do not imply that its architecture governs ANVIL.
 
 ### Decisions / causal history
 
@@ -86,7 +115,7 @@ Contains completed, superseded, abandoned, or historical plans, prompts, gates, 
 
 ### Former `active/` paths
 
-At closure, several widely linked files still lived under `docs/active/`. Their paths are retained as **tombstones only** for link stability. They point to immutable pre-closure records and current closure authority. Nothing under `docs/active/` is an active plan after 2026-09-15.
+At FSR closure, several widely linked files still lived under `docs/active/`. Their paths are retained as **tombstones only** for link stability. Nothing under `docs/active/` is an active FSR plan after 2026-09-15.
 
 ## 4. Evidence and interpretation
 
@@ -102,13 +131,15 @@ Where materially important, distinguish:
 - intended behavior;
 - invalidated evidence.
 
-Use [`closure/EVALUATION_STANDARD.md`](closure/EVALUATION_STANDARD.md) for the FSR-era evidence standard.
+Use [`closure/EVALUATION_STANDARD.md`](closure/EVALUATION_STANDARD.md) as the repository evidence vocabulary unless a stronger task-specific contract applies.
 
 Conditional evidence stays conditional. Negative results stay visible. Invalid evidence may remain historically important but cannot support a stronger claim after invalidation.
 
+For ANVIL, a green test or CI run proves only the behavior exercised by that evidence. It does not automatically prove an architectural contract, quality claim, or Build-Ready adjudication.
+
 ## 5. Historical integrity
 
-Never rewrite old plans or reports to manufacture hindsight.
+Never rewrite old plans, experiment reports, or closure artifacts to manufacture hindsight.
 
 Correct pattern:
 
@@ -129,66 +160,85 @@ Do not silently edit a historical experiment so it appears to have predicted its
 
 ## 6. Contradiction resolution
 
-When documents conflict, start from:
+For active ANVIL implementation questions, start from:
 
 ```text
-validated actual runtime behavior
+governing successor contract + explicit maintainer decisions
         ↓
-current code
+validated current implementation behavior
+        ↓
+current source/tests and exact-head evidence
+        ↓
+current successor architecture / qualification / state docs
+        ↓
+worker claims / PR prose / older summaries
+```
+
+For historical FSR interpretation, start from:
+
+```text
+validated historical runtime behavior
+        ↓
+historical code
         ↓
 validated experiment provenance
         ↓
-current Git state
-        ↓
 dated primary evidence
         ↓
-current state / closure / reference docs
+closure / historical reference docs
         ↓
 historical plans
         ↓
 research hypotheses / prompts / unverified narrative
 ```
 
-This is a reasoning hierarchy, not a mechanical override. For project direction after 2026-09-15, the closure decision is explicit even though historical code remains executable.
+These are reasoning hierarchies, not permission to erase conflicting evidence.
 
 ## 7. Benchmark evidence
 
 Raw benchmark/evidence systems remain authoritative for detailed measurements. Narrative documents should provide the conclusion, critical supporting numbers, scope/qualification, and a path to primary evidence rather than duplicating giant result tables.
 
+The broad ANVIL adversarial reconstruction-quality campaign remains separate from Build-Ready engineering qualification. Build-Ready evidence must not be presented as image-quality proof.
+
 ## 8. Git history
 
 Git history is evidence, not the sole user interface for understanding the project.
 
-The closure deliberately uses immutable commit links for exact pre-closure active records. A clone with history retains those documents even where the working tree now contains closure tombstones.
+The FSR closure uses immutable commit links for exact pre-closure records. The ANVIL branch preserves repair/evaluator history rather than rewriting it. Documentation corrections should use ordinary forward commits.
 
 ## 9. Agent/contributor rule
 
-A new agent or contributor must read:
+A new agent or contributor working on this repository must read:
 
 1. [`../AGENTS.md`](../AGENTS.md);
 2. [`README.md`](README.md);
 3. [`current/STATE.md`](current/STATE.md);
-4. [`closure/README.md`](closure/README.md).
+4. for ANVIL work, [`current/ANVIL_SUCCESSOR_ARCHITECTURE.md`](current/ANVIL_SUCCESSOR_ARCHITECTURE.md) and the governing execution pack;
+5. for FSR-era interpretation, [`closure/README.md`](closure/README.md).
 
-No historical plan may be resumed merely because it contains instructions or unfinished gates. Behavioral code changes and reopening of FSR research require an explicit maintainer request.
+No historical plan may be resumed merely because it contains instructions or unfinished gates. Behavioral code changes require explicit maintainer authorization. PR #1 must not be merged without explicit maintainer authorization.
 
 ## 10. Successor boundary
 
-This documentation system governs the historical FSR-era repository only.
+The successor now lives in this repository on a dedicated branch rather than in a separate successor repository.
 
-A successor Temporal Forge repository should establish its own current architecture and active-work authority. It may cite this repository as prior evidence, but it should not copy FSR-specific assumptions into its governing documentation unless independently justified.
+That topology change does **not** collapse the evidence boundary:
 
-## 11. Maintenance after closure
+- FSR-era closure remains historical authority for the closed campaign.
+- ANVIL contracts, implementation, tests, and current successor documents govern the active successor.
+- FSR-specific assumptions are not inherited unless independently justified.
+- Historical `main` is not rewritten to make the successor appear to have always existed.
 
-Permitted maintenance can include:
+## 11. Maintenance
 
-- correcting broken links;
-- clarifying false or ambiguous historical claims;
-- improving reproducibility without changing the historical conclusion;
+Current documentation maintenance may include:
+
+- reconciling current ANVIL status, architecture, qualification, and PR evidence with the exact branch state;
+- correcting broken links or demonstrably false current-status claims;
+- clarifying false or ambiguous historical claims without rewriting historical outcomes;
+- improving reproducibility without changing established evidence;
 - security or licensing/provenance corrections;
 - evidence indexing;
 - explicitly requested restoration or historical investigation.
 
-Do not create a new standing FSR quality plan inside this repository by default.
-
-The FSR era is closed; documentation maintenance should preserve that fact.
+Do not create a new standing FSR quality plan by editing current docs. Do not self-promote ANVIL to `BUILD_READY_FOR_RESEARCH = TRUE`; that remains an evidence/adjudication gate.
