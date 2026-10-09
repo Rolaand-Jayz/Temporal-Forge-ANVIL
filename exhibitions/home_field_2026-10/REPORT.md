@@ -14,7 +14,7 @@
 - **No ANVIL reconstruction code was modified.** `src/anvil/` and `tools/anvil/` are byte-identical to the merged main implementation (verified by the baseline identity below). The lab layer is FFmpeg-free; it drives `anvil_runner` as a subprocess and processes its PNM artifacts.
 - **Architecture:** exhibition definitions (`EXPERIMENTS.json`) → `anvil_exhibit run` (executes arms via the runner, verifies each baseline run fail-closed, applies delivery scaling) → `measure` (full-reference metrics against representation-matched references) → `catalog build` (validated candidate records + roster linkage). The Review Lab server (`anvil_review_lab`) serves the catalog, hash-linked 8-bit display derivatives, and computes all difference math server-side from the original PNM samples.
 - **New dependency:** vendored `stb_image_write.h` v1.16 (public domain / MIT, pinned commit recorded in `external/stb/STB_IMAGE_WRITE_COMMIT.txt`); recorded in `THIRD_PARTY_LICENSES.md`. No other new dependencies.
-- **Remaining limitations:** single-user loopback server; UI tested in Chromium (headless, real render) at 2560×1440 — not yet exercised in Firefox/WebKit; no automatic image alignment (manual display-only offsets are provided and disclosed); synthetic scenes are analytic renderings, not natural footage.
+- **Remaining limitations:** single-user loopback server; UI verified in Chromium and Firefox 157 (stable, headless real render) at 2560×1440 — WebKit untested; no automatic image alignment (manual display-only offsets are provided and disclosed); synthetic scenes are analytic renderings, not natural footage.
 
 ## 2. Baseline identity (permanent)
 
@@ -115,7 +115,7 @@ Synthetic-scene delivery reference is the pristine master; BBB delivery referenc
 
 - CTest: **33/33 non-disabled tests pass** on the PR head build (includes `anvil_lab_tests`: 2175 assertions over metrics oracles, naming/roster contracts, baseline fail-closed matrix, PNM/PNG/JSON round-trips, scene determinism).
 - Python: `test_anvil_contract.py` 56/56 and `test_anvil_lab_contract.py` 13/13 (builds a complete miniature exhibition end-to-end, then exercises the live server: hash-linked derivatives, zero-diff on identical inputs, invalid-pair fail-closed, missing-asset 404s, findings round-trip with exact A/B identity, falsified/moved baseline rejection).
-- Browser: 29/29 scripted checks in real Chromium at 2560×1440 (selection, filters, all 7 comparison modes, regions, sequence playback, zoom/pan/fit/1:1, nearest/bilinear, alignment disclosure, refusal on missing assets, baseline modal, findings, metrics gating), plus visual inspection of the captures in `verification/`.
+- Browser: 29/29 scripted checks in real Chromium **and** 29/29 in Firefox 157 (stable) at 2560×1440, zero page errors in either engine (selection, filters, all 7 comparison modes, regions, sequence playback, zoom/pan/fit/1:1, nearest/bilinear, alignment disclosure, refusal on missing assets, baseline `<dialog>` modal, findings round-trip, metrics gating), plus visual inspection of the captures in `verification/` (engine-specific captures archived).
 - Baseline verification on this tree: **OK** (worktree matches pinned identity; pinned commit present).
 
 ## 10. Roster state after the exhibition
