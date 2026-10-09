@@ -651,27 +651,35 @@ RunResult runPipeline(const RunConfig& config) {
             targets.push_back(t);
         }
     } else if (config.startPtsUs) {
-        // Exact match only: no nearest-frame fallback. Duplicate timestamps
-        // are ambiguous and rejected rather than silently picking one.
-        std::vector<uint64_t> anchors;
+        // Exact match only in the microsecond domain. Source-none observations
+        // are not candidates: resolveDisplayTimestamp() uses 0 us internally
+        // when no timestamp exists, and treating that placeholder as evidence
+        // would fabricate timestamp 0 (review 4225401229).
+        std::vector<MicrosecondTimestampCandidate> candidates;
+        candidates.reserve(frames.size());
         for (const auto& [idx, obs] : frames)
-            if (obs.ptsUs == *config.startPtsUs) anchors.push_back(idx);
-        if (anchors.empty()) {
+            candidates.push_back({obs.ptsUs, obs.ptsSource, idx});
+
+        uint64_t anchor = UINT64_MAX;
+        const auto outcome = selectFrameByMicroseconds(
+            candidates, *config.startPtsUs, anchor);
+        if (outcome == TickSelectionOutcome::NoMatch) {
             result.error = "no frame with exact pts_us="
                 + std::to_string(*config.startPtsUs)
-                + " in decoded stream (exact-match selection never falls back "
-                  "to the nearest frame)";
+                + " in decoded stream (frames without a resolved timestamp "
+                  "are excluded; exact-match selection never falls back to "
+                  "the nearest frame)";
             return result;
         }
-        if (anchors.size() > 1) {
+        if (outcome == TickSelectionOutcome::Ambiguous) {
             result.error = "ambiguous timestamp pts_us="
-                + std::to_string(*config.startPtsUs) + ": "
-                + std::to_string(anchors.size())
-                + " decoded frames share it; selection is undefined";
+                + std::to_string(*config.startPtsUs)
+                + ": multiple timestamped decoded frames share it; "
+                  "selection is undefined";
             return result;
         }
         for (int64_t k = 0; k < config.frameCount; ++k) {
-            const uint64_t t = anchors[0] + static_cast<uint64_t>(k);
+            const uint64_t t = anchor + static_cast<uint64_t>(k);
             if (!frames.count(t)) {
                 result.error = "requested frame sequence starting at pts_us="
                     + std::to_string(*config.startPtsUs)

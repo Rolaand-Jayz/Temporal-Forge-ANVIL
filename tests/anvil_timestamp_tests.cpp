@@ -155,6 +155,36 @@ bool probeTruth(const std::string& ffprobe, const std::string& fixture,
     return truth.frameTicks.size() >= 2;
 }
 
+void testSelectByMicrosecondsUnit() {
+    using anvil::MicrosecondTimestampCandidate;
+    using anvil::selectFrameByMicroseconds;
+    using anvil::TickSelectionOutcome;
+
+    uint64_t out = UINT64_MAX;
+    const std::vector<MicrosecondTimestampCandidate> withMissingAndRealZero = {
+        {0, 0, 0}, // no timestamp source: internal placeholder only
+        {0, 1, 1}, // legitimate PTS == 0
+        {1000000, 2, 2},
+    };
+    CHECK(selectFrameByMicroseconds(withMissingAndRealZero, 0, out) ==
+          TickSelectionOutcome::Match);
+    CHECK(out == 1);
+
+    out = UINT64_MAX;
+    CHECK(selectFrameByMicroseconds({{0, 0, 7}}, 0, out) ==
+          TickSelectionOutcome::NoMatch);
+    CHECK(out == UINT64_MAX);
+
+    out = UINT64_MAX;
+    CHECK(selectFrameByMicroseconds({{0, 1, 3}, {0, 2, 4}}, 0, out) ==
+          TickSelectionOutcome::Ambiguous);
+    CHECK(out == UINT64_MAX);
+
+    CHECK(anvil::hasResolvedTimestampSource(1));
+    CHECK(anvil::hasResolvedTimestampSource(2));
+    CHECK(!anvil::hasResolvedTimestampSource(0));
+}
+
 } // namespace
 
 // Review-pass-1 defect repair: every branch of the display-timestamp
@@ -209,6 +239,7 @@ void testResolveDisplayTimestampUnit() {
 
 int main(int argc, char** argv) {
     testSelectByTicksUnit();
+    testSelectByMicrosecondsUnit();
     testResolveDisplayTimestampUnit();
 
     // Fixture + ffprobe may be provided via environment (ctest) or argv, like
