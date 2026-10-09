@@ -136,13 +136,14 @@ if(ANVIL_PROV_STATUS_RC EQUAL 0)
             endforeach()
         endif()
 
-        string(SHA256 ANVIL_PROV_DIRTY_HASH
+        set(ANVIL_PROV_FINGERPRINT
             "status\n${ANVIL_PROV_STATUS_OUT}"
             "tracked-binary-diff\n${ANVIL_PROV_DIFF_OUT}"
             "untracked-paths\n${ANVIL_PROV_UNTRACKED_PATHS}"
             "untracked-blobs\n${ANVIL_PROV_UNTRACKED_HASHES}"
             "ignored-anvil-paths\n${ANVIL_PROV_IGNORED_PATHS}"
             "ignored-anvil-blobs\n${ANVIL_PROV_IGNORED_HASHES}")
+        string(SHA256 ANVIL_PROV_DIRTY_HASH "${ANVIL_PROV_FINGERPRINT}")
     endif()
 elseif(NOT ANVIL_PROV_SHA STREQUAL "")
     message(FATAL_ERROR
