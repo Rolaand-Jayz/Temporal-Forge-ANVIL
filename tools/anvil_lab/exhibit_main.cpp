@@ -455,9 +455,10 @@ int cmdFreezeBaseline(const std::vector<std::string>& args) {
         const int rc = runCommand(argv, out);
         if (rc != 0)
             return fail("git show " + commit + ":" + path + " failed (" + out + ")");
+        // The captured stream IS the blob (popen adds nothing), so its hash
+        // equals a direct worktree-file hash — exactly what verification
+        // compares against later.
         std::vector<uint8_t> bytes(out.begin(), out.end());
-        // git show returns the blob with a trailing newline exactly as
-        // stored; hashing the bytes as returned pins the blob identity.
         const std::string digest = anvil::sha256Hex(bytes.data(), bytes.size());
         files.set(path, JsonValue::makeString(digest));
     }
@@ -532,18 +533,28 @@ int cmdVerifyBaseline(const std::vector<std::string>& args) {
     std::string err;
     if (!anvil_lab::loadBaseline((root / "BASELINE.json").string(), def, err))
         return fail("baseline definition: " + err);
-    anvil_lab::VerifyReport rep = manifest.empty()
-        ? anvil_lab::verifyBaselineTree(def, repoRoot)
-        : [&] {
-              JsonValue m;
-              if (!jsonReadFile(manifest.string(), m, err)) {
-                  anvil_lab::VerifyReport bad;
-                  bad.ok = false;
-                  bad.problems.push_back("manifest: " + err);
-                  return bad;
-              }
-              return anvil_lab::verifyRunIsBaseline(def, m, repoRoot);
-          }();
+    anvil_lab::VerifyReport rep = anvil_lab::verifyBaselineTree(def, repoRoot);
+    {
+        const anvil_lab::VerifyReport commit = anvil_lab::verifyPinnedCommit(def, repoRoot);
+        rep.ok = rep.ok && commit.ok;
+        rep.problems.insert(rep.problems.end(), commit.problems.begin(),
+                            commit.problems.end());
+        rep.notes.insert(rep.notes.end(), commit.notes.begin(), commit.notes.end());
+    }
+    if (!manifest.empty()) {
+        JsonValue m;
+        if (!jsonReadFile(manifest.string(), m, err)) {
+            rep.ok = false;
+            rep.problems.push_back("manifest: " + err);
+        } else {
+            const anvil_lab::VerifyReport run =
+                anvil_lab::verifyRunIsBaseline(def, m, repoRoot);
+            rep.ok = rep.ok && run.ok;
+            rep.problems.insert(rep.problems.end(), run.problems.begin(),
+                                run.problems.end());
+            rep.notes.insert(rep.notes.end(), run.notes.begin(), run.notes.end());
+        }
+    }
     JsonValue out = JsonValue::makeObject();
     out.set("ok", JsonValue::makeBool(rep.ok));
     JsonValue p = JsonValue::makeArray();
@@ -607,8 +618,8 @@ int cmdMeasure(const std::vector<std::string>& args) {
             int n = 0;
             anvil_lab::Image prev;
             for (int f = 0; f < frameCount; ++f) {
-                char name[32];
-                std::snprintf(name, sizeof name, "frame_%04d.ppm", startFrame + f);
+                const std::string name =
+                    "frame_" + std::to_string(startFrame + f) + ".ppm";
                 anvil_lab::Image out, ref;
                 if (!anvil_lab::readPnm((nativeDir / name).string(), out, err))
                     return fail(err);
@@ -651,10 +662,10 @@ int cmdMeasure(const std::vector<std::string>& args) {
                 double psnrSum2 = 0, ssimSum2 = 0;
                 int n2 = 0;
                 for (int f = 0; f < frameCount; ++f) {
-                    char name[32], mname[32];
-                    std::snprintf(name, sizeof name, "frame_%04d.ppm", startFrame + f);
-                    std::snprintf(mname, sizeof mname, "frame_%04d.ppm",
-                                  startFrame + f); // HR master indexes identically
+                    const std::string name =
+                        "frame_" + std::to_string(startFrame + f) + ".ppm";
+                    char mname[32]; // scene masters use 4-digit zero padding
+                    std::snprintf(mname, sizeof mname, "frame_%04d.ppm", startFrame + f);
                     anvil_lab::Image up, master;
                     if (!anvil_lab::readPnm((dDir / name).string(), up, err))
                         return fail(err);
@@ -760,7 +771,14 @@ int cmdRun(const std::vector<std::string>& args) {
     if (haveBaseline) {
         if (!anvil_lab::loadBaseline(baselineJsonPath.string(), def, err))
             return fail("BASELINE.json: " + err);
-        const anvil_lab::VerifyReport rep = anvil_lab::verifyBaselineTree(def, repoRoot);
+        anvil_lab::VerifyReport rep = anvil_lab::verifyBaselineTree(def, repoRoot);
+        {
+            const anvil_lab::VerifyReport commit =
+                anvil_lab::verifyPinnedCommit(def, repoRoot);
+            rep.ok = rep.ok && commit.ok;
+            rep.problems.insert(rep.problems.end(), commit.problems.begin(),
+                                commit.problems.end());
+        }
         if (!rep.ok) {
             for (const std::string& p : rep.problems)
                 std::cerr << "anvil_exhibit: " << p << "\n";
@@ -815,8 +833,12 @@ int cmdRun(const std::vector<std::string>& args) {
             if (!copyToTracked(outDir / "manifest.json",
                                root / "manifests" / sceneId / (rs.armId + ".json"), err))
                 return fail(err);
-            // Output sanity: geometry, frame count, RGB PPM backend format.
-            const int outFrames = static_cast<int>(m.at("output_files").arr.size());
+            // Output sanity: frame artifact count matches the request (the
+            // inventory also lists manifest.json, which is not a frame).
+            size_t frameArtifactCount = 0;
+            for (const JsonValue& f : m.at("output_files").arr)
+                if (f.asString().rfind("frame_", 0) == 0) ++frameArtifactCount;
+            const int outFrames = static_cast<int>(frameArtifactCount);
             if (outFrames != frameCount)
                 return fail(sceneId + "/" + rs.armId + ": expected " +
                             std::to_string(frameCount) + " outputs, got "
@@ -860,8 +882,10 @@ int cmdRun(const std::vector<std::string>& args) {
                     / ("delivery_" + fname);
                 fs::create_directories(dDir);
                 for (int fi = 0; fi < frameCount; ++fi) {
-                    char name[32];
-                    std::snprintf(name, sizeof name, "frame_%04d.ppm", startFrame + fi);
+                    // The pnm backend names artifacts "frame_<N>.ppm" with
+                    // N unpadded (to_string), matching manifest output_files.
+                    const std::string name =
+                        "frame_" + std::to_string(startFrame + fi) + ".ppm";
                     anvil_lab::Image img;
                     if (!anvil_lab::readPnm((outDir / name).string(), img, err))
                         return fail(err);
@@ -935,7 +959,12 @@ JsonValue stagesFromManifest(const JsonValue& m) {
 
 int cmdCatalog(const std::vector<std::string>& args) {
     fs::path root = "exhibitions/home_field_2026-10";
-    std::string op = args.empty() ? "build" : args[0];
+    std::string op = "build";
+    for (size_t i = 0; i < args.size(); ++i) {
+        if (args[i] == "--root" && i + 1 < args.size()) root = args[++i];
+        else if (op.empty() || args[i] != "build") { if (args[i] != "build" && args[i][0] != '-') op = args[i]; }
+    }
+    if (args.size() == 1 && args[0] != "--root") op = args[0];
     std::string err;
     const fs::path catPath = root / "catalog" / "catalog.json";
     if (op == "build") {
@@ -963,6 +992,9 @@ int cmdCatalog(const std::vector<std::string>& args) {
                     runEntry.path() / "native" / "manifest.json";
                 if (!jsonReadFile(manifestPath.string(), m, err))
                     return fail(err);
+                size_t frameCount_ = 0;
+                for (const JsonValue& f : m.at("output_files").arr)
+                    if (f.asString().rfind("frame_", 0) == 0) ++frameCount_;
                 const std::string kind = m.at("config").at("accumulate_enabled").asBool(true)
                     && m.at("config").at("past").asInt(0) + m.at("config").at("future").asInt(0) > 0
                     ? "candidate_like" : "control_like";
@@ -1116,9 +1148,9 @@ int cmdCatalog(const std::vector<std::string>& args) {
                 r.set("frames", [&] {
                     JsonValue fr = JsonValue::makeObject();
                     fr.set("start", m.at("config").at("start_frame"));
-                    fr.set("count", JsonValue::makeInt(
-                        static_cast<int64_t>(m.at("output_files").arr.size())));
-                    fr.set("pattern", JsonValue::makeString("frame_%04d.ppm"));
+                    fr.set("count", JsonValue::makeInt(static_cast<int64_t>(frameCount_)));
+                    fr.set("pattern", JsonValue::makeString("frame_<N>.ppm"));
+                    fr.set("zero_padded", JsonValue::makeBool(false));
                     fr.set("dir", JsonValue::makeString(
                         (fs::path("artifacts/runs") / sceneId / armId / "native").string()));
                     // Exact per-frame timestamp identity from the manifest.
@@ -1143,6 +1175,10 @@ int cmdCatalog(const std::vector<std::string>& args) {
                 catalog.arr.push_back(std::move(r));
 
                 // Delivery variants: spatial adapter applied AFTER the arm.
+                // The parent display name is captured BEFORE any variant is
+                // pushed so chained variant names never accumulate.
+                const std::string parentDisplayName =
+                    catalog.arr.back().at("display_name").asString();
                 for (const auto& dEntry : fs::directory_iterator(runEntry.path())) {
                     const std::string dName = dEntry.path().filename().string();
                     if (dName.rfind("delivery_", 0) != 0) continue;
@@ -1157,7 +1193,7 @@ int cmdCatalog(const std::vector<std::string>& args) {
                     d.set("kind", JsonValue::makeString("delivery_variant"));
                     const double factor =
                         ex.at("delivery").at("factor").asNumber(2.0);
-                    const std::string parentName = catalog.arr.back().at("display_name").asString();
+                    const std::string& parentName = parentDisplayName;
                     if (armId == "control_decoded") {
                         // Pure spatial upscaling of decoded frames: an
                         // external control, never labeled ANVIL-derived.
@@ -1214,8 +1250,9 @@ int cmdCatalog(const std::vector<std::string>& args) {
                         JsonValue fr = JsonValue::makeObject();
                         fr.set("start", m.at("config").at("start_frame"));
                         fr.set("count", JsonValue::makeInt(
-                            static_cast<int64_t>(m.at("output_files").arr.size())));
-                        fr.set("pattern", JsonValue::makeString("frame_%04d.ppm"));
+                            static_cast<int64_t>(frameCount_)));
+                        fr.set("pattern", JsonValue::makeString("frame_<N>.ppm"));
+                        fr.set("zero_padded", JsonValue::makeBool(false));
                         fr.set("dir", JsonValue::makeString(
                             (fs::path("artifacts/runs") / sceneId / armId / dName).string()));
                         return fr;
@@ -1275,6 +1312,7 @@ int cmdCatalog(const std::vector<std::string>& args) {
                 fr.set("start", JsonValue::makeInt(0));
                 fr.set("count", sceneMeta.at("frame_count"));
                 fr.set("pattern", JsonValue::makeString("frame_%04d.ppm"));
+                fr.set("zero_padded", JsonValue::makeBool(true));
                 fr.set("dir", JsonValue::makeString(
                     (fs::path("artifacts/scenes") / sceneId / "master_hr").string()));
                 return fr;
@@ -1322,7 +1360,9 @@ int cmdCatalog(const std::vector<std::string>& args) {
 int cmdRoster(const std::vector<std::string>& args) {
     if (args.empty()) return usageError("roster set|show|audit");
     const std::string op = args[0];
-    const fs::path root = "exhibitions/home_field_2026-10";
+    fs::path root = "exhibitions/home_field_2026-10";
+    for (size_t i = 1; i + 1 < args.size(); ++i)
+        if (args[i] == "--root") root = args[i + 1];
     const fs::path rosterPath = root / "roster" / "roster.json";
     std::string err;
     if (op == "show") {
@@ -1335,11 +1375,17 @@ int cmdRoster(const std::vector<std::string>& args) {
         JsonValue t;
         std::string parseErr;
         std::string json;
-        for (size_t i = 1; i < args.size(); ++i) json += args[i] + " ";
+        for (size_t i = 1; i < args.size(); ++i) {
+            if (args[i] == "--root" && i + 1 < args.size()) {
+                ++i; // consumed by the pre-scan above
+                continue;
+            }
+            json += args[i] + " ";
+        }
         if (!jsonParse(json, t, parseErr))
             return usageError("roster set '<json transition>': " + parseErr);
         fs::create_directories(root / "roster");
-        if (!anvil_lab::rosterSetStatus(rosterPath.string(), t, err))
+        if (!anvil_lab::rosterSetStatus((root / "roster" / "roster.json").string(), t, err))
             return fail(err);
         std::cout << "roster transition recorded\n";
         return 0;

@@ -41,6 +41,9 @@ public:
 
     // Object access: returns Null when the key is absent.
     const JsonValue& at(const std::string& key) const;
+    // Mutable access for in-place edits; a MISSING key returns a shared
+    // dummy (edits to it are discarded — use set() to insert).
+    JsonValue& at(const std::string& key);
     bool has(const std::string& key) const;
     void set(const std::string& key, JsonValue v); // replaces or appends
 

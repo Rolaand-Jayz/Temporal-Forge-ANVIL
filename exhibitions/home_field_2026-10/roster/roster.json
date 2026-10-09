@@ -1,0 +1,102 @@
+{
+  "entries": {
+    "archive_grid_drift/tryout_refinement_confidence": {
+      "status": "tryout"
+    },
+    "archive_grid_drift/tryout_refinement_confidence_geometry": {
+      "status": "tryout"
+    },
+    "crossing_occluders/tryout_refinement_confidence": {
+      "status": "tryout"
+    },
+    "crossing_occluders/tryout_refinement_confidence_geometry": {
+      "status": "tryout"
+    },
+    "bbb_detail_motion/tryout_refinement_confidence": {
+      "status": "tryout"
+    },
+    "bbb_detail_motion/tryout_refinement_confidence_geometry": {
+      "status": "tryout"
+    },
+    "bbb_occlusion/tryout_refinement_confidence": {
+      "status": "tryout"
+    },
+    "bbb_occlusion/tryout_refinement_confidence_geometry": {
+      "status": "tryout"
+    }
+  },
+  "history": [
+    {
+      "candidate_id": "archive_grid_drift/tryout_refinement_confidence",
+      "from": "",
+      "to": "tryout",
+      "timestamp": "",
+      "reason": "Home Field Exhibition invitation: first evaluation of existing refinement+confidence stages",
+      "authority": "maintainer assignment 2026-10-09",
+      "evidence_ref": "exhibitions/home_field_2026-10/EXPERIMENTS.json"
+    },
+    {
+      "candidate_id": "archive_grid_drift/tryout_refinement_confidence_geometry",
+      "from": "",
+      "to": "tryout",
+      "timestamp": "",
+      "reason": "Home Field Exhibition invitation: adds the estimated sample-geometry arm",
+      "authority": "maintainer assignment 2026-10-09",
+      "evidence_ref": "exhibitions/home_field_2026-10/EXPERIMENTS.json"
+    },
+    {
+      "candidate_id": "crossing_occluders/tryout_refinement_confidence",
+      "from": "",
+      "to": "tryout",
+      "timestamp": "",
+      "reason": "Home Field Exhibition invitation: first evaluation of existing refinement+confidence stages",
+      "authority": "maintainer assignment 2026-10-09",
+      "evidence_ref": "exhibitions/home_field_2026-10/EXPERIMENTS.json"
+    },
+    {
+      "candidate_id": "crossing_occluders/tryout_refinement_confidence_geometry",
+      "from": "",
+      "to": "tryout",
+      "timestamp": "",
+      "reason": "Home Field Exhibition invitation: adds the estimated sample-geometry arm",
+      "authority": "maintainer assignment 2026-10-09",
+      "evidence_ref": "exhibitions/home_field_2026-10/EXPERIMENTS.json"
+    },
+    {
+      "candidate_id": "bbb_detail_motion/tryout_refinement_confidence",
+      "from": "",
+      "to": "tryout",
+      "timestamp": "",
+      "reason": "Home Field Exhibition invitation: first evaluation of existing refinement+confidence stages",
+      "authority": "maintainer assignment 2026-10-09",
+      "evidence_ref": "exhibitions/home_field_2026-10/EXPERIMENTS.json"
+    },
+    {
+      "candidate_id": "bbb_detail_motion/tryout_refinement_confidence_geometry",
+      "from": "",
+      "to": "tryout",
+      "timestamp": "",
+      "reason": "Home Field Exhibition invitation: adds the estimated sample-geometry arm",
+      "authority": "maintainer assignment 2026-10-09",
+      "evidence_ref": "exhibitions/home_field_2026-10/EXPERIMENTS.json"
+    },
+    {
+      "candidate_id": "bbb_occlusion/tryout_refinement_confidence",
+      "from": "",
+      "to": "tryout",
+      "timestamp": "",
+      "reason": "Home Field Exhibition invitation: first evaluation of existing refinement+confidence stages",
+      "authority": "maintainer assignment 2026-10-09",
+      "evidence_ref": "exhibitions/home_field_2026-10/EXPERIMENTS.json"
+    },
+    {
+      "candidate_id": "bbb_occlusion/tryout_refinement_confidence_geometry",
+      "from": "",
+      "to": "tryout",
+      "timestamp": "",
+      "reason": "Home Field Exhibition invitation: adds the estimated sample-geometry arm",
+      "authority": "maintainer assignment 2026-10-09",
+      "evidence_ref": "exhibitions/home_field_2026-10/EXPERIMENTS.json"
+    }
+  ]
+}

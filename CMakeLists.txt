@@ -158,6 +158,9 @@ list(FILTER TFORGE_LIB_SOURCES EXCLUDE REGEX "${CMAKE_CURRENT_SOURCE_DIR}/src/ma
 # ANVIL successor isolation: the successor builds as its own FFmpeg-only
 # library and must not be absorbed into the FSR-era player library.
 list(FILTER TFORGE_LIB_SOURCES EXCLUDE REGEX "${CMAKE_CURRENT_SOURCE_DIR}/src/anvil/.*")
+# ANVIL Lab sources belong only to the lab targets below (they intentionally
+# carry no Qt/Vulkan/FFmpeg dependency).
+list(FILTER TFORGE_LIB_SOURCES EXCLUDE REGEX "${CMAKE_CURRENT_SOURCE_DIR}/src/anvil_lab/.*")
 
 add_library(temporal_forge_lib STATIC ${TFORGE_LIB_SOURCES} ${FSR4_SHADER_FILES}
     ${FSR1_SHADER_FILES})

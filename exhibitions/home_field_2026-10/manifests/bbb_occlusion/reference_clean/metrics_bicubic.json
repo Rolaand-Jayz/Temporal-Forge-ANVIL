@@ -1,0 +1,8 @@
+{
+  "filter": "bicubic",
+  "reference": "master_hr",
+  "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
+  "frames_measured": 42,
+  "psnr_db_mean": 30.31914408,
+  "ssim_mean": 0.85879951
+}

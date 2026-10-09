@@ -14,6 +14,14 @@ const JsonValue& JsonValue::at(const std::string& key) const {
     return nullValue;
 }
 
+JsonValue& JsonValue::at(const std::string& key) {
+    static JsonValue dummy;
+    for (auto& kv : obj)
+        if (kv.first == key) return kv.second;
+    dummy = JsonValue();
+    return dummy;
+}
+
 bool JsonValue::has(const std::string& key) const {
     for (const auto& kv : obj)
         if (kv.first == key) return true;

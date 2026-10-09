@@ -130,6 +130,14 @@ jobs:
           g++ -std=c++23 -O2 tools/anvil/make_tick_fixture.cpp \
             $(pkg-config --cflags --libs libavformat libavcodec libavutil) \
             -o build-py/make_tick_fixture
+          # ANVIL Lab (Home Field Exhibition + Visual Review Lab): FFmpeg-free,
+          # needs only the vendored stb header + anvil's SHA-256.
+          g++ -std=c++23 -O2 -Isrc -Iexternal/stb \
+            tools/anvil_lab/exhibit_main.cpp src/anvil_lab/*.cpp src/anvil/Sha256.cpp \
+            -pthread -o build-py/anvil_exhibit
+          g++ -std=c++23 -O2 -Isrc -Iexternal/stb \
+            tools/anvil_lab/server_main.cpp src/anvil_lab/*.cpp src/anvil/Sha256.cpp \
+            -pthread -o build-py/anvil_review_lab
           ./build-py/anvil_runner --help > /dev/null
 
       - name: Run historical + ANVIL contract suites
@@ -141,7 +149,10 @@ jobs:
             tests/test_temporal_matrix.py \
             tests/test_quality_runner_contract.py \
             tests/test_event_trace_assembly.py \
-            tests/test_anvil_contract.py
+            tests/test_anvil_contract.py \
+            tests/test_anvil_lab_contract.py
         env:
           ANVIL_RUNNER: ${{ github.workspace }}/build-py/anvil_runner
           ANVIL_MAKE_TICK_FIXTURE: ${{ github.workspace }}/build-py/make_tick_fixture
+          ANVIL_EXHIBIT: ${{ github.workspace }}/build-py/anvil_exhibit
+          ANVIL_REVIEW_LAB: ${{ github.workspace }}/build-py/anvil_review_lab

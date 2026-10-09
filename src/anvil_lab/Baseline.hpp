@@ -42,11 +42,15 @@ struct VerifyReport {
 };
 
 // Verifies the CURRENT worktree still contains the pinned baseline
-// implementation (file hashes) and that the pinned commit exists in the
-// repository. Fails closed on any difference: a future merged candidate
-// cannot silently redefine the baseline, and any regenerated baseline run
-// from a changed tree is rejected.
+// implementation (file hashes). Fails closed on any difference: a future
+// merged candidate cannot silently redefine the baseline, and any
+// regenerated baseline run from a changed tree is rejected.
 VerifyReport verifyBaselineTree(const BaselineDef& def, const std::string& repoRoot);
+
+// Separately verifies the pinned commit still exists in the repository so
+// the baseline remains reproducible by checkout. (A non-repository root is
+// a hard failure: identity cannot be proven there.)
+VerifyReport verifyPinnedCommit(const BaselineDef& def, const std::string& repoRoot);
 
 // Verifies a run manifest really is the canonical baseline configuration:
 // config hash equality (fail closed) + provenance sanity. The run's git

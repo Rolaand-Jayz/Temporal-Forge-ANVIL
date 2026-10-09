@@ -10,14 +10,18 @@ namespace anvil_lab {
 
 namespace {
 
-bool isHex40(const std::string& s) {
-    if (s.size() != 40) return false;
+bool isHex(const std::string& s, size_t len) {
+    if (s.size() != len) return false;
     for (char c : s) {
         const bool ok = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
         if (!ok) return false;
     }
     return true;
 }
+
+// git commit SHA-1 (40 hex); digest fields are SHA-256 (64 hex).
+bool isCommitSha(const std::string& s) { return isHex(s, 40); }
+bool isSha256Hex(const std::string& s) { return isHex(s, 64); }
 
 } // namespace
 
@@ -37,7 +41,7 @@ bool loadBaseline(const std::string& path, BaselineDef& out, std::string& err) {
         return false;
     }
     out.pinnedCommit = out.json.at("pinned_commit").asString();
-    if (!isHex40(out.pinnedCommit)) {
+    if (!isCommitSha(out.pinnedCommit)) {
         err = "pinned_commit must be a 40-hex git SHA (a moving reference is not "
               "sufficient baseline identity)";
         return false;
@@ -48,13 +52,13 @@ bool loadBaseline(const std::string& path, BaselineDef& out, std::string& err) {
         return false;
     }
     for (const auto& kv : files.obj) {
-        if (!isHex40(kv.second.asString())) {
+        if (!isSha256Hex(kv.second.asString())) {
             err = "implementation.files['" + kv.first + "'] is not a sha256 digest";
             return false;
         }
     }
     out.configHash = out.json.at("config_hash").asString();
-    if (!isHex40(out.configHash)) {
+    if (!isSha256Hex(out.configHash)) {
         err = "config_hash must be a sha256 digest";
         return false;
     }
@@ -103,8 +107,14 @@ VerifyReport verifyBaselineTree(const BaselineDef& def, const std::string& repoR
                                    + "…, found " + digest.substr(0, 12) + "…)");
         }
     }
-    // The pinned commit must still exist in this repository so the baseline
-    // remains reproducible by checkout.
+    rep.ok = rep.problems.empty();
+    if (rep.ok)
+        rep.notes.push_back("worktree implementation matches the pinned baseline identity");
+    return rep;
+}
+
+VerifyReport verifyPinnedCommit(const BaselineDef& def, const std::string& repoRoot) {
+    VerifyReport rep;
     const std::string cmd = "git -C \"" + repoRoot + "\" cat-file -e "
         + def.pinnedCommit + "^{commit} 2>/dev/null";
     const int rc = std::system(cmd.c_str());
@@ -113,8 +123,7 @@ VerifyReport verifyBaselineTree(const BaselineDef& def, const std::string& repoR
                                + " not present in this repository");
     rep.ok = rep.problems.empty();
     if (rep.ok)
-        rep.notes.push_back("worktree implementation matches the pinned baseline "
-                            "identity and the pinned commit is present");
+        rep.notes.push_back("pinned commit present; baseline reproducible by checkout");
     return rep;
 }
 

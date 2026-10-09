@@ -89,7 +89,10 @@ fs::path framePath(const LabState& lab, const JsonValue* rec, int frame) {
     const std::string dir = rec->at("frames").at("dir").asString();
     if (dir.empty()) return {};
     char name[32];
-    std::snprintf(name, sizeof name, "frame_%04d.ppm", frame);
+    if (rec->at("frames").at("zero_padded").asBool(false))
+        std::snprintf(name, sizeof name, "frame_%04d.ppm", frame);
+    else
+        std::snprintf(name, sizeof name, "frame_%d.ppm", frame);
     fs::path p = fs::path(dir) / name;
     if (p.is_absolute()) return {};
     for (const auto& part : p)
@@ -119,6 +122,8 @@ bool loadDisplayDerivative(LabState& lab, const std::string& id, int frame,
     const fs::path cacheDir = lab.root / "artifacts" / "derivatives" / id;
     std::error_code ec;
     fs::create_directories(cacheDir, ec);
+    // Derivative cache names are always zero-padded (they are ours, not the
+    // runner's); the ORIGINAL path resolution honored the record's naming.
     char nbuf[32];
     std::snprintf(nbuf, sizeof nbuf, "frame_%04d.png", frame);
     const fs::path cached = cacheDir / nbuf;
@@ -528,15 +533,28 @@ HttpResponse handleFindings(LabState& lab, const HttpRequest& req) {
             return -1;
         };
         std::vector<uint8_t> png;
-        for (size_t i = 0; i + 3 < b64.size(); i += 4) {
-            const int v3 = b64val(b64[i]), v2 = b64val(b64[i + 1]);
-            const int v1 = b64val(b64[i + 2]), v0 = b64val(b64[i + 3]);
-            if (v3 < 0 || v2 < 0 || v1 < 0 || v0 < 0)
-                return jsonError(400, "screenshot is not valid base64");
-            png.push_back(static_cast<uint8_t>((v3 << 2) | (v2 >> 4)));
-            png.push_back(static_cast<uint8_t>(((v2 & 15) << 4) | (v1 >> 2)));
-            png.push_back(static_cast<uint8_t>(((v1 & 3) << 6) | v0));
+        bool b64Bad = false;
+        for (size_t i = 0; i < b64.size(); i += 4) {
+            // Groups may end with '=' padding (0, 1, or 2 pad chars); the
+            // browser's toDataURL emits padded base64.
+            int vals[4] = {0, 0, 0, 0};
+            int pad = 0;
+            for (int k = 0; k < 4; ++k) {
+                const size_t idx = i + static_cast<size_t>(k);
+                if (idx >= b64.size()) { b64Bad = true; break; }
+                const char c = b64[idx];
+                if (c == '=') { vals[k] = -1; ++pad; continue; }
+                if (pad > 0) { b64Bad = true; break; } // data after padding
+                vals[k] = b64val(c);
+                if (vals[k] < 0) { b64Bad = true; break; }
+            }
+            if (b64Bad) break;
+            png.push_back(static_cast<uint8_t>((vals[0] << 2) | (vals[1] >> 4)));
+            if (vals[2] >= 0) png.push_back(static_cast<uint8_t>(((vals[1] & 15) << 4) | (vals[2] >> 2)));
+            if (vals[3] >= 0) png.push_back(static_cast<uint8_t>(((vals[2] & 3) << 6) | vals[3]));
         }
+        if (b64Bad || png.size() < 8)
+            return jsonError(400, "screenshot is not valid (padded) base64 PNG");
         const std::string sha =
             anvil::sha256Hex(png.data(), png.size());
         std::error_code ec;
@@ -573,14 +591,103 @@ HttpResponse handleFindings(LabState& lab, const HttpRequest& req) {
     return jsonResponse(out);
 }
 
+// Paired contact sheet export: A-row above B-row per sampled frame,
+// composed from ORIGINAL PNM frames downscaled server-side (Lanczos3).
+HttpResponse handleContactSheet(LabState& lab, const HttpRequest& req) {
+    const std::string a = queryString(req, "id_a");
+    const std::string b = queryString(req, "id_b");
+    if (a.empty() || b.empty()) return jsonError(400, "id_a and id_b required");
+    const JsonValue* ra = lab.findRecord(a);
+    const JsonValue* rb = lab.findRecord(b);
+    if (!ra || !rb) return jsonError(404, "unknown image id(s)");
+    const int start = queryInt(req, "start",
+        static_cast<int>(ra->at("frames").at("start").asInt()));
+    const int step = std::max(1, queryInt(req, "step", 7));
+    const int cols = std::clamp(queryInt(req, "cols", 6), 1, 12);
+    const int thumbW = std::clamp(queryInt(req, "thumb_w", 384), 96, 960);
+    std::string err;
+    struct Thumb { std::vector<uint8_t> rgb; int w = 0, h = 0; };
+    std::vector<Thumb> aThumbs, bThumbs;
+    std::vector<int> frames;
+    const int aStart = static_cast<int>(ra->at("frames").at("start").asInt());
+    const int aCount = static_cast<int>(ra->at("frames").at("count").asInt());
+    for (int f = start; f < aStart + aCount && static_cast<int>(frames.size()) < cols; f += step) {
+        anvil_lab::Image ia, ib;
+        const fs::path pa = framePath(lab, ra, f);
+        const fs::path pb = framePath(lab, rb, f);
+        if (pa.empty() || pb.empty()) continue; // skip unpaired frames truthfully
+        if (!anvil_lab::readPnm(pa.string(), ia, err)) return jsonError(500, err);
+        if (!anvil_lab::readPnm(pb.string(), ib, err)) return jsonError(500, err);
+        const int th = thumbW * ia.height / ia.width;
+        auto shrink = [&](const anvil_lab::Image& img) {
+            anvil_lab::Image t = anvil_lab::resizeImage(img, thumbW, th,
+                                                        anvil_lab::ScaleFilter::Lanczos3);
+            return Thumb{anvil_lab::displayRgb(t), thumbW, th};
+        };
+        aThumbs.push_back(shrink(ia));
+        bThumbs.push_back(shrink(ib));
+        frames.push_back(f);
+    }
+    if (frames.empty()) return jsonError(404, "no paired frames in range");
+    const int rowH = aThumbs[0].h;
+    const int W = cols * (thumbW + 8) + 8;
+    const int H = 34 + 2 * (rowH + 30) + 8;
+    std::vector<uint8_t> rgb(static_cast<size_t>(W) * H * 3, 0x10);
+    auto put = [&](int x, int y, uint8_t rr, uint8_t gg, uint8_t bb) {
+        if (x < 0 || y < 0 || x >= W || y >= H) return;
+        const size_t base = (static_cast<size_t>(y) * W + x) * 3;
+        rgb[base] = rr; rgb[base + 1] = gg; rgb[base + 2] = bb;
+    };
+    for (int x = 0; x < W; ++x)
+        for (int y = 0; y < H; ++y)
+            put(x, y, 0x14, 0x1a, 0x16);
+    for (int x = 0; x < W; ++x) { put(x, 30, 0x37, 0xd1, 0x7a); put(x, 31, 0x37, 0xd1, 0x7a); }
+    for (size_t i = 0; i < frames.size(); ++i) {
+        const int ox = 8 + static_cast<int>(i) * (thumbW + 8);
+        for (int row = 0; row < 2; ++row) {
+            const Thumb& t = row == 0 ? aThumbs[i] : bThumbs[i];
+            const int oy = 34 + row * (rowH + 30);
+            for (int y = 0; y < t.h; ++y)
+                for (int x = 0; x < t.w; ++x) {
+                    const size_t sr = (static_cast<size_t>(y) * t.w + x) * 3;
+                    put(ox + x, oy + y, t.rgb[sr], t.rgb[sr + 1], t.rgb[sr + 2]);
+                }
+            for (int x = 0; x < t.w; ++x)
+                put(ox + x, oy + rowH + 4, row == 0 ? 0x37 : 0x8a,
+                    row == 0 ? 0xd1 : 0x95, row == 0 ? 0x7a : 0xa5);
+        }
+    }
+    std::vector<uint8_t> png;
+    if (!anvil_lab::encodePngRgb(png, W, H, rgb.data(), err))
+        return jsonError(500, err);
+    HttpResponse res;
+    res.contentType = "image/png";
+    res.body = std::move(png);
+    res.headers.push_back("Content-Disposition: attachment; filename=\"anvil_contact_sheet.png\"");
+    return res;
+}
+
 HttpResponse handleBaselineVerify(LabState& lab) {
     anvil_lab::BaselineDef def;
     std::string err;
     if (!anvil_lab::loadBaseline((lab.root / "BASELINE.json").string(), def, err))
         return jsonError(500, "baseline: " + err);
-    std::string repoRoot = lab.root.parent_path().parent_path().string();
-    if (!fs::exists(fs::path(repoRoot) / ".git")) repoRoot = ".";
-    const anvil_lab::VerifyReport rep = anvil_lab::verifyBaselineTree(def, repoRoot);
+    // Canonicalize so a relative --root still resolves the repository that
+    // contains it (parent of exhibitions/<name>), falling back to cwd.
+    std::string repoRoot;
+    std::error_code ec;
+    const fs::path canon = fs::weakly_canonical(lab.root, ec);
+    if (!ec) repoRoot = canon.parent_path().parent_path().string();
+    if (repoRoot.empty() || !fs::exists(fs::path(repoRoot) / ".git")) repoRoot = ".";
+    anvil_lab::VerifyReport rep = anvil_lab::verifyBaselineTree(def, repoRoot);
+    {
+        const anvil_lab::VerifyReport commit =
+            anvil_lab::verifyPinnedCommit(def, repoRoot);
+        rep.ok = rep.ok && commit.ok;
+        rep.problems.insert(rep.problems.end(), commit.problems.begin(),
+                            commit.problems.end());
+        rep.notes.insert(rep.notes.end(), commit.notes.begin(), commit.notes.end());
+    }
     JsonValue out = JsonValue::makeObject();
     out.set("baseline", lab.baseline);
     out.set("verification_ok", JsonValue::makeBool(rep.ok));
@@ -632,6 +739,7 @@ HttpResponse route(LabState& lab, const HttpRequest& req) {
         if (p == "/api/regions") return handleRegions(lab, req);
         if (p == "/api/findings") return handleFindings(lab, req);
         if (p == "/api/baseline") return handleBaselineVerify(lab);
+        if (p == "/api/contactsheet") return handleContactSheet(lab, req);
         if (p == "/api/shutdown") {
             lab.shutdown = true;
             anvil_lab::requestServerShutdown();
@@ -649,22 +757,19 @@ int main(int argc, char** argv) {
     fs::path root = "exhibitions/home_field_2026-10";
     std::string bind = "127.0.0.1";
     int port = 8787;
+    fs::path webDir;
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         if (a == "--root" && i + 1 < argc) root = argv[++i];
         else if (a == "--port" && i + 1 < argc) port = std::stoi(argv[++i]);
         else if (a == "--bind" && i + 1 < argc) bind = argv[++i];
-        else if (a == "--web-dir" && i + 1 < argc) {
-            // handled below via env-style storage
-        } else {
+        else if (a == "--web-dir" && i + 1 < argc) webDir = argv[++i];
+        else {
             std::cerr << "anvil_review_lab: unknown option " << a << "\n";
             return 2;
         }
     }
     // Web dir resolution: --web-dir > $ANVIL_LAB_WEB_DIR > source-tree path.
-    fs::path webDir;
-    for (int i = 1; i < argc - 1; ++i)
-        if (std::string(argv[i]) == "--web-dir") webDir = argv[i + 1];
     if (webDir.empty()) {
         if (const char* e = std::getenv("ANVIL_LAB_WEB_DIR")) webDir = e;
     }

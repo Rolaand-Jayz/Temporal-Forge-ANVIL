@@ -70,6 +70,29 @@ BUILD_READY_FOR_RESEARCH = TRUE   (adjudicated 2026-10-09: evaluator CLEAN + mai
 
 This value was never self-promoted: internal repair/review loops and green CI were recorded as evidence only, and the gate closed only on the independent evaluator's verdict and the maintainer's explicit merge authorization.
 
+## Home Field Exhibition & Visual Review Lab — 2026-10-09
+
+The first controlled reconstruction-quality evaluation of the merged ANVIL
+successor and its human-facing comparison workstation were built on the
+feature branch `feature/anvil-home-field-exhibition` (unmerged PR). The
+permanent **ANVIL baseline** identity was frozen to commit `f2f8b992`
+(per-file implementation hashes + canonical configuration, fail-closed
+verification), four comparison arms ran on two synthetic analytic scenes
+and two CC-BY Big Buck Bunny excerpts (42 target frames each), and every
+result is recorded under
+[`exhibitions/home_field_2026-10/`](../../exhibitions/home_field_2026-10/REPORT.md)
+with tracked manifests, metrics, catalog, and roster. Measured headline:
+temporal accumulation beats the decoded-frame control at native
+resolution on all four scenes (+0.23…+2.22 dB PSNR, SSIM +0.003…+0.057),
+the refinement+confidence configuration is the strongest native arm, and
+estimated sample geometry is texture-dependent (including honest
+insufficient-evidence degradation to `unknown` on one real scene). No
+general image-quality claim is made; delivery-scaling and Spring Training
+questions are listed in the report. The Visual Review Lab (local server +
+web UI, Diffchecker-inspired workflow in ANVIL styling) is validated by
+C++/Python contract suites and scripted real-browser verification
+(29/29 checks at 2560×1440).
+
 ## Current validation snapshot
 
 - Implementation/evidence head `b6fbc7b43b25399ce34bfdddfcbf1bf5dc5e335e`: literal branch-head Actions run `37875251102` — **SUCCESS** (both jobs verified this exact SHA)

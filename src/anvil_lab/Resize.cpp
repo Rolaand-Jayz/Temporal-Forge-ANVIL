@@ -99,8 +99,13 @@ std::vector<double> resizePlane(const std::vector<double>& in, int inW, int inH,
         for (int x = 0; x < outW; ++x) {
             double acc = 0.0;
             const int s = wy.start[oy];
-            for (size_t k = 0; k < wy.w[oy].size(); ++k)
-                acc += wy.w[oy][k] * tmp[static_cast<size_t>(s + static_cast<int>(k)) * outW + x];
+            for (size_t k = 0; k < wy.w[oy].size(); ++k) {
+                // Clamp rows exactly like the horizontal pass clamps columns:
+                // kernels extend past the borders at edges.
+                const int sy = std::clamp(s + static_cast<int>(k), 0, inH - 1);
+                acc += wy.w[oy][k]
+                    * tmp[static_cast<size_t>(sy) * outW + x];
+            }
             out[static_cast<size_t>(oy) * outW + x] = acc;
         }
     return out;

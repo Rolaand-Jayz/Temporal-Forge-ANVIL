@@ -501,3 +501,12 @@ if(ANVIL_PYTHON3 AND FFMPEG_ANVIL_FOUND AND FFMPEG_BIN)
 elseif(NOT ANVIL_PYTHON3)
     message(STATUS "ANVIL: python3 not found; anvil_provenance_rebuild_regression disabled")
 endif()
+
+# --- ANVIL Lab tests (Home Field Exhibition + Visual Review Lab contracts).
+# FFmpeg-free: the lab processes PNM evidence and never links decode paths.
+add_executable(anvil_lab_tests anvil_lab_tests.cpp)
+target_compile_features(anvil_lab_tests PRIVATE cxx_std_23)
+target_link_libraries(anvil_lab_tests PRIVATE anvil_lab)
+add_test(NAME anvil_lab_tests COMMAND anvil_lab_tests)
+set_tests_properties(anvil_lab_tests PROPERTIES
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")

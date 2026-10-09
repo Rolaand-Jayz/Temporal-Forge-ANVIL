@@ -1,3 +1,234 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><title>ANVIL Visual Review Lab</title></head>
-<body>UI under construction</body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANVIL Visual Review Lab</title>
+<link rel="stylesheet" href="/static/lab.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- Compact header -->
+  <header id="topbar">
+    <div class="brand">
+      <span class="anvil-mark"></span>
+      <span class="brand-name">ANVIL</span>
+      <span class="brand-sub">Visual Review Lab</span>
+    </div>
+    <div class="head-field" id="head-scene" title="Current scene">—</div>
+    <div class="head-field" id="head-frame" title="Current frame / timestamp">—</div>
+    <div class="head-field wide" id="head-experiment" title="Experiment identity">—</div>
+    <div class="head-state" id="head-validation" title="Validation/provenance state">checking…</div>
+    <button id="btn-baseline" class="ghost" title="Baseline identity &amp; verification">⛓ Baseline</button>
+  </header>
+
+  <!-- A/B selectors -->
+  <section id="selectors">
+    <div class="image-select" id="sel-a">
+      <button class="sel-btn" id="sel-btn-a">
+        <span class="sel-side sel-side-a">IMAGE A</span>
+        <span class="sel-role">Reference</span>
+        <span class="sel-name" id="sel-name-a">—</span>
+        <span class="sel-meta" id="sel-meta-a"></span>
+        <span class="sel-caret">▾</span>
+      </button>
+    </div>
+    <button id="btn-swap" title="Swap A and B (S)">⇄ Swap</button>
+    <div class="image-select" id="sel-b">
+      <button class="sel-btn" id="sel-btn-b">
+        <span class="sel-side sel-side-b">IMAGE B</span>
+        <span class="sel-role">Candidate</span>
+        <span class="sel-name" id="sel-name-b">—</span>
+        <span class="sel-meta" id="sel-meta-b"></span>
+        <span class="sel-caret">▾</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- Selector dropdown panel (shared, anchored to the opener) -->
+  <div id="selector-panel" class="panel hidden" role="dialog">
+    <div class="sp-filters">
+      <input id="sp-search" type="search" placeholder="Search candidates…" autocomplete="off">
+      <select id="sp-filter-scene"><option value="">All scenes</option></select>
+      <select id="sp-filter-kind">
+        <option value="">All kinds</option>
+        <option value="anvil_candidate">ANVIL candidates</option>
+        <option value="anvil_baseline">ANVIL baseline</option>
+        <option value="control">Controls</option>
+        <option value="external_control">Spatial controls</option>
+        <option value="reference">References</option>
+        <option value="delivery_variant">Delivery variants</option>
+      </select>
+      <select id="sp-filter-status">
+        <option value="">All roster statuses</option>
+        <option>tryout</option><option>bench</option><option>minor</option>
+        <option>rookie</option><option>starter</option><option>cut</option>
+      </select>
+      <select id="sp-filter-res"><option value="">All resolutions</option></select>
+      <select id="sp-filter-source">
+        <option value="">Synthetic + real</option>
+        <option value="synthetic">Synthetic scenes</option>
+        <option value="real">Real footage</option>
+      </select>
+    </div>
+    <div class="sp-list" id="sp-list"></div>
+  </div>
+
+  <!-- Comparison identity header -->
+  <section id="compare-header">
+    <div class="ch-main">
+      <span class="ch-label">Comparing</span>
+      <span id="ch-a">—</span>
+      <span class="ch-vs">vs</span>
+      <span id="ch-b">—</span>
+    </div>
+    <div class="ch-detail" id="ch-changed"><b>Changed:</b> —</div>
+    <div class="ch-detail" id="ch-unchanged"><b>Unchanged:</b> —</div>
+    <div class="ch-detail" id="ch-purpose"><b>Purpose:</b> —</div>
+  </section>
+
+  <!-- Pairing validity banner -->
+  <div id="pair-banner" class="banner hidden"></div>
+  <!-- Manual-alignment disclosure -->
+  <div id="align-banner" class="banner warn hidden"></div>
+
+  <!-- Toolbar -->
+  <section id="toolbar">
+    <div class="tb-group" id="mode-buttons">
+      <button data-mode="slider"  class="mode on" title="Slider / wipe (1)">Slider</button>
+      <button data-mode="split"   class="mode" title="Side-by-side (2)">Split</button>
+      <button data-mode="fade"    class="mode" title="Opacity fade (3)">Fade</button>
+      <button data-mode="flicker" class="mode" title="A/B flicker (4)">Flicker</button>
+      <button data-mode="diff"    class="mode" title="Pixel subtraction (5)">Subtract</button>
+      <button data-mode="heatmap" class="mode" title="Difference heatmap (6)">Heatmap</button>
+      <button data-mode="regions" class="mode" title="Difference regions (7)">Regions</button>
+    </div>
+    <div class="tb-group" id="mode-options">
+      <label id="opt-fade" class="opt hidden">Blend <input type="range" id="fade-slider" min="0" max="100" value="50"><span id="fade-val">50%</span></label>
+      <label id="opt-flicker" class="opt hidden">Interval <input type="range" id="flicker-interval" min="120" max="2000" step="20" value="500"><span id="flicker-val">500ms</span>
+        <button id="flicker-play" class="ghost">▶</button><button id="flicker-toggle" class="ghost">Manual A/B</button></label>
+      <label id="opt-diff" class="opt hidden">Gain <input type="range" id="diff-gain" min="1" max="64" value="8"><span id="diff-gain-val">8×</span>
+        Channel <select id="diff-channel"><option value="max">max RGB</option><option value="r">R</option><option value="g">G</option><option value="b">B</option></select></label>
+      <label id="opt-heat" class="opt hidden">Gain <input type="range" id="heat-gain" min="1" max="64" value="4"><span id="heat-gain-val">4×</span></label>
+      <span id="opt-regions" class="opt hidden">Threshold <input type="range" id="region-threshold" min="1" max="80" value="16">
+        Min px <input type="number" id="region-minsize" value="32" min="1" step="1">
+        Merge <input type="number" id="region-merge" value="8" min="0" step="1">
+        <label class="chk"><input type="checkbox" id="region-show" checked> overlay</label></span>
+    </div>
+    <div class="tb-group grow"></div>
+    <div class="tb-group">
+      <button id="zoom-out" class="ghost" title="Zoom out (−)">−</button>
+      <span id="zoom-level" class="zoom-readout">100%</span>
+      <button id="zoom-in" class="ghost" title="Zoom in (+)">+</button>
+      <button id="zoom-fit" class="ghost" title="Fit to window (0)">Fit</button>
+      <button id="zoom-100" class="ghost" title="Actual pixels (1:1)">1:1</button>
+      <button id="smoothing" class="ghost on" title="Display interpolation: bilinear / nearest">Bilinear</button>
+      <button id="fullscreen" class="ghost" title="Full screen">⛶</button>
+    </div>
+    <div class="tb-group" id="align-controls">
+      <span class="tb-title">Align B</span>
+      <input type="number" id="align-x" value="0" step="1" title="Manual B x offset (px, display only)">
+      <input type="number" id="align-y" value="0" step="1" title="Manual B y offset (px, display only)">
+      <button id="align-reset" class="ghost">Reset</button>
+    </div>
+    <div class="tb-group" id="sync-controls">
+      <label class="chk" title="Synchronized zoom/pan for split view"><input type="checkbox" id="sync-pan" checked> Sync zoom/pan</label>
+    </div>
+  </section>
+
+  <!-- Viewport -->
+  <main id="viewport-wrap">
+    <div id="viewport" tabindex="0">
+      <canvas id="canvas"></canvas>
+      <div id="slider-handle" class="hidden" title="Drag the divider"><div class="sh-line"></div><div class="sh-grip">⋮⋮</div></div>
+      <div id="side-tags" class="hidden"><span class="tag tag-a" id="tag-a">A</span><span class="tag tag-b" id="tag-b">B</span></div>
+      <div id="region-list" class="hidden"></div>
+      <div id="viewport-hud">
+        <span id="hud-pos">—</span>
+        <span id="hud-stats"></span>
+      </div>
+    </div>
+
+    <!-- Sequence controls -->
+    <div id="seq-bar">
+      <button id="seq-prev" class="ghost" title="Previous frame ([)">|◀◀</button>
+      <button id="seq-play" class="ghost" title="Play/pause (space)">▶</button>
+      <button id="seq-next" class="ghost" title="Next frame (])">▶▶|</button>
+      <input type="range" id="seq-scrub" min="0" max="0" value="0" class="grow">
+      <span class="seq-frame">frame <input type="number" id="seq-frame" min="0" value="0"> / <span id="seq-total">0</span></span>
+      <span class="seq-ts" id="seq-ts">—</span>
+    </div>
+  </main>
+
+  <!-- Right sidebar -->
+  <aside id="sidebar">
+    <details id="pipeline-details" open>
+      <summary>Pipeline · <span id="pd-title">—</span></summary>
+      <div class="pd-summary" id="pd-summary">—</div>
+      <div class="pd-stages" id="pd-stages"></div>
+      <div class="pd-identity" id="pd-identity"></div>
+    </details>
+    <details id="meta-details" open>
+      <summary>Metadata &amp; provenance</summary>
+      <div class="meta-grid" id="meta-grid-a"></div>
+      <div class="meta-grid" id="meta-grid-b"></div>
+    </details>
+    <details id="metrics-details">
+      <summary>Measurements</summary>
+      <div id="metrics-note" class="note">Full-reference metrics come from the recorded experiment (metrics.json), computed from original PNM samples — never from this viewport.</div>
+      <div class="meta-grid" id="metrics-grid"></div>
+      <div class="meta-grid" id="diff-stats"></div>
+    </details>
+    <details id="findings-details">
+      <summary>Human findings (<span id="findings-count">0</span>)</summary>
+      <div class="finding-form">
+        <select id="f-category">
+          <option value="">category…</option>
+          <option value="improvement">Improvement</option>
+          <option value="regression">Regression</option>
+          <option value="ghosting">Ghosting</option>
+          <option value="blurring_detail_loss">Blurring / detail loss</option>
+          <option value="ringing_sharpening_artifact">Ringing / sharpening artifact</option>
+          <option value="temporal_instability">Temporal instability</option>
+          <option value="alignment_issue">Alignment issue</option>
+          <option value="uncertain_needs_investigation">Uncertain / needs investigation</option>
+        </select>
+        <textarea id="f-observation" rows="3" placeholder="What do you observe in the selected region?"></textarea>
+        <div class="finding-actions">
+          <label class="chk"><input type="checkbox" id="f-shot" checked> attach viewport screenshot</label>
+          <button id="f-save" class="primary">Save finding</button>
+        </div>
+      </div>
+      <div id="findings-list"></div>
+      <div class="finding-actions">
+        <button id="f-export" class="ghost">Export findings JSON</button>
+        <button id="f-import" class="ghost">Import</button>
+        <input type="file" id="f-import-file" accept="application/json" class="hidden">
+      </div>
+    </details>
+    <details id="export-details">
+      <summary>Exports</summary>
+      <div class="export-row"><button id="ex-screenshot" class="ghost">Annotated comparison screenshot</button></div>
+      <div class="export-row"><button id="ex-diff" class="ghost">Difference image (original-sample math)</button></div>
+      <div class="export-row"><button id="ex-crop" class="ghost">Crop current view</button></div>
+      <div class="export-row"><button id="ex-contact" class="ghost">Frame contact sheet (A over B)</button></div>
+    </details>
+  </aside>
+
+  <!-- Baseline modal -->
+  <dialog id="baseline-modal">
+    <h3>ANVIL baseline — permanent identity</h3>
+    <div id="baseline-body"></div>
+    <button id="baseline-close" class="ghost">Close</button>
+  </dialog>
+
+  <footer id="statusbar">
+    <span id="sb-left">ANVIL Visual Review Lab · local session</span>
+    <span id="sb-center"></span>
+    <span id="sb-right">keys: 1–7 modes · [ ] frames · space play · +/− zoom · 0 fit · S swap</span>
+  </footer>
+</div>
+<script src="/static/lab.js"></script>
+</body>
+</html>
