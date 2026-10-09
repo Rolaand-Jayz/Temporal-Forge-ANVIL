@@ -7,28 +7,28 @@
 
 **Do not conflate these concepts:**
 
-1. **ANVIL baseline:** a **fixed technical reference** representing the original ANVIL reconstruction implementation and its exact canonical configuration. Its source, parameters, and environment prerequisites must ultimately be reproducible from immutable evidence, independent of the evolving \`main\` branch. This is **not** the decoded-frame control. The exact reproducible definition belongs to the separate Home Field Exhibition implementation and verification effort. This policy does **not** prematurely declare a SHA or manifest structure.
+1. **ANVIL baseline:** a **fixed technical reference** representing the original ANVIL reconstruction implementation and its exact canonical configuration. Its source, parameters, and environment prerequisites must ultimately be reproducible from immutable evidence, independent of the evolving `main` branch. This is **not** the decoded-frame control. The exact reproducible definition belongs to the separate Home Field Exhibition implementation and verification effort. This policy does **not** prematurely declare a SHA or manifest structure.
 2. **Candidate / configuration identity:** the exact method being tested, including additions, replacements, disabling, model versions, parameters, input/output conventions, and baseline lineage. A different scientifically meaningful configuration is a different technical candidate or version; do not hide it behind the same name.
 3. **Roster disposition:** a **changeable** human research decision about the candidate's current standing. It must not change technical identity or rewrite the outcome of past experiments.
 
-A method can be accepted into \`main\` without changing the original baseline. \`main\` reflects today's active lineup; **ANVIL baseline** always reflects the frozen reference.
+A method can be accepted into `main` without changing the original baseline. `main` reflects today's active lineup; **ANVIL baseline** always reflects the frozen reference.
 
 ## 2. Required human-facing naming language
 
-- Fixed original: **\`ANVIL baseline\`** (no suffix).
-- Derived candidate: **\`ANVIL baseline + <specific modification> + <specific modification> — <status>\`**.
-- Non-ANVIL external control: **\`Spatial control — Lanczos 4×\`**, **\`Decoded-frame control\`**, **\`Ground truth\`**, etc.; never add the ANVIL prefix if its pipeline did not use ANVIL lineage.
+- Fixed original: **`ANVIL baseline`** (no suffix).
+- Derived candidate: **`ANVIL baseline + <specific modification> + <specific modification> — <status>`**.
+- Non-ANVIL external control: **`Spatial control — Lanczos 4×`**, **`Decoded-frame control`**, **`Ground truth`**, etc.; never add the ANVIL prefix if its pipeline did not use ANVIL lineage.
 
 The modifier chain is an intelligible **summary**, not a replacement for the complete technical record. For a component replacement, an expanded description must explicitly say **replaces**; do not imply both predecessor and replacement executed. Include disabled stages and changed parameters when material.
 
 Illustrative names **only**, not claims about existing candidates:
 
-- \`ANVIL baseline + DIS optical flow — tryout\`
-- \`ANVIL baseline + estimated geometry — bench\`
-- \`ANVIL baseline + robust fusion — rookie\`
-- \`ANVIL baseline + robust fusion + Lanczos 4× — starter\`
-- \`ANVIL baseline + NanoVSR 644K — minor\`
-- \`ANVIL baseline + FSR 4.1 refinement — cut\`
+- `ANVIL baseline + DIS optical flow — tryout`
+- `ANVIL baseline + estimated geometry — bench`
+- `ANVIL baseline + robust fusion — rookie`
+- `ANVIL baseline + robust fusion + Lanczos 4× — starter`
+- `ANVIL baseline + NanoVSR 644K — minor`
+- `ANVIL baseline + FSR 4.1 refinement — cut`
 
 Names like "Current Forge", "Enhanced", "Latest", "New baseline", and "Test 3" are insufficient because they conceal what executed. Labels must reflect **observed configuration**, not intent.
 
@@ -38,16 +38,16 @@ Use **temporal reconstruction** for same-resolution temporal processing, **spati
 
 | Status | Qualification meaning | What does **not** qualify |
 |---|---|---|
-| \`tryout\` | Invited and undergoing the **first** technically qualified evaluation | A name on a wishlist with no agreed evaluation |
-| \`bench\` | Experimental, still under development, unproven, or inconclusive | An automatic declaration of failed image quality |
-| \`minor\` | Not selected for the active lineup, but with specific plausible value and a **documented callback condition** | A vague archive with no reason to revisit |
-| \`rookie\` | Repeatable, appropriately controlled evidence of value, **not yet integrated into \`main\`** | One favorable still or unverified claim |
-| \`starter\` | Accepted into the active architecture **and** actually merged into \`main\`, with an explicit authorized decision | Merge alone, CI success alone, or unreviewed experiment |
-| \`cut\` | Evidence-backed decision that tested contribution is insufficient for selection **within documented conditions** | Invalid comparison, wrong inputs, missing weights, unsupported execution, or unspecified general failure |
+| `tryout` | Invited and undergoing the **first** technically qualified evaluation | A name on a wishlist with no agreed evaluation |
+| `bench` | Experimental, still under development, unproven, or inconclusive | An automatic declaration of failed image quality |
+| `minor` | Not selected for the active lineup, but with specific plausible value and a **documented callback condition** | A vague archive with no reason to revisit |
+| `rookie` | Repeatable, appropriately controlled evidence of value, **not yet integrated into `main`** | One favorable still or unverified claim |
+| `starter` | Accepted into the active architecture **and** actually merged into `main`, with an explicit authorized decision | Merge alone, CI success alone, or unreviewed experiment |
+| `cut` | Evidence-backed decision that tested contribution is insufficient for selection **within documented conditions** | Invalid comparison, wrong inputs, missing weights, unsupported execution, or unspecified general failure |
 
 Each candidate has one current disposition when the roster tracks it, but historical experiments retain their recorded contemporaneous state. The system may separately display **current** and **at experiment time** status.
 
-**Disposition is not a universal truth claim.** \`cut\` does not mean a method can never work. \`rookie\` does not mean universal superiority. \`starter\` does not mean the architecture is optimal.
+**Disposition is not a universal truth claim.** `cut` does not mean a method can never work. `rookie` does not mean universal superiority. `starter` does not mean the architecture is optimal.
 
 ## 4. Disposition decisions
 
@@ -60,21 +60,21 @@ A defensible change records, conceptually (not a prescribed schema):
 - Evidence and result limitations.
 - Competing explanations and regression slices.
 - Next evidence gate, if applicable.
-- Integration evidence for \`starter\`.
-- Callback hypothesis and trigger for \`minor\`.
+- Integration evidence for `starter`.
+- Callback hypothesis and trigger for `minor`.
 
 No model, script, viewer, metric summary, CI job, or agent may unilaterally turn evidence into an authorized roster promotion. The maintainer has decision authority unless explicitly delegated.
 
 ## 5. Example movement through the system
 
-\`tryout\` → \`bench\` (promising but unresolved) → \`rookie\` (replicated benefit; integration pending) → \`starter\` (accepted and merged) is a **possible**, not mandatory, path.
+`tryout` → `bench` (promising but unresolved) → `rookie` (replicated benefit; integration pending) → `starter` (accepted and merged) is a **possible**, not mandatory, path.
 
 Other valid decisions include:
 
-- \`tryout\` → \`minor\` when an early, bounded mismatch reveals a credible later application.
-- \`bench\` → \`cut\` when fair, valid testing demonstrates inadequate incremental value in defined conditions.
-- \`minor\` → \`tryout\` or \`bench\` for a newly justified evaluation after a callback.
-- \`starter\` → \`bench\`, \`minor\`, or \`cut\` if evidence and architectural decisions warrant removal or deprecation, with the historical merge and disposition retained.
+- `tryout` → `minor` when an early, bounded mismatch reveals a credible later application.
+- `bench` → `cut` when fair, valid testing demonstrates inadequate incremental value in defined conditions.
+- `minor` → `tryout` or `bench` for a newly justified evaluation after a callback.
+- `starter` → `bench`, `minor`, or `cut` if evidence and architectural decisions warrant removal or deprecation, with the historical merge and disposition retained.
 
 No transition rewrites earlier observations or changes the baseline snapshot.
 
