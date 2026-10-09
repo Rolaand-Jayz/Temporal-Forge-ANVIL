@@ -85,7 +85,7 @@ Stop spending early-screen resources when:
 - The method's incremental value is dwarfed by cost relative to realistic alternatives.
 - A fundamental limitation is found and confirmed.
 
-Do **not** translate every early exit into \`cut\`. Candidates with unresolved integration issues, plausible synergy, narrower use cases, or a promising but unaffordable design may merit \`bench\` or \`minor\` with a written callback condition.
+Do **not** translate every early exit into `cut`. Candidates with unresolved integration issues, plausible synergy, narrower use cases, or a promising but unaffordable design may merit `bench` or `minor` with a written callback condition.
 
 Record what changed if a callback is later justified: e.g., valid motion inputs, a new subpixel estimator, cheaper inference, better codec support, a reliable port, or new independent evidence.
 
