@@ -15,6 +15,9 @@
 #include <filesystem>
 #include <iostream>
 #include <mutex>
+#include <random>
+#include <iomanip>
+#include <sstream>
 #include <set>
 #include <string>
 #include <thread>
@@ -47,6 +50,8 @@ struct LabState {
     fs::path root;
     fs::path webDir;
     fs::path repoRoot;
+    std::string csrfToken;
+    int listenPort = 0;
     JsonValue catalog = JsonValue::makeArray();
     JsonValue roster = JsonValue::makeObject();
     JsonValue scenes = JsonValue::makeArray();
@@ -265,6 +270,7 @@ HttpResponse handleCatalog(LabState& lab) {
     out.set("scenes", lab.scenes);
     out.set("metrics", lab.metrics);
     out.set("baseline", lab.baseline);
+    out.set("csrf_token", JsonValue::makeString(lab.csrfToken));
     return jsonResponse(out);
 }
 
@@ -698,6 +704,12 @@ HttpResponse handleFindings(LabState& lab, const HttpRequest& req) {
     std::lock_guard<std::mutex> lock(lab.mutex);
     const fs::path dir = lab.root / "findings";
     const fs::path path = dir / "findings.json";
+    if (req.method == "POST") {
+        std::error_code mkErr;
+        fs::create_directories(dir, mkErr);
+        if (mkErr || !fs::is_directory(dir))
+            return jsonError(500, "cannot create findings evidence directory: " + mkErr.message());
+    }
     JsonValue findings = JsonValue::makeArray();
     std::string err;
     if (fs::exists(path)) {
@@ -1000,7 +1012,21 @@ HttpResponse route(LabState& lab, const HttpRequest& req) {
         if (p == "/api/baseline") return handleBaselineVerify(lab);
         if (p == "/api/contactsheet") return handleContactSheet(lab, req);
      } else if (req.method == "POST") {
-        if (p == "/api/findings") return handleFindings(lab, req);
+        if (p == "/api/findings") {
+            const auto header = [&](const std::string& key) -> std::string {
+                const auto it = req.headers.find(key);
+                return it == req.headers.end() ? std::string() : it->second;
+            };
+            const std::string host = header("host");
+            const std::string a = "127.0.0.1:" + std::to_string(lab.listenPort);
+            const std::string b = "localhost:" + std::to_string(lab.listenPort);
+            if ((host != a && host != b) || header("origin") != "http://" + host)
+                return jsonError(403, "finding writes require matching loopback Host and Origin");
+            if (header("content-type") != "application/json" ||
+                header("x-anvil-csrf") != lab.csrfToken || lab.csrfToken.empty())
+                return jsonError(403, "finding writes require JSON and a valid session CSRF token");
+            return handleFindings(lab, req);
+        }
     }
     return jsonError(404, "no such endpoint: " + p);
 }
@@ -1035,6 +1061,18 @@ int main(int argc, char** argv) {
     lab.root = root;
     lab.webDir = webDir;
     lab.repoRoot = fs::weakly_canonical(repoRoot);
+    if (bind != "127.0.0.1" && bind != "localhost") {
+        std::cerr << "anvil_review_lab: for safety, the review lab only binds loopback\n";
+        return 2;
+    }
+    lab.listenPort = port;
+    // Unpredictable per-process token is readable only through the same-origin
+    // catalog GET. Cross-origin POSTs cannot borrow it through browser SOP.
+    std::random_device entropy;
+    std::ostringstream nonce;
+    nonce << std::hex << std::setfill('0');
+    for (int i = 0; i < 8; ++i) nonce << std::setw(8) << entropy();
+    lab.csrfToken = nonce.str();
     std::string err;
     if (!fs::exists(lab.root)) {
         std::cerr << "anvil_review_lab: exhibition root not found: "
