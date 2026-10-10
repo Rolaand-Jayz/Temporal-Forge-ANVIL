@@ -59,7 +59,12 @@ pixels for display only; an amber disclosure appears whenever it is active
 
 ◀◀ / ▶▶| step frames; the scrubber and exact frame box address frames by
 index; the readout shows the frame's µs + native-tick timestamp; ▶ plays
-A and B in lockstep. Zoom and crop persist across frames.
+A and B in lockstep. Playback is clock-locked to the content's own
+timestamps — each frame is held for its PTS delta (≈41.7 ms at 24 fps),
+advancement waits until the current frame is actually displayed (a slow
+load holds the frame rather than letting the counter run ahead), and the
+next frames' display derivatives are prefetched so playback keeps pace
+instead of free-running. Zoom and crop persist across frames.
 
 ## Saving and exporting findings
 

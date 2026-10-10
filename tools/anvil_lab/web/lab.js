@@ -27,7 +27,7 @@ const state = {
   alignX: 0, alignY: 0,
   fade: 50,
   flickerTimer: null, flickerShowB: true, flickerPlaying: false,
-  playTimer: null, playing: false,
+  playing: false, playRaf: null, playbackReadyAt: null,
   syncPan: true,
   splitPan: { zoom: 1, x: 0, y: 0 },   // independent nav for split side B
   splitIndependent: false,
@@ -1005,20 +1005,87 @@ function setFrame(f, { fromScrub = false } = {}) {
   refreshCompat(); loadImages(); refreshRegions(); updateMetaPanels();
 }
 
+// Sequence playback is clock-locked to the content's own timeline, the way
+// a media player locks video to its audio clock (the review content has no
+// audio track, so the frames' native PTS is the timebase). Each frame is
+// held for its PTS delta, and advancement is gated on the display being
+// ready: while the current frame's images are still loading, playback
+// STALLS on that frame instead of letting the frame counter run ahead of
+// what is on screen. There is no free-running interval.
+function frameDurationMs(rec, frame) {
+  const fallback = 1000 / 24; // CFR fallback when a record lacks timestamps
+  const idx = (rec && rec.frames && rec.frames.index) || [];
+  const ptsAt = (f) => {
+    for (const e of idx) if (e.frame === f && Number.isFinite(e.pts_us)) return e.pts_us;
+    return null;
+  };
+  const hi = rec.frames.start + rec.frames.count - 1;
+  const next = frame >= hi ? rec.frames.start : frame + 1;
+  const a = ptsAt(frame), b = ptsAt(next);
+  if (a != null && b != null && b > a) return (b - a) / 1000;
+  return fallback;
+}
+
+function stopPlayback() {
+  state.playing = false;
+  $("seq-play").textContent = "▶";
+  if (state.playRaf) cancelAnimationFrame(state.playRaf);
+  state.playRaf = null;
+  state.playbackReadyAt = null;
+}
+
+// While a frame is held, warm the display-derivative cache for the next
+// frames so playback does not stall on first-visit derivative generation.
+// Responses are intentionally no-store; the durable cache is server-side.
+const prefetchInFlight = new Set();
+function prefetchPlaybackFrames() {
+  const rec = state.a;
+  if (!rec) return;
+  const hi = rec.frames.start + rec.frames.count - 1;
+  for (let k = 1; k <= 2; k++) {
+    const f = state.frame + k;
+    if (f > hi) break;
+    for (const id of [state.a && state.a.id, state.b && state.b.id]) {
+      if (!id) continue;
+      const key = id + "@" + f;
+      if (prefetchInFlight.has(key)) continue;
+      prefetchInFlight.add(key);
+      const im = new Image();
+      const done = () => prefetchInFlight.delete(key);
+      im.onload = done;
+      im.onerror = done;
+      im.src = imageUrl(id, f);
+    }
+  }
+}
+
+function playbackTick() {
+  if (!state.playing) return;
+  const rec = state.a;
+  if (!rec) { stopPlayback(); return; }
+  if (state.loading > 0) {
+    // Keep pace with the display: a slow load holds the current frame.
+    state.playbackReadyAt = null;
+  } else {
+    prefetchPlaybackFrames();
+    if (state.playbackReadyAt == null) state.playbackReadyAt = performance.now();
+    if (performance.now() - state.playbackReadyAt >= frameDurationMs(rec, state.frame)) {
+      const hi = rec.frames.start + rec.frames.count - 1;
+      setFrame(state.frame >= hi ? rec.frames.start : state.frame + 1);
+      state.playbackReadyAt = null; // re-arm when the new frame settles
+    }
+  }
+  if (state.playing) state.playRaf = requestAnimationFrame(playbackTick);
+}
+
 function togglePlay() {
   if (state.playing) {
-    state.playing = false;
-    $("seq-play").textContent = "▶";
-    clearInterval(state.playTimer);
+    stopPlayback();
   } else {
     state.playing = true;
     $("seq-play").textContent = "❚❚";
-    state.playTimer = setInterval(() => {
-      const rec = state.a;
-      if (!rec) return;
-      const hi = rec.frames.start + rec.frames.count - 1;
-      setFrame(state.frame >= hi ? rec.frames.start : state.frame + 1);
-    }, 240);
+    state.playbackReadyAt = null;
+    state.playRaf = requestAnimationFrame(playbackTick);
   }
 }
 
