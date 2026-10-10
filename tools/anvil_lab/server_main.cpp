@@ -412,10 +412,16 @@ HttpResponse handleCompat(LabState& lab, const HttpRequest& req) {
                         : jsonDump(v.at(field));
             return std::string();
         };
-        // Native frame ticks are decisive when recorded for both sides.
+        // A scientifically valid pair requires proven frame-time identity.
+        // No timestamp is not evidence of a match (notably for HR/delivery).
         const std::string ptsA = ptsFor(ra, "pts_ticks");
         const std::string ptsB = ptsFor(rb, "pts_ticks");
-        if (!ptsA.empty() && !ptsB.empty() && ptsA != ptsB)
+        const std::string usA = ptsFor(ra, "pts_us");
+        const std::string usB = ptsFor(rb, "pts_us");
+        if (ptsA.empty() || ptsB.empty() || usA.empty() || usB.empty())
+            problems.arr.push_back(JsonValue::makeString(
+                "selected frame lacks verified timebase/PTS identity"));
+        else if (ptsA != ptsB || usA != usB)
             problems.arr.push_back(JsonValue::makeString(
                 "same frame number has different native timestamps"));
     }
