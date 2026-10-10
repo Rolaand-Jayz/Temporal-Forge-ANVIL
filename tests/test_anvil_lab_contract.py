@@ -748,9 +748,9 @@ def test_canonical_baseline_run_rejects_forged_config_with_matching_catalog(
 def test_bounded_http_workers_survive_connection_bursts(lab_server):
     base, _ = lab_server
     port = int(base.rsplit(":", 1)[1])
-    request = (b"GET /api/catalog HTTP/1.1\\r\\nHost: 127.0.0.1:"
+    request = (b"GET /api/catalog HTTP/1.1\r\nHost: 127.0.0.1:"
                + str(port).encode()
-               + b"\\r\\nConnection: close\\r\\n\\r\\n")
+               + b"\r\nConnection: close\r\n\r\n")
     def client(_):
         try:
             with socket.create_connection(("127.0.0.1", port), timeout=3) as conn:
