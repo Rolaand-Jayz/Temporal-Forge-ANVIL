@@ -545,7 +545,9 @@ void testBaseline() {
     std::fputs("placeholder-content", f);
     std::fclose(f);
     rep = anvil_lab::verifyRunIsBaseline(loaded, manifest, work.string());
-    CHECK(rep.ok);
+    // An invented 40-hex run commit must not be accepted as provenance,
+    // even when a synthetic fixture's implementation hash matches.
+    CHECK(!rep.ok);
     JsonValue altered = manifest;
     altered.at("config").set("past", JsonValue::makeInt(4));
     rep = anvil_lab::verifyRunIsBaseline(loaded, altered, work.string());
