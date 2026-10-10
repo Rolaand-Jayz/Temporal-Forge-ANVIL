@@ -597,6 +597,17 @@ HttpResponse handleDiff(LabState& lab, const HttpRequest& req) {
         "computed server-side from original PNM samples (not viewport "
         "pixels); visualization only, measurements live in metrics.json"));
     stats.set("pair_valid", compatJson.at("valid_pair"));
+    stats.set("qualified_experiment", compatJson.at("qualified_experiment"));
+    if (!compatJson.at("qualified_experiment").asBool(false)) {
+        stats.set("source", JsonValue::makeString(
+            "EXPLORATORY original-pixel descriptors, not a qualified scientific measurement"));
+        std::string why;
+        for (const JsonValue& v : compatJson.at("problems").arr) why += v.asString() + "; ";
+        for (const JsonValue& v : compatJson.at("evidence_problems").arr) why += v.asString() + "; ";
+        if (!compatJson.at("experiment_eligible").asBool(false))
+            why += "pair is not an independent experiment; ";
+        stats.set("qualification_reason", JsonValue::makeString(why));
+    }
     HttpResponse res;
     res.contentType = "image/png";
     res.body = std::move(png);
