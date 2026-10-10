@@ -434,7 +434,7 @@ HttpResponse handleCompat(LabState& lab, const HttpRequest& req) {
         const bool bBase = rb->at("kind").asString() == "anvil_baseline";
         if (aBase != bBase)
             out.set("pipeline_diff", anvil_lab::pipelineDiff(
-                                        aBase ? *ra : *rb, aBase ? *rb : *ra));
+                                        aBase ? *rb : *ra, aBase ? *ra : *rb));
     }
     return jsonResponse(out);
 }
