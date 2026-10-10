@@ -653,14 +653,14 @@ def test_no_browser_get_shutdown(lab_server):
 
 def test_scientific_qualification_separated_from_pixel_pair(lab_server):
     base, root = lab_server
-    uri = "/api/compat?id_a=archive_grid_drift/baseline" \\
-          "&id_b=archive_grid_drift/tryout_mini&frame=3"
+    uri = ("/api/compat?id_a=archive_grid_drift/baseline"
+           "&id_b=archive_grid_drift/tryout_mini&frame=3")
     _, raw = get(base, uri)
     initial = json.loads(raw)
     assert initial["pixel_pair_valid"] is True
     assert initial["experiment_eligible"] is True
-    manifest = root / "artifacts" / "runs" / "archive_grid_drift" \\
-        / "baseline" / "native" / "manifest.json"
+    manifest = (root / "artifacts" / "runs" / "archive_grid_drift"
+                / "baseline" / "native" / "manifest.json")
     original = manifest.read_bytes()
     try:
         modified = json.loads(original)
