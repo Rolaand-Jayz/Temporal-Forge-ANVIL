@@ -72,7 +72,7 @@ A and B in lockstep. Zoom and crop persist across frames.
    `findings/findings.json` (portable JSON; import/export from the UI).
 3. Findings inform review; they never promote or cut a candidate. Roster
    transitions are made deliberately with
-   `anvil_exhibit roster set … --json '<transition>'`, which requires
+   `anvil_exhibit roster set --root <exhibition> '<transition JSON>'`, which requires
    reason/authority/evidence (and merge evidence for `starter`).
 
 ## Exports
@@ -85,7 +85,9 @@ sheet (A row above B row). Every export carries the exact compared IDs.
 
 ```sh
 build/anvil_exhibit verify-baseline --root exhibitions/home_field_2026-10 --repo-root .
-# add --manifest artifacts/runs/<scene>/baseline/manifest.json to verify a run
+# --manifest exhibitions/home_field_2026-10/manifests/<scene>/baseline.json
+# Only NEW exhibition runs record the exact invoked executable SHA-256;
+# the original archived manifests are historical, not binary-attested.
 ```
 
 ## Regenerating the exhibition
@@ -94,8 +96,8 @@ The real scene inputs are **not included in Git**. Obtain the official CC-BY 3.0
 
 ```sh
 mkdir -p exhibitions/home_field_2026-10/artifacts/sources
-curl --fail --location --retry 3 --continue-at - \\
-  --output exhibitions/home_field_2026-10/artifacts/sources/big_buck_bunny_1080p_h264.mov \\
+curl --fail --location --retry 3 --continue-at - \
+  --output exhibitions/home_field_2026-10/artifacts/sources/big_buck_bunny_1080p_h264.mov \
   https://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_1080p_h264.mov
 sha256sum exhibitions/home_field_2026-10/artifacts/sources/big_buck_bunny_1080p_h264.mov
 ```
@@ -105,7 +107,7 @@ The SHA-256 printed above records the downloaded input. **The original source ma
 ```sh
 build/anvil_exhibit gen-scenes  --root exhibitions/home_field_2026-10
 build/anvil_exhibit prep-real   --root exhibitions/home_field_2026-10 \
-    --source /path/to/big_buck_bunny_1080p_h264.mov \
+    --source exhibitions/home_field_2026-10/artifacts/sources/big_buck_bunny_1080p_h264.mov \
     --excerpt bbb_detail_motion:44 --excerpt bbb_occlusion:369
 build/anvil_exhibit run      --root exhibitions/home_field_2026-10 --runner build/anvil_runner --repo-root .
 build/anvil_exhibit measure  --root exhibitions/home_field_2026-10
@@ -114,3 +116,7 @@ build/anvil_exhibit catalog build --root exhibitions/home_field_2026-10
 
 Frames and clips live under `artifacts/` (gitignored); manifests, metrics,
 catalog, roster, and reports are tracked.
+
+## Baseline-output evidence qualification
+
+`ANVIL baseline` always names the original source/configuration definition pinned to `f2f8b992`, not the advancing `main` branch. A **particular output run** qualifies as binary-observed only if its manifest includes `exhibition_attestation.runner_path`, matching `runner_sha256` / `runner_sha256_after`, and the same runner bytes remain accessible during verification. The exhibition tool records these for new executions and refuses silent executable replacement. This attests observed executable bytes, **not** independent source-to-binary reproducible compilation. An unverifiable dirty Git build and the older archived manifests require explicit limitations; do not claim their runner binaries have been authenticated. Re-execute the exhibition to obtain new qualified evidence. A standalone source-tree verification does **not** establish historic output quality.
