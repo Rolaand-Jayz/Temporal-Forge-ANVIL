@@ -91,3 +91,65 @@ test("reference metrics identify IMAGE B and never imply an A/B PSNR score", () 
   render(state, $, fmt, esc)();
   assert.match(grid.innerHTML, /UNQUALIFIED \/ historical reference scores hidden/);
 });
+
+test("split independent navigation moves only the selected image", () => {
+  const src = fs.readFileSync("tools/anvil_lab/web/lab.js", "utf8");
+  const start = src.indexOf("function applyPointerDrag(");
+  const zoom = src.indexOf("function zoomBy(", start);
+  const end = src.indexOf("function positionSlider()", zoom);
+  assert.ok(start > 0 && zoom > start && end > zoom);
+  const state = {
+    mode: "split", splitIndependent: true,
+    panX: 10, panY: 20, zoom: 1,
+    splitPan: { x: 100, y: 200, zoom: 2 },
+  };
+  const $ = (id) => {
+    assert.equal(id, "viewport");
+    return {getBoundingClientRect: () => ({left: 0, top: 0, width: 100, height: 80})};
+  };
+  let rendered = 0;
+  const api = new Function("state", "$", "render", src.slice(start, end) +
+    "\nreturn {applyPointerDrag, zoomBy};")(state, $, () => rendered++);
+  const origin = {x: 30, y: 40, panX: 10, panY: 20, splitX: 100, splitY: 200};
+  api.applyPointerDrag({...origin, side: "b"}, 40, 60);
+  assert.equal(state.panX, 10);
+  assert.equal(state.panY, 20);
+  assert.equal(state.splitPan.x, 110);
+  assert.equal(state.splitPan.y, 220);
+  api.applyPointerDrag({...origin, side: "a"}, 20, 30);
+  assert.equal(state.panX, 0);
+  assert.equal(state.panY, 10);
+  assert.equal(state.splitPan.x, 110);
+  const zoomA = state.zoom, panA = state.panX;
+  api.zoomBy(1.5, {clientX: 75, clientY: 20}); // right half B
+  assert.equal(state.zoom, zoomA);
+  assert.equal(state.panX, panA);
+  assert.equal(state.splitPan.zoom, 3);
+  const zoomB = state.splitPan.zoom, panB = state.splitPan.x;
+  api.zoomBy(2, {clientX: 20, clientY: 20}); // left half A
+  assert.equal(state.zoom, zoomA * 2);
+  assert.equal(state.splitPan.zoom, zoomB);
+  assert.equal(state.splitPan.x, panB);
+  assert.equal(rendered, 2);
+});
+
+test("unqualified run provenance hides historical PSNR and SSIM", () => {
+  const src = fs.readFileSync("tools/anvil_lab/web/lab.js", "utf8");
+  const start = src.indexOf("function updateMetricsPanel()");
+  const end = src.indexOf("function fmt(", start);
+  const grid = {innerHTML: ""};
+  const state = {
+    a: {id:"scene/baseline"},
+    b: {id:"scene/tryout_mini",scene:{id:"scene"},display_name:"tryout"},
+    compat: {valid_pair:true,qualified_experiment:false,
+             evidence_problems:["B: missing runner executable-byte attestation"]},
+    data: {metrics:{rows:[{scene:"scene",arm:"tryout_mini",
+                        native:{psnr_db_mean:99,ssim_mean:0.99}}]}},
+  };
+  const fn = new Function("state","$","fmt","esc",src.slice(start,end)+
+    "\nreturn updateMetricsPanel;")(state,()=>grid,()=>"",String);
+  fn();
+  assert.match(grid.innerHTML,/UNQUALIFIED/);
+  assert.doesNotMatch(grid.innerHTML,/99/);
+  assert.doesNotMatch(grid.innerHTML,/PSNR/);
+});
