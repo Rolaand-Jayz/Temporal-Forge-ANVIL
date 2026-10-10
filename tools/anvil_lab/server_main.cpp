@@ -396,7 +396,8 @@ HttpResponse handleCompat(LabState& lab, const HttpRequest& req) {
         auto ptsFor = [frame](const JsonValue* rec, const char* field) {
             for (const JsonValue& v : rec->at("frames").at("index").arr)
                 if (v.at("frame").asInt(-1) == frame)
-                    return v.at(field).asString();
+                    return v.at(field).isNull() ? std::string()
+                        : jsonDump(v.at(field));
             return std::string();
         };
         // Native frame ticks are decisive when recorded for both sides.
@@ -527,6 +528,8 @@ HttpResponse handleRegions(LabState& lab, const HttpRequest& req) {
     const fs::path pb = framePath(lab, rb, frame);
     if (pa.empty() || pb.empty()) return jsonError(404, "frame unavailable");
     std::string err;
+    if (!verifyCatalogFrame(lab, ra, frame, err)) return jsonError(409, "A: " + err);
+    if (!verifyCatalogFrame(lab, rb, frame, err)) return jsonError(409, "B: " + err);
     anvil_lab::Image ia, ib;
     if (!anvil_lab::readPnm(pa.string(), ia, err)) return jsonError(500, err);
     if (!anvil_lab::readPnm(pb.string(), ib, err)) return jsonError(500, err);
