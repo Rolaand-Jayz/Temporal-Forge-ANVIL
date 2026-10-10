@@ -103,6 +103,36 @@ fs::path framePath(const LabState& lab, const JsonValue* rec, int frame) {
     return full;
 }
 
+// Verify the selected original artifact against the catalog's immutable SHA-256.
+// The frame's mere existence is NOT proof of provenance or scientific validity.
+bool verifyCatalogFrame(const LabState& lab, const JsonValue* rec, int frame,
+                        std::string& err) {
+    const fs::path p = framePath(lab, rec, frame);
+    if (p.empty()) { err = "selected frame is missing"; return false; }
+    const JsonValue& inventory = rec->at("artifacts");
+    if (!inventory.isArray()) {
+        err = "catalog has no immutable artifact inventory";
+        return false;
+    }
+    std::string expected;
+    for (const JsonValue& item : inventory.arr) {
+        if (item.at("path").asString() == p.filename().string()) {
+            expected = item.at("sha256").asString();
+            break;
+        }
+    }
+    if (expected.size() != 64) {
+        err = "selected frame has no recorded SHA-256";
+        return false;
+    }
+    std::string actual;
+    if (!anvil_lab::sha256FileHexLab(p.string(), actual) || actual != expected) {
+        err = "selected frame SHA-256 differs from catalog evidence";
+        return false;
+    }
+    return true;
+}
+
 // Loads a frame and records an 8-bit display derivative with provenance
 // (original sha256 <-> derivative sha256) in the derivative index.
 bool loadDisplayDerivative(LabState& lab, const std::string& id, int frame,
@@ -114,6 +144,7 @@ bool loadDisplayDerivative(LabState& lab, const std::string& id, int frame,
         err = "frame not found for id '" + id + "'";
         return false;
     }
+    if (!verifyCatalogFrame(lab, rec, frame, err)) return false;
     origSha.clear();
     if (!anvil_lab::sha256FileHexLab(src.string(), origSha)) {
         err = "cannot hash original";
@@ -265,6 +296,9 @@ HttpResponse handleMeta(LabState& lab, const HttpRequest& req) {
     out.set("delivery", rec->at("delivery"));
     out.set("frames", rec->at("frames"));
     if (frame >= 0) {
+        std::string verifyError;
+        if (!verifyCatalogFrame(lab, rec, frame, verifyError))
+            return jsonError(409, verifyError);
         const fs::path p = framePath(lab, rec, frame);
         if (p.empty())
             return jsonError(404, "frame " + std::to_string(frame)
@@ -299,6 +333,8 @@ HttpResponse handleCompat(LabState& lab, const HttpRequest& req) {
     JsonValue out = JsonValue::makeObject();
     JsonValue problems = JsonValue::makeArray();
     JsonValue warnings = JsonValue::makeArray();
+    const int frame = queryInt(req, "frame",
+        static_cast<int>(ra->at("frames").at("start").asInt()));
     if (ra->at("scene").at("id").asString() != rb->at("scene").at("id").asString())
         problems.arr.push_back(JsonValue::makeString("different scene"));
     if (ra->at("output").at("width").asInt() != rb->at("output").at("width").asInt()
@@ -318,18 +354,57 @@ HttpResponse handleCompat(LabState& lab, const HttpRequest& req) {
             "different delivery scale (" + std::to_string(scaleA) + "x vs "
             + std::to_string(scaleB) + "x): native and delivered results must "
             "not be compared as one experiment"));
-    if (ra->at("input").at("clip_sha256").asString() != rb->at("input").at("clip_sha256").asString())
-        problems.arr.push_back(JsonValue::makeString("different input clip"));
+    const std::string hashA = ra->at("input").at("clip_sha256").asString();
+    const std::string hashB = rb->at("input").at("clip_sha256").asString();
+    if (hashA != hashB) {
+        // A qualified clean-LR or HR reference legitimately has different
+        // input provenance from a noisy reconstruction. Require the same
+        // scene and known reference identity; this is not an arbitrary clip
+        // mismatch exemption between competing candidates.
+        const JsonValue* reference = ra->at("kind").asString() == "reference" ? ra
+            : rb->at("kind").asString() == "reference" ? rb : nullptr;
+        const bool cleanRef = reference &&
+            reference->at("id").asString().find("/reference_clean") != std::string::npos;
+        const bool hrRef = reference &&
+            reference->at("id").asString().find("/hr_master") != std::string::npos;
+        const std::string refClip = reference
+            ? reference->at("input").at("clip").asString() : "";
+        const std::string otherClip = (reference == ra ? rb : ra)
+            ->at("input").at("clip").asString();
+        const bool knownPair = hrRef || (cleanRef &&
+            refClip.find("/input_clean.mp4") != std::string::npos &&
+            otherClip.find("/input_noisy.mp4") != std::string::npos);
+        if (!knownPair || ra->at("scene").at("id").asString() !=
+                              rb->at("scene").at("id").asString())
+            problems.arr.push_back(JsonValue::makeString("different unqualified input clips"));
+        else
+            warnings.arr.push_back(JsonValue::makeString(
+                "known clean/HR reference paired with reconstructed input; provenance differs by design"));
+    }
     if (ra->at("kind").asString() == "reference" || rb->at("kind").asString() == "reference")
         warnings.arr.push_back(JsonValue::makeString(
             "one side is a reference: comparisons against references are "
             "valid; comparisons between two references are not experiments"));
+    // Validate selected-frame identity and original-sample hashes, not just
+    // the existence of each run's first image.
     if (problems.arr.empty()) {
-        // Artifact integrity: the recorded frame hashes must match disk.
-        const fs::path pa = framePath(lab, ra, static_cast<int>(ra->at("frames").at("start").asInt()));
-        const fs::path pb = framePath(lab, rb, static_cast<int>(rb->at("frames").at("start").asInt()));
-        if (pa.empty() || pb.empty())
-            problems.arr.push_back(JsonValue::makeString("artifact missing on disk"));
+        std::string errA, errB;
+        if (!verifyCatalogFrame(lab, ra, frame, errA))
+            problems.arr.push_back(JsonValue::makeString("image A: " + errA));
+        if (!verifyCatalogFrame(lab, rb, frame, errB))
+            problems.arr.push_back(JsonValue::makeString("image B: " + errB));
+        auto ptsFor = [frame](const JsonValue* rec, const char* field) {
+            for (const JsonValue& v : rec->at("frames").at("index").arr)
+                if (v.at("frame").asInt(-1) == frame)
+                    return v.at(field).asString();
+            return std::string();
+        };
+        // Native frame ticks are decisive when recorded for both sides.
+        const std::string ptsA = ptsFor(ra, "pts_ticks");
+        const std::string ptsB = ptsFor(rb, "pts_ticks");
+        if (!ptsA.empty() && !ptsB.empty() && ptsA != ptsB)
+            problems.arr.push_back(JsonValue::makeString(
+                "same frame number has different native timestamps"));
     }
     out.set("valid_pair", JsonValue::makeBool(problems.arr.empty()));
     out.set("problems", std::move(problems));
@@ -374,6 +449,8 @@ HttpResponse handleDiff(LabState& lab, const HttpRequest& req) {
         return jsonError(404, "frame unavailable for one or both ids — no "
                             "substitution is performed");
     std::string err;
+    if (!verifyCatalogFrame(lab, ra, frame, err)) return jsonError(409, "A: " + err);
+    if (!verifyCatalogFrame(lab, rb, frame, err)) return jsonError(409, "B: " + err);
     anvil_lab::Image ia, ib;
     if (!anvil_lab::readPnm(pa.string(), ia, err)) return jsonError(500, err);
     if (!anvil_lab::readPnm(pb.string(), ib, err)) return jsonError(500, err);
