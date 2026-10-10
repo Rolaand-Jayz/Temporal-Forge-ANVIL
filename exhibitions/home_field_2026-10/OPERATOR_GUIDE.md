@@ -98,17 +98,30 @@ build/anvil_exhibit verify-baseline --root exhibitions/home_field_2026-10 --repo
 
 ## Regenerating the exhibition
 
-The real scene inputs are **not included in Git**. Obtain the official CC-BY 3.0 Blender Foundation Big Buck Bunny source directly from the same published upstream URL already used by `benchmarks/video_corpus/prepare_corpus.sh`:
+The real scene inputs are **not included in Git**. Obtain the official CC-BY 3.0 Blender Foundation Big Buck Bunny master from the published upstream directory already used by `benchmarks/video_corpus/prepare_corpus.sh` (verified 2026-10-10: the bare `.mov` URL returns 404; the `.zip` is live):
 
 ```sh
 mkdir -p exhibitions/home_field_2026-10/artifacts/sources
-curl --fail --location --retry 3 --continue-at - \
-  --output exhibitions/home_field_2026-10/artifacts/sources/big_buck_bunny_1080p_h264.mov \
-  https://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_1080p_h264.mov
+curl --fail --location --retry 3 \
+  --output exhibitions/home_field_2026-10/artifacts/sources/bbb.zip \
+  https://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_1080p_h264.mov.zip
+unzip exhibitions/home_field_2026-10/artifacts/sources/bbb.zip \
+  -d exhibitions/home_field_2026-10/artifacts/sources
 sha256sum exhibitions/home_field_2026-10/artifacts/sources/big_buck_bunny_1080p_h264.mov
 ```
 
-The SHA-256 printed above records the downloaded input. **The original source master's SHA-256 has not been independently pinned in this Git-tracked package**, so do not claim full bit-for-bit reproduction merely because a download succeeded. Preserve and compare the generated `scene.json` source fingerprints with the recorded scene/run manifest input hashes and declare any mismatch; FFmpeg/tool-version differences can change re-encodes. The reconstructed images under `artifacts/` are ignored by Git and must be regenerated before visual inspection on a fresh clone. Until then the lab must show missing-image states, not fabricated outputs.
+The digest **must** equal the pin recorded in [`SOURCES.md`](SOURCES.md)
+(`dc2146a2b1172def56730143ad80cd1825b7fad15f1fc9c23a4e7d01a741ac11` — the
+exact bytes the historical exhibition used). A mismatch means a different
+source master: declare it; do not claim reproduction of the tracked results.
+Even with a matching master, FFmpeg/tool-version differences can change
+re-encodes, so preserve and compare the generated `scene.json` source
+fingerprints with the recorded scene/run manifest input hashes and declare
+any mismatch. The reconstructed images under `artifacts/` are ignored by
+Git and must be regenerated before visual inspection on a fresh clone.
+Until then the lab reports `evidence_present: false` on `/api/catalog`,
+shows an explicit missing-evidence note in the UI, and answers image
+requests with 404 — never fabricated or substitute outputs.
 
 ```sh
 build/anvil_exhibit gen-scenes  --root exhibitions/home_field_2026-10

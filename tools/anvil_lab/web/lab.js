@@ -1311,6 +1311,15 @@ async function init() {
       Start it with: anvil_review_lab --root exhibitions/home_field_2026-10</div>`;
     return;
   }
+  if (state.data.evidence_present === false) {
+    // Clean checkout: tracked catalog/metadata only, no reviewable pixels.
+    // State the absence explicitly; never fall back to unrelated imagery.
+    const b = document.createElement("div");
+    b.id = "evidence-banner";
+    b.textContent = state.data.missing_evidence_note ||
+      "Evidence artifacts are not present in this checkout.";
+    document.getElementById("compare-header").prepend(b);
+  }
   initSelectorFilters();
   defaultSelection();
   updateSelectorButtons();

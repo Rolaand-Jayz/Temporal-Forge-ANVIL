@@ -108,8 +108,8 @@ Synthetic-scene delivery reference is the pristine master; BBB delivery referenc
 
 ## 8. Artifacts and retention
 
-- Git-tracked (this directory): `EXPERIMENTS.json`, `BASELINE.json`, `catalog/catalog.json`, `roster/roster.json`, `manifests/**` (every run manifest + metrics summary), `METRICS.json`, this report, `OPERATOR_GUIDE.md`, `verification/` (browser-verification captures).
-- Local-only (gitignored, regenerable): `artifacts/` (masters, LR frames, clips, run frame outputs, display-derivative cache) and `findings/` (human review state). Regenerate with `anvil_exhibit gen-scenes && prep-real && run && measure && catalog build` (real scenes additionally need the CC-BY master, see `scene.json` provenance; currently at `/tmp/anvil_home_field/sources/big_buck_bunny_1080p_h264.mov`, sha256 in `scene.json`).
+- Git-tracked (this directory): `EXPERIMENTS.json`, `BASELINE.json`, `catalog/catalog.json`, `roster/roster.json`, `manifests/**` (every run manifest + metrics summary), `METRICS.json`, this report, `OPERATOR_GUIDE.md`, `SOURCES.md` (tracked sha256 pin for the CC-BY master), `verification/` (browser-verification captures).
+- Local-only (gitignored, regenerable): `artifacts/` (masters, LR frames, clips, run frame outputs, display-derivative cache) and `findings/` (human review state). Regenerate with `anvil_exhibit gen-scenes && prep-real && run && measure && catalog build` (real scenes additionally need the CC-BY master acquired and digest-verified per [`SOURCES.md`](SOURCES.md)).
 
 ## 9. Validation evidence
 

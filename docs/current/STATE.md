@@ -83,8 +83,10 @@ The original four-scene experiment (two analytic scenes and two Big Buck Bunny
 excerpts) reported native PSNR gains over decoded-frame controls, but the
 tracked run manifests were produced **before executable-byte attestation**,
 report `git_dirty: "true"`, and lack the now-required
-`exhibition_attestation`. The original Blender upstream master SHA-256
-is not pinned. These are **historical preliminary results**, not
+`exhibition_attestation`. The Blender upstream master is now pinned by
+digest in [`exhibitions/home_field_2026-10/SOURCES.md`](../../exhibitions/home_field_2026-10/SOURCES.md),
+but no pinned-source, attested regeneration has been executed yet. These
+are **historical preliminary results**, not
 current-head reproduced or qualified scientific evidence. Refinement+confidence
 was not the best arm by every metric or scene; there is no universal winner
 claim. The earlier 29/29 Chromium and Firefox browser checks are also

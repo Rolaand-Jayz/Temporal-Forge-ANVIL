@@ -61,6 +61,7 @@ struct LabState {
     JsonValue scenes = JsonValue::makeArray();
     JsonValue metrics = JsonValue::makeObject();
     JsonValue baseline = JsonValue::makeObject();
+    bool evidencePresent = false; // scenes AND run outputs exist in this checkout
     std::mutex mutex; // serializes findings writes + derivative cache
     std::atomic<bool> shutdown{false};
 
@@ -275,6 +276,14 @@ HttpResponse handleCatalog(LabState& lab) {
     out.set("metrics", lab.metrics);
     out.set("baseline", lab.baseline);
     out.set("csrf_token", JsonValue::makeString(lab.csrfToken));
+    out.set("evidence_present", JsonValue::makeBool(lab.evidencePresent));
+    out.set("missing_evidence_note", JsonValue::makeString(
+        lab.evidencePresent ? "" :
+        "Evidence artifacts are not present in this checkout (artifacts/ is "
+        "gitignored by design). The catalog, manifests, and metrics below "
+        "are tracked provenance; images cannot be displayed until the "
+        "exhibition is regenerated — see OPERATOR_GUIDE.md and SOURCES.md. "
+        "No substitute or historical imagery is shown."));
     return jsonResponse(out);
 }
 
@@ -1226,6 +1235,11 @@ int main(int argc, char** argv) {
         std::cerr << "anvil_review_lab: experiment frames absent; "
                      "regenerate artifacts before image review\n";
     }
+    // Reviewable evidence needs both scene inputs and run outputs; the
+    // catalog below is tracked metadata either way. Surface the difference
+    // to the client instead of letting image requests fail unexplained.
+    lab.evidencePresent = !lab.scenes.arr.empty()
+        && fs::is_directory(lab.root / "artifacts" / "runs");
     if (fs::exists(lab.root / "METRICS.json")
         && !jsonReadFile((lab.root / "METRICS.json").string(), lab.metrics, err)) {
         std::cerr << "anvil_review_lab: metrics: " << err << "\n";

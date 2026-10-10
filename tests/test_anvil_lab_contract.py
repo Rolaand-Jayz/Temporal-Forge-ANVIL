@@ -974,3 +974,46 @@ def test_unknown_paths_404(lab_server):
             assert False, f"{path} should 404"
         except urllib.error.HTTPError as e:
             assert e.code == 404
+
+
+def test_catalog_only_checkout_reports_missing_evidence(mini_exhibition,
+                                                         tmp_path):
+    """A clean checkout (catalog tracked, artifacts absent) must boot, say
+    so explicitly via /api/catalog, and never serve or substitute imagery."""
+    stripped = tmp_path / "catalog_only"
+    shutil.copytree(mini_exhibition, stripped,
+                    ignore=shutil.ignore_patterns("artifacts"))
+    port = free_port()
+    proc = subprocess.Popen(
+        [SERVER, "--root", str(stripped), "--port", str(port),
+         "--web-dir", str(REPO_ROOT / "tools" / "anvil_lab" / "web")],
+        cwd=REPO_ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    base = f"http://127.0.0.1:{port}"
+    try:
+        for _ in range(80):
+            try:
+                urllib.request.urlopen(base + "/api/catalog", timeout=1)
+                break
+            except Exception:
+                time.sleep(0.25)
+        else:
+            pytest.fail("catalog-only server did not come up")
+        _, body = get(base, "/api/catalog")
+        d = json.loads(body)
+        assert d["evidence_present"] is False
+        assert "regenerated" in d["missing_evidence_note"]
+        assert "SOURCES.md" in d["missing_evidence_note"]
+        try:
+            urllib.request.urlopen(
+                base + "/api/image?id=archive_grid_drift/baseline&frame=3",
+                timeout=5)
+            assert False, "expected 404 for absent evidence image"
+        except urllib.error.HTTPError as e:
+            assert e.code == 404
+    finally:
+        try:
+            urllib.request.urlopen(base + "/api/shutdown", timeout=2)
+        except Exception:
+            pass
+        proc.terminate()
+        proc.wait(timeout=5)
