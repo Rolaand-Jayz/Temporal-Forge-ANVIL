@@ -17,6 +17,8 @@ observed end-to-end:
 """
 import base64
 import binascii
+import hashlib
+from contextlib import contextmanager
 import struct
 import zlib
 import json
@@ -651,6 +653,95 @@ def test_http_content_length_malformed_requests_survive(lab_server):
         assert b"400" in response or b"413" in response, response[:200]
         _, raw = get(base, "/api/catalog")
         assert json.loads(raw)["catalog"], "server must survive malformed requests"
+
+
+@contextmanager
+def isolated_review_lab(root):
+    port = free_port()
+    proc = subprocess.Popen(
+        [SERVER, "--root", str(root), "--port", str(port),
+         "--repo-root", str(REPO_ROOT),
+         "--web-dir", str(REPO_ROOT / "tools" / "anvil_lab" / "web")],
+        cwd=REPO_ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    base=f"http://127.0.0.1:{port}"
+    try:
+        for _ in range(100):
+            try:
+                get(base,"/api/catalog")
+                break
+            except (urllib.error.URLError, ConnectionError):
+                time.sleep(0.1)
+        else:
+            pytest.fail("isolated review lab failed to start")
+        yield base
+    finally:
+        proc.terminate()
+        proc.wait(timeout=8)
+
+
+def test_screenshot_optional_fresh_findings_dir(tmp_path,mini_exhibition):
+    isolated=tmp_path/"lab"
+    shutil.copytree(mini_exhibition,isolated)
+    shutil.rmtree(isolated/"findings",ignore_errors=True)
+    finding={"scene_id":"archive_grid_drift","frame":3,
+        "image_a":"archive_grid_drift/baseline",
+        "image_b":"archive_grid_drift/tryout_mini",
+        "category":"improvement","observation":"first-no-screenshot"}
+    with isolated_review_lab(isolated) as base:
+        req=urllib.request.Request(base+"/api/findings",
+            data=json.dumps(finding).encode(),headers=post_headers(base))
+        with urllib.request.urlopen(req,timeout=10) as response:
+            assert response.status==200
+        assert (isolated/"findings"/"findings.json").exists()
+    with isolated_review_lab(isolated) as base:
+        _,raw=get(base,"/api/findings")
+        assert any(x["observation"]=="first-no-screenshot"
+                   for x in json.loads(raw)["findings"])
+        finding["observation"]="second-with-screenshot"
+        finding["screenshot_png_base64"]=base64.b64encode(png_bytes()).decode()
+        req=urllib.request.Request(base+"/api/findings",
+            data=json.dumps(finding).encode(),headers=post_headers(base))
+        with urllib.request.urlopen(req,timeout=10) as response:
+            assert response.status==200
+
+
+def test_canonical_baseline_run_rejects_forged_config_with_matching_catalog(
+        tmp_path, mini_exhibition):
+    isolated=tmp_path/"baseline-forgery"
+    shutil.copytree(mini_exhibition,isolated)
+    manifest_path=(isolated/"artifacts"/"runs"/"archive_grid_drift"
+                  /"baseline"/"native"/"manifest.json")
+    catalog_path=isolated/"catalog"/"catalog.json"
+    with isolated_review_lab(isolated) as base:
+        _,raw=get(base,"/api/compat?id_a=archive_grid_drift/baseline"
+                    "&id_b=archive_grid_drift/tryout_mini&frame=3")
+        original=json.loads(raw)
+        # May be unqualified due to a separate provenance limitation, but
+        # it must never fail because it mismatches the frozen config.
+        assert not any("run configuration hash" in x
+                       for x in original.get("evidence_problems",[]))
+    manifest=json.loads(manifest_path.read_text())
+    manifest["config"]["past"]=7
+    manifest_path.write_text(json.dumps(manifest))
+    names=["past","future","side_info_normalization_mode","correspondence_mode",
+       "refinement_mode","visibility_mode","confidence_mode","geometry_mode",
+       "accumulate_enabled","color_convert_enabled","forced_cut_frames",
+       "auto_scene_cut","auto_cut_threshold","excluded_neighbors","seed",
+       "output_backend"]
+    semantic={k:manifest["config"][k] for k in names if k in manifest["config"]}
+    altered_hash=hashlib.sha256(json.dumps(semantic,separators=(",",":")).encode()).hexdigest()
+    catalog=json.loads(catalog_path.read_text())
+    target=next(x for x in catalog if x["id"]=="archive_grid_drift/baseline")
+    target["identity"]["config_hash"]=altered_hash
+    target["identity"]["manifest_sha256"]=hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    catalog_path.write_text(json.dumps(catalog))
+    with isolated_review_lab(isolated) as base:
+        _,raw=get(base,"/api/compat?id_a=archive_grid_drift/baseline"
+                    "&id_b=archive_grid_drift/tryout_mini&frame=3")
+        pair=json.loads(raw)
+        assert pair["pixel_pair_valid"] is True
+        assert pair["qualified_experiment"] is False
+        assert any("immutable baseline" in x for x in pair["evidence_problems"])
 
 
 def test_cross_origin_findings_writes_rejected(lab_server):
