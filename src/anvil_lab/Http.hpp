@@ -6,6 +6,7 @@
 // traversal, no absolute escape). No TLS, no keep-alive requirement, no
 // chunked upload parsing — anything outside that contract returns 400/501.
 #pragma once
+#include <atomic>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -34,7 +35,7 @@ using HttpHandler = std::function<HttpResponse(const HttpRequest&)>;
 // Blocks serving until shutdown is requested. Returns false when
 // bind/listen fails (err filled).
 bool httpServe(const std::string& bindAddr, uint16_t port,
-               const HttpHandler& handler, const volatile bool*& shutdownFlag,
+               const HttpHandler& handler, const std::atomic<bool>*& shutdownFlag,
                std::string& err);
 
 // Asks a running httpServe loop to stop (safe from any thread/handler).
