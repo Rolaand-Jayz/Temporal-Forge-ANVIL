@@ -199,6 +199,18 @@ bool rosterSetStatus(const std::string& rosterPath, const JsonValue& transition,
         err = "the canonical baseline never carries a roster status";
         return false;
     }
+    // One disposition per technical configuration across ALL scenes.
+    // Scene/run IDs are observations, not roster identity.
+    if (id.rfind("cfg:", 0) != 0 || id.size() != 68) {
+        err = "candidate_id must be cfg:<64-hex canonical config hash>, not a scene/run ID";
+        return false;
+    }
+    for (size_t i = 4; i < id.size(); ++i)
+        if (!((id[i] >= '0' && id[i] <= '9') ||
+              (id[i] >= 'a' && id[i] <= 'f'))) {
+            err = "candidate_id contains invalid configuration digest";
+            return false;
+        }
     if (to == "starter") {
         if (transition.at("integration_commit").asString().empty()
             || !transition.at("merge_evidence").asBool(false)) {
@@ -259,9 +271,17 @@ bool rosterAudit(const JsonValue& roster, const JsonValue& catalog,
                  std::vector<std::string>& errors) {
     std::set<std::string> known;
     if (catalog.isArray())
-        for (const JsonValue& r : catalog.arr)
+        for (const JsonValue& r : catalog.arr) {
+            // Historic scene-specific experiment IDs remain valid for old
+            // decision history, but current dispositions use candidate_key.
             known.insert(r.at("id").asString());
+            if (r.at("kind").asString() == "anvil_candidate" &&
+                !r.at("candidate_key").asString().empty())
+                known.insert(r.at("candidate_key").asString());
+        }
     for (const auto& kv : roster.at("entries").obj) {
+        if (kv.first.rfind("cfg:", 0) != 0)
+            errors.push_back("current roster entry is scene-scoped, not global: '" + kv.first + "'");
         if (!known.count(kv.first))
             errors.push_back("roster references unknown candidate '" + kv.first + "'");
         const std::string st = kv.second.at("status").asString();
