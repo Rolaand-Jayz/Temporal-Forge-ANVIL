@@ -96,8 +96,10 @@ jobs:
           # Check the literal PR head rather than GitHub's synthetic merge ref.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Validate Visual Review Lab JavaScript syntax
-        run: node --check tools/anvil_lab/web/lab.js
+      - name: Validate Visual Review Lab JavaScript syntax and findings export
+        run: |
+          node --check tools/anvil_lab/web/lab.js
+          node --test tests/anvil_lab_findings_export.test.cjs
 
       - name: Verify branch-head checkout
         run: |
