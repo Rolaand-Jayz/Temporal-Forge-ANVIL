@@ -46,6 +46,7 @@ namespace {
 struct LabState {
     fs::path root;
     fs::path webDir;
+    fs::path repoRoot;
     JsonValue catalog = JsonValue::makeArray();
     JsonValue roster = JsonValue::makeObject();
     JsonValue scenes = JsonValue::makeArray();
@@ -362,6 +363,28 @@ bool evidenceQualified(const LabState& lab, const JsonValue* record,
     if (!anvil_lab::sha256FileHexLab((lab.root / rel).string(), fileSha) ||
         fileSha != rec->at("identity").at("manifest_sha256").asString()) {
         reason = "run manifest differs from recorded immutable digest"; return false;
+    }
+    // Every run must have a technical identity independent of mutable labels.
+    const std::string actualConfig = anvil_lab::sha256StringHex(
+        anvil_lab::canonicalConfigString(manifest.at("config")));
+    if (actualConfig != rec->at("identity").at("config_hash").asString()) {
+        reason = "run config differs from selected catalog identity"; return false;
+    }
+    if (rec->at("kind").asString() == "anvil_baseline") {
+        anvil_lab::BaselineDef baseline;
+        if (!anvil_lab::loadBaseline((lab.root / "BASELINE.json").string(),baseline,error)) {
+            reason = "canonical baseline unavailable: " + error; return false;
+        }
+        const auto commit = anvil_lab::verifyPinnedCommit(baseline,lab.repoRoot.string());
+        if (!commit.ok) {
+            reason = "pinned baseline Git object unavailable"; return false;
+        }
+        const auto run = anvil_lab::verifyRunIsBaseline(baseline,manifest,lab.repoRoot.string());
+        if (!run.ok) {
+            reason = "selected baseline run differs from immutable baseline: "
+                + (run.problems.empty() ? std::string("identity mismatch") : run.problems.front());
+            return false;
+        }
     }
     const JsonValue& att = manifest.at("exhibition_attestation");
     const std::string expected = att.at("runner_sha256").asString();
@@ -989,12 +1012,14 @@ int main(int argc, char** argv) {
     std::string bind = "127.0.0.1";
     int port = 8787;
     fs::path webDir;
+    fs::path repoRoot = fs::current_path();
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         if (a == "--root" && i + 1 < argc) root = argv[++i];
         else if (a == "--port" && i + 1 < argc) port = std::stoi(argv[++i]);
         else if (a == "--bind" && i + 1 < argc) bind = argv[++i];
         else if (a == "--web-dir" && i + 1 < argc) webDir = argv[++i];
+        else if (a == "--repo-root" && i + 1 < argc) repoRoot = argv[++i];
         else {
             std::cerr << "anvil_review_lab: unknown option " << a << "\n";
             return 2;
@@ -1009,6 +1034,7 @@ int main(int argc, char** argv) {
     LabState lab;
     lab.root = root;
     lab.webDir = webDir;
+    lab.repoRoot = fs::weakly_canonical(repoRoot);
     std::string err;
     if (!fs::exists(lab.root)) {
         std::cerr << "anvil_review_lab: exhibition root not found: "
