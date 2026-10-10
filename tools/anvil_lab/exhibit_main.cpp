@@ -1096,13 +1096,19 @@ int cmdCatalog(const std::vector<std::string>& args) {
                     JsonValue s = JsonValue::makeObject();
                     s.set("factor", JsonValue::makeNumber(1.0));
                     s.set("description", JsonValue::makeString(
-                        "temporal reconstruction at native input resolution "
-                        "(no spatial scaling)"));
+                        (armId == "control_decoded" || armId == "reference_clean"
+                            ? "decoded-frame output at input resolution (no temporal accumulation or spatial scaling)"
+                            : "temporal reconstruction at native input resolution (no spatial scaling)")));
                     return s;
                 }());
+                const std::string nativeMethod = armId == "control_decoded"
+                    ? "decoded-frame control (temporal accumulation disabled)"
+                    : armId == "reference_clean"
+                        ? "clean decoded reference (temporal accumulation disabled)"
+                        : "temporal reconstruction (confidence-weighted accumulation)";
                 r.set("description", JsonValue::makeString(
                     std::to_string(obsW) + "x" + std::to_string(obsH)
-                    + " input → " + "temporal reconstruction"
+                    + " input → " + nativeMethod
                     + " → " + std::to_string(obsW) + "x" + std::to_string(obsH)
                     + " output"));
                 JsonValue pipeline = JsonValue::makeObject();
@@ -1231,15 +1237,20 @@ int cmdCatalog(const std::vector<std::string>& args) {
                         s.set("factor", JsonValue::makeNumber(factor));
                         s.set("description", JsonValue::makeString(
                             "spatial delivery scaling " + std::to_string(factor)
-                            + "× (explicit adapter, applied after temporal "
-                              "reconstruction; reported separately from native "
-                              "results)"));
+                            + "× (explicit adapter applied after "
+                            + (armId == "control_decoded" || armId == "reference_clean"
+                               ? std::string("decoded frames")
+                               : std::string("temporal reconstruction"))
+                            + "; reported separately from native results)"));
                         return s;
                     }());
                     d.set("description", JsonValue::makeString(
                         std::to_string(obsW) + "x" + std::to_string(obsH)
                         + " input → " + (armId == "control_decoded"
-                                             ? "decoded frames" : "temporal reconstruction")
+                            ? "decoded-frame control (no temporal accumulation)"
+                            : armId == "reference_clean"
+                                ? "clean decoded reference (no temporal accumulation)"
+                                : "temporal reconstruction")
                         + " → " + filter + " " + std::to_string(factor)
                         + "× delivery → "
                         + std::to_string(static_cast<int>(obsW * factor)) + "x"
