@@ -108,7 +108,7 @@ jobs:
       - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pytest ffmpeg pkg-config libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libva-dev libdrm-dev
+          sudo apt-get install -y python3-pytest ffmpeg pkg-config libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libva-dev libdrm-dev zlib1g-dev
 
       # The ANVIL targets need only FFmpeg. The historical player requires
       # Qt6 >= 6.6, which ubuntu-24.04 apt does not provide, so the full
@@ -141,10 +141,10 @@ jobs:
           # needs only the vendored stb header + anvil's SHA-256.
           g++ -std=c++23 -O2 -Isrc -Iexternal/stb \
             tools/anvil_lab/exhibit_main.cpp src/anvil_lab/*.cpp src/anvil/Sha256.cpp \
-            -pthread -o build-py/anvil_exhibit
+            -pthread -lz -o build-py/anvil_exhibit
           g++ -std=c++23 -O2 -Isrc -Iexternal/stb \
             tools/anvil_lab/server_main.cpp src/anvil_lab/*.cpp src/anvil/Sha256.cpp \
-            -pthread -o build-py/anvil_review_lab
+            -pthread -lz -o build-py/anvil_review_lab
           ./build-py/anvil_runner --help > /dev/null
 
       - name: Run historical + ANVIL contract suites
