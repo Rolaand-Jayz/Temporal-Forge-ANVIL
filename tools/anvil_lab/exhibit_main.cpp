@@ -938,8 +938,8 @@ JsonValue stagesFromManifest(const JsonValue& m) {
     arr.arr.push_back(stage("decode", "software ffmpeg decode", true,
                             "planar YUV, verbatim plane copy on ingest"));
     arr.arr.push_back(stage("window_select",
-                            "past " + c.at("past").asString() + " / future "
-                                + c.at("future").asString(),
+                            "past " + std::to_string(c.at("past").asInt()) + " / future "
+                                + std::to_string(c.at("future").asInt()),
                             c.at("past").asInt(0) + c.at("future").asInt(0) > 0,
                             "exact per-frame window selection"));
     arr.arr.push_back(stage("side_info_normalization",
