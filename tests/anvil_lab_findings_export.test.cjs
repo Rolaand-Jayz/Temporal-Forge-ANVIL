@@ -51,3 +51,43 @@ test("exportFindings reads the persisted server state after a save", async () =>
   const contents = JSON.parse(await exported.text());
   assert.deepEqual(contents.findings, persisted);
 });
+
+test("reference metrics identify IMAGE B and never imply an A/B PSNR score", () => {
+  const src = fs.readFileSync("tools/anvil_lab/web/lab.js", "utf8");
+  const begin = src.indexOf("function updateMetricsPanel()");
+  const end = src.indexOf("function fmt(", begin);
+  assert.ok(begin >= 0 && end > begin);
+  const grid = { innerHTML: "" };
+  const $ = (id) => { assert.equal(id, "metrics-grid"); return grid; };
+  const state = {
+    a: { id: "scene/baseline", display_name: "ANVIL baseline" },
+    b: { id: "scene/tryout_mini",
+         display_name: "ANVIL baseline + refinement — tryout",
+         scene: { id: "scene" }, scale: { factor: 1 } },
+    compat: { valid_pair: true },
+    data: { metrics: { rows: [{
+      scene: "scene", arm: "tryout_mini",
+      native: { reference: "clean LR reference",
+                psnr_db_mean: 30, ssim_mean: 0.92,
+                edge_diff_mean: 3, temporal_delta_mean: 2,
+                reference_validity: "full-reference" },
+    }] } },
+  };
+  const fmt = (n, suffix) => n.toFixed(2) + (suffix || "");
+  const esc = (v) => String(v);
+  const render = new Function("state", "$", "fmt", "esc",
+    src.slice(begin, end) + "\nreturn updateMetricsPanel;");
+  render(state, $, fmt, esc)();
+  assert.match(grid.innerHTML, /IMAGE B vs recorded reference/);
+  assert.match(grid.innerHTML, /B vs reference PSNR/);
+  assert.match(grid.innerHTML, /clean LR reference/);
+  assert.match(grid.innerHTML, /Difference statistics panel/);
+  assert.doesNotMatch(grid.innerHTML, /A vs B PSNR/);
+  const before = grid.innerHTML;
+  state.a = { id: "scene/other-candidate", display_name: "other candidate" };
+  render(state, $, fmt, esc)();
+  assert.equal(grid.innerHTML, before, "B's reference score must not depend on IMAGE A");
+  state.compat.valid_pair = false;
+  render(state, $, fmt, esc)();
+  assert.match(grid.innerHTML, /hidden — pair is not a valid experiment/);
+});
