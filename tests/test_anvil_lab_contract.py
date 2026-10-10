@@ -682,12 +682,12 @@ def test_cross_origin_findings_writes_rejected(lab_server):
 
 
 def png_bytes(w=1, h=1, pixels=None):
-    if pixels is None: pixels = b"\\x00" + b"\\xff\\x00\\x00\\xff" * w
+    if pixels is None: pixels = b"\x00" + b"\xff\x00\x00\xff" * w
     image = pixels * h
     def chunk(tag, data):
         return (struct.pack(">I", len(data)) + tag + data
                 + struct.pack(">I", binascii.crc32(tag + data) & 0xffffffff))
-    return (b"\\x89PNG\\r\\n\\x1a\\n"
+    return (b"\x89PNG\r\n\x1a\n"
             + chunk(b"IHDR", struct.pack(">IIBBBBB", w,h,8,6,0,0,0))
             + chunk(b"IDAT", zlib.compress(image))
             + chunk(b"IEND", b""))
