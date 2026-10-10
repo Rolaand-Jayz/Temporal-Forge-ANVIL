@@ -187,6 +187,33 @@ VerifyReport verifyRunIsBaseline(const BaselineDef& def, const JsonValue& manife
             }
         }
     }
+    // Commit and source equivalence do not authenticate the executable that
+    // actually emitted pixels. Require wrapper-observed binary identity.
+    // An old manifest with no attestation is historical *unqualified*
+    // evidence, not a verified baseline output.
+    const JsonValue& att = manifest.at("exhibition_attestation");
+    const std::string executable = att.at("runner_path").asString();
+    const std::string expected = att.at("runner_sha256").asString();
+    const std::string completed = att.at("runner_sha256_after").asString();
+    if (!isSha256Hex(expected) || completed != expected ||
+        executable.empty() || !std::filesystem::is_regular_file(executable)) {
+        rep.ok = false;
+        rep.problems.push_back("baseline output has no verifiable executed-binary "
+            "attestation (historical/source-only evidence)");
+    } else {
+        std::string actual;
+        if (!sha256FileHexLab(executable, actual) || actual != expected) {
+            rep.ok = false;
+            rep.problems.push_back("attested runner executable is missing or "
+                "differs from the bytes used for the experiment");
+        } else {
+            rep.notes.push_back("executed runner bytes match the orchestrator's "
+                "SHA-256 observation; source-to-binary reproducibility is NOT proven");
+        }
+    }
+    if (manifest.at("provenance").at("git_dirty").asString() == "true")
+        rep.notes.push_back("runner reported a dirty Git worktree; reviewed "
+            "source equivalence does not establish a reproducible binary build");
     return rep;
 }
 
