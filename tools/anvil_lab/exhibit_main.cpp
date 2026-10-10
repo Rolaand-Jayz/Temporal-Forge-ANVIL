@@ -1275,6 +1275,9 @@ int cmdCatalog(const std::vector<std::string>& args) {
                         fr.set("zero_padded", JsonValue::makeBool(false));
                         fr.set("dir", JsonValue::makeString(
                             (fs::path("artifacts/runs") / sceneId / armId / dName).string()));
+                        // Delivery is pixelwise spatial filtering of its
+                        // parent frames, so timestamps are IDENTICAL.
+                        fr.set("index", catalog.arr.back().at("frames").at("index"));
                         return fr;
                     }());
                     d.set("color", catalog.arr.back().at("color"));
@@ -1335,6 +1338,25 @@ int cmdCatalog(const std::vector<std::string>& args) {
                 fr.set("zero_padded", JsonValue::makeBool(true));
                 fr.set("dir", JsonValue::makeString(
                     (fs::path("artifacts/scenes") / sceneId / "master_hr").string()));
+                // The HR master frame N is the source frame N encoded to
+                // the clean-LR video at 24 fps. Copy only known decoded
+                // timestamps from that same scene's reference run; frames
+                // without a proven mapping cannot enter scientific pairs.
+                JsonValue cleanManifest;
+                std::string mapError;
+                const fs::path cleanPath = root / "artifacts" / "runs" /
+                    sceneId / "reference_clean" / "native" / "manifest.json";
+                if (!jsonReadFile(cleanPath.string(), cleanManifest, mapError))
+                    return JsonValue::null();
+                JsonValue index = JsonValue::makeArray();
+                for (const JsonValue& f : cleanManifest.at("frames").arr) {
+                    JsonValue entry = JsonValue::makeObject();
+                    entry.set("frame", f.at("frame_index"));
+                    entry.set("pts_us", f.at("pts_us"));
+                    entry.set("pts_ticks", f.at("pts_ticks"));
+                    index.arr.push_back(std::move(entry));
+                }
+                fr.set("index", std::move(index));
                 return fr;
             }());
             hr.set("color", JsonValue::null());
