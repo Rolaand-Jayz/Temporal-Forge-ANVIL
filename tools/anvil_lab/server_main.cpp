@@ -177,8 +177,20 @@ bool loadDisplayDerivative(LabState& lab, const std::string& id, int frame,
             std::fclose(f);
         }
         if (!pngOut.empty()) {
-            derivSha = idx.at(key).at("derivative_sha256").asString();
-            return true;
+            // Cache integrity is independent of the source PNG's provenance:
+            // the original may still match while cached bytes were altered.
+            const std::string expectedDerivative =
+                idx.at(key).at("derivative_sha256").asString();
+            const std::string actualDerivative =
+                anvil::sha256Hex(pngOut.data(), pngOut.size());
+            if (expectedDerivative.size() == 64 &&
+                actualDerivative == expectedDerivative) {
+                derivSha = actualDerivative;
+                return true;
+            }
+            // Never return a corrupted cache with a borrowed hash.
+            // Recreate the derivative deterministically from verified PNM.
+            pngOut.clear();
         }
     }
     anvil_lab::Image img;
