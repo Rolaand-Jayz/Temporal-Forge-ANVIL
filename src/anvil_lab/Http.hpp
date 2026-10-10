@@ -19,6 +19,7 @@ struct HttpRequest {
     std::string method;
     std::string path;                 // decoded, must start with '/'
     std::map<std::string, std::string> query; // decoded query parameters
+    std::map<std::string, std::string> headers; // case-normalized lowercase header names
     std::vector<uint8_t> body;
 };
 
