@@ -169,6 +169,37 @@ def test_baseline_verify_ok_and_falsified_fails(mini_exhibition):
         pinned_path.write_bytes(original)
 
 
+def test_baseline_output_requires_attested_runner_bytes(mini_exhibition):
+    manifest_file = (mini_exhibition / "manifests" / "archive_grid_drift"
+                     / "baseline.json")
+    m = json.loads(manifest_file.read_text())
+    att = m["exhibition_attestation"]
+    assert att["runner_sha256"] == att["runner_sha256_after"]
+    assert len(att["runner_sha256"]) == 64
+    assert pathlib.Path(att["runner_path"]).is_file()
+
+    ok = run_tool("verify-baseline", "--root", mini_exhibition,
+                  "--repo-root", REPO_ROOT, "--manifest", manifest_file,
+                  check=False)
+    assert ok.returncode == 0, ok.stdout + ok.stderr
+
+    for damage in ["missing", "falsified"]:
+        broken = dict(m)
+        if damage == "missing":
+            broken.pop("exhibition_attestation")
+        else:
+            forged = dict(att)
+            forged["runner_sha256"] = "0" * 64
+            broken["exhibition_attestation"] = forged
+        dest = mini_exhibition.parent / ("tampered_runner_" + damage + ".json")
+        dest.write_text(json.dumps(broken))
+        invalid = run_tool("verify-baseline", "--root", mini_exhibition,
+                           "--repo-root", REPO_ROOT, "--manifest", dest,
+                           check=False)
+        assert invalid.returncode == 1
+        assert "attestation" in invalid.stdout or "executable" in invalid.stdout
+
+
 def test_run_manifest_proves_temporal_reconstruction(mini_exhibition):
     m = json.loads((mini_exhibition / "manifests" / "archive_grid_drift"
                     / "baseline.json").read_text())
