@@ -119,7 +119,7 @@ VerifyReport verifyBaselineTree(const BaselineDef& def, const std::string& repoR
             "src/media/VideoDecoder.cpp src/media/VideoDecoder.hpp "
             "src/media/TimestampResolve.hpp src/util/Log.cpp src/util/Log.hpp "
             "cmake/AnvilProvenance.cmake";
-        const std::string cmd = "git -C \\"" + repoRoot + "\\" diff --quiet "
+        const std::string cmd = "git -C \"" + repoRoot + "\" diff --quiet "
             + def.pinnedCommit + " -- " + deps + " 2>/dev/null";
         if (std::system(cmd.c_str()) != 0)
             rep.problems.push_back("shared decoder/log/build-provenance dependency "
@@ -164,7 +164,7 @@ VerifyReport verifyRunIsBaseline(const BaselineDef& def, const JsonValue& manife
         // A commit-shaped string is not credible provenance on its own.
         // Require the object to exist and its reconstruction source to be
         // identical to the pinned version. A fabricated or stale SHA fails.
-        const std::string cmd = "git -C \\"" + repoRoot + "\\" cat-file -e "
+        const std::string cmd = "git -C \"" + repoRoot + "\" cat-file -e "
             + runSha + "^{commit} 2>/dev/null";
         if (std::system(cmd.c_str()) != 0) {
             rep.ok = false;
@@ -175,7 +175,7 @@ VerifyReport verifyRunIsBaseline(const BaselineDef& def, const JsonValue& manife
                 "src/media/Demuxer.hpp src/media/VideoDecoder.cpp "
                 "src/media/VideoDecoder.hpp src/media/TimestampResolve.hpp "
                 "src/util/Log.cpp src/util/Log.hpp cmake/AnvilProvenance.cmake";
-            const std::string compare = "git -C \\"" + repoRoot + "\\" diff --quiet "
+            const std::string compare = "git -C \"" + repoRoot + "\" diff --quiet "
                 + def.pinnedCommit + " " + runSha + " -- " + src + " 2>/dev/null";
             if (std::system(compare.c_str()) != 0) {
                 rep.ok = false;
