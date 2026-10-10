@@ -84,7 +84,7 @@ Synthetic-scene delivery reference is the pristine master; BBB delivery referenc
 
 **Measured facts.**
 1. Temporal accumulation improves native-resolution fidelity vs the decoded-frame control on all four scenes (+0.23 to +2.22 dB PSNR; +0.0027 to +0.0565 SSIM) and reduces output flicker (temporal Δ) on all four scenes.
-2. The refinement+confidence configuration is the strongest native arm on all four scenes.
+2. Refinement+confidence improves native PSNR over the frozen baseline on all four scenes, but it is **not** the universal winner: estimated geometry yields higher PSNR on `crossing_occluders` and `bbb_occlusion`; its PSNR ties refinement+confidence on `bbb_detail_motion`, while refinement+confidence SSIM (0.9491) is below the baseline SSIM (0.9503). Report individual metrics rather than a single unqualified winner.
 3. Estimated sample geometry: on `crossing_occluders` and `bbb_occlusion` the estimator produced phases on 42/42 frames and marginally improved results; on `archive_grid_drift` it slightly degraded PSNR/SSIM (consistent with the estimator's documented parabolic contraction bias on periodic textures); on `bbb_detail_motion` it produced **no** usable estimates (`geometry_estimation_insufficient` events; 0/42 frames) and the arm is byte-identical to its parent — an honest degradation, not a fabricated phase.
 4. Lanczos3 beats bicubic for 2× delivery in 7 of 8 measurements.
 5. After 2× delivery, ANVIL arms beat the decoded-frame spatial control on both real scenes but **not** on the two synthetic scenes (e.g. baseline 28.58 vs control 29.03 dB on `archive_grid_drift`).
@@ -115,9 +115,13 @@ Synthetic-scene delivery reference is the pristine master; BBB delivery referenc
 
 - CTest: **33/33 non-disabled tests pass** on the PR head build (includes `anvil_lab_tests`: 2175 assertions over metrics oracles, naming/roster contracts, baseline fail-closed matrix, PNM/PNG/JSON round-trips, scene determinism).
 - Python: `test_anvil_contract.py` 56/56 and `test_anvil_lab_contract.py` 13/13 (builds a complete miniature exhibition end-to-end, then exercises the live server: hash-linked derivatives, zero-diff on identical inputs, invalid-pair fail-closed, missing-asset 404s, findings round-trip with exact A/B identity, falsified/moved baseline rejection).
-- Browser: 29/29 scripted checks in real Chromium **and** 29/29 in Firefox 157 (stable) at 2560×1440, zero page errors in either engine (selection, filters, all 7 comparison modes, regions, sequence playback, zoom/pan/fit/1:1, nearest/bilinear, alignment disclosure, refusal on missing assets, baseline `<dialog>` modal, findings round-trip, metrics gating), plus visual inspection of the captures in `verification/` (engine-specific captures archived).
+- Browser: 29/29 scripted checks were reported in Chromium **and** 29/29 in Firefox 157 (stable) at 2560×1440 on the earlier implementation head. Re-run after the subsequent PR repair commits; these archived results are not a substitute for exact-head validation (selection, filters, all 7 comparison modes, regions, sequence playback, zoom/pan/fit/1:1, nearest/bilinear, alignment disclosure, refusal on missing assets, baseline `<dialog>` modal, findings round-trip, metrics gating), plus visual inspection of the captures in `verification/` (engine-specific captures archived).
 - Baseline verification on this tree: **OK** (worktree matches pinned identity; pinned commit present).
 
 ## 10. Roster state after the exhibition
 
 `ANVIL baseline` — no status (canonical). `ANVIL baseline + local refinement + estimated confidence — tryout` and `… + estimated geometry — tryout` on all scenes: **tryout** (first-evaluation invitations recorded with authority = the 2026-10-09 assignment). No candidate was promoted by metrics; disposition changes remain maintainer-controlled with append-only history.
+
+## 11. Post-review qualification status
+
+The independent review identified issues in CI pinned-commit availability, image labels, reference-aware scientific pairing, selected-frame evidence hashes, baseline source provenance, and scene-scoped roster identities. Focused repairs are being applied on PR #4. **Do not treat the original validation claims above as exact-head qualification until CI and the revised catalog/experiments have been re-executed and reviewed.** The run artifacts were generated before those code changes; the numerical results remain historical preliminary evidence, not post-repair remeasurement. Existing local artifacts are gitignored; the clean-checkout regeneration process and official Big Buck Bunny acquisition instructions are documented in OPERATOR_GUIDE.md.
