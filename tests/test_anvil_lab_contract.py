@@ -308,6 +308,74 @@ def test_image_derivatives_are_hash_linked(lab_server):
         assert b"error" in e.read()
 
 
+def test_tampered_display_cache_is_regenerated(lab_server):
+    base, root = lab_server
+    url = "/api/image?id=archive_grid_drift/baseline&frame=3"
+    response, original_png = get(base, url)
+    expected_sha = response.headers["X-Anvil-Derivative-Sha256"]
+    cache = root / "artifacts" / "derivatives" / "archive_grid_drift" / "baseline" / "frame_0003.png"
+    assert cache.exists()
+    cache.write_bytes(original_png + b"malicious-corruption")
+    try:
+        response2, recovered_png = get(base, url)
+        assert recovered_png == original_png, "cache must rebuild from verified PNM"
+        assert response2.headers["X-Anvil-Derivative-Sha256"] == expected_sha
+        assert cache.read_bytes() == original_png
+    finally:
+        if cache.exists() and cache.read_bytes() != original_png:
+            cache.write_bytes(original_png)
+
+
+def test_delivery_and_hr_reference_have_verified_timestamps(lab_server):
+    base, _ = lab_server
+    _, raw = get(base, "/api/catalog")
+    by_id = {x["id"]: x for x in json.loads(raw)["catalog"]}
+    native = by_id["archive_grid_drift/baseline"]
+    delivered = by_id["archive_grid_drift/baseline/bicubic"]
+    hr = by_id["archive_grid_drift/hr_master"]
+    assert native["frames"]["index"]
+    assert delivered["frames"]["index"] == native["frames"]["index"]
+    assert hr["frames"]["index"]
+    _, raw = get(base, "/api/compat?id_a=archive_grid_drift/baseline/bicubic"
+                 "&id_b=archive_grid_drift/hr_master&frame=3")
+    pair = json.loads(raw)
+    assert pair["valid_pair"], pair["problems"]
+
+
+def test_pair_rejects_missing_or_wrong_timestamps(lab_server):
+    _, root = lab_server
+    catalog_file = root / "catalog" / "catalog.json"
+    original = catalog_file.read_bytes()
+    catalog = json.loads(original)
+    rec = next(x for x in catalog if x["id"] == "archive_grid_drift/baseline/bicubic")
+    index = next(x for x in rec["frames"]["index"] if x["frame"] == 3)
+    index["pts_ticks"] += 1
+    catalog_file.write_text(json.dumps(catalog))
+    port = free_port()
+    proc = subprocess.Popen(
+        [SERVER, "--root", str(root), "--port", str(port),
+         "--web-dir", str(REPO_ROOT / "tools" / "anvil_lab" / "web")],
+        cwd=REPO_ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        url = f"http://127.0.0.1:{port}"
+        for _ in range(80):
+            try:
+                _, raw = get(url, "/api/compat?id_a=archive_grid_drift/baseline/bicubic"
+                             "&id_b=archive_grid_drift/hr_master&frame=3")
+                break
+            except (urllib.error.URLError, ConnectionError):
+                time.sleep(0.25)
+        else:
+            pytest.fail("new review server did not start")
+        pair = json.loads(raw)
+        assert pair["valid_pair"] is False
+        assert any("timestamp" in p for p in pair["problems"])
+    finally:
+        catalog_file.write_bytes(original)
+        proc.terminate()
+        proc.wait(timeout=5)
+
+
 def test_identical_images_zero_difference(lab_server):
     base, _ = lab_server
     r, _ = get(base, "/api/diff?id_a=archive_grid_drift/baseline"
@@ -398,6 +466,48 @@ def test_findings_roundtrip_identifies_exact_configs(lab_server):
         assert False, "expected 400"
     except urllib.error.HTTPError as e:
         assert e.code == 400
+
+
+def test_findings_reject_forged_source_and_override_pair_claim(lab_server):
+    base, _ = lab_server
+
+    def submit(data):
+        req = urllib.request.Request(
+            base + "/api/findings", data=json.dumps(data).encode(),
+            headers={"Content-Type": "application/json"})
+        return urllib.request.urlopen(req, timeout=10)
+
+    valid = {
+        "scene_id": "archive_grid_drift", "frame": 3,
+        "image_a": "archive_grid_drift/baseline",
+        "image_b": "archive_grid_drift/tryout_mini",
+        "pair_valid": False,
+        "category": "uncertain_needs_investigation",
+        "observation": "forged-client-pair-claim",
+        "image_a_sha256": "not-a-real-hash",
+        "roster_status_at_review": "starter",
+    }
+    with submit(valid) as response:
+        assert response.status == 200
+    _, body = get(base, "/api/findings")
+    saved = next(x for x in json.loads(body)["findings"]
+                 if x["observation"] == "forged-client-pair-claim")
+    assert saved["pair_valid"] is True, saved["pair_validation"]["problems"]
+    assert len(saved["image_a_sha256"]) == 64
+    assert saved["image_a_sha256"] != "not-a-real-hash"
+    assert saved["roster_status_at_review"] == "tryout"
+
+    for variant in [
+        dict(valid, image_a="invalid/id"),
+        dict(valid, scene_id="wrong-scene"),
+        dict(valid, frame=999999),
+        dict(valid, frame="not-a-frame"),
+    ]:
+        try:
+            with submit(variant):
+                assert False, "invalid finding must be rejected"
+        except urllib.error.HTTPError as exc:
+            assert exc.code in (400, 409), (variant, exc.code)
 
 
 def test_baseline_endpoint_verifies(lab_server):
