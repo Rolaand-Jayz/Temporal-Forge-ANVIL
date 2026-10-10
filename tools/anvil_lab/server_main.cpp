@@ -506,7 +506,7 @@ HttpResponse handleCompat(LabState& lab, const HttpRequest& req) {
     if (!ra->at("pipeline").isNull() && !rb->at("pipeline").isNull()) {
         const bool aBase = ra->at("kind").asString() == "anvil_baseline";
         const bool bBase = rb->at("kind").asString() == "anvil_baseline";
-        const JsonValue& candidate = aBase && !bBase ? *rb : *ra;
+        const JsonValue& candidate = bBase && !aBase ? *ra : *rb;
         const JsonValue& reference = bBase && !aBase ? *rb : *ra;
         out.set("pipeline_diff", anvil_lab::pipelineDiff(candidate, reference));
         out.set("pipeline_diff_direction", JsonValue::makeString(
