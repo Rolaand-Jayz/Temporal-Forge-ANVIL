@@ -618,6 +618,51 @@ HttpResponse handleFindings(LabState& lab, const HttpRequest& req) {
     if (!kCategories.count(f.at("category").asString()))
         return jsonError(400, "unknown finding category '"
                         + f.at("category").asString() + "'");
+    // Client-provided labels, valid_pair, and provenance are assertions,
+    // NOT evidence. Resolve the referenced images and frame ourselves.
+    if (!f.isObject() || !f.at("frame").isNumber() ||
+        f.at("frame").asNumber() < 0 ||
+        std::trunc(f.at("frame").asNumber()) != f.at("frame").asNumber() ||
+        f.at("frame").asNumber() > 10000000)
+        return jsonError(400, "finding frame must be a nonnegative integer");
+    const int frame = static_cast<int>(f.at("frame").asInt());
+    const JsonValue* ra = lab.findRecord(f.at("image_a").asString());
+    const JsonValue* rb = lab.findRecord(f.at("image_b").asString());
+    if (!ra || !rb) return jsonError(400, "finding references unknown image IDs");
+    const std::string scene = ra->at("scene").at("id").asString();
+    if (scene.empty() || scene != rb->at("scene").at("id").asString() ||
+        scene != f.at("scene_id").asString())
+        return jsonError(400, "finding scene does not match both catalog records");
+    std::string verifyError;
+    if (!verifyCatalogFrame(lab, ra, frame, verifyError))
+        return jsonError(409, "finding A: " + verifyError);
+    if (!verifyCatalogFrame(lab, rb, frame, verifyError))
+        return jsonError(409, "finding B: " + verifyError);
+    HttpRequest checkReq;
+    checkReq.method = "GET";
+    checkReq.path = "/api/compat";
+    checkReq.query["id_a"] = f.at("image_a").asString();
+    checkReq.query["id_b"] = f.at("image_b").asString();
+    checkReq.query["frame"] = std::to_string(frame);
+    const HttpResponse checked = handleCompat(lab, checkReq);
+    JsonValue pairing;
+    if (checked.status != 200 || !jsonParse(
+          std::string(checked.body.begin(), checked.body.end()), pairing, err))
+        return jsonError(500, "cannot independently verify finding pair");
+    f.set("scene_id", JsonValue::makeString(scene));
+    f.set("frame", JsonValue::makeInt(frame));
+    f.set("pair_valid", pairing.at("valid_pair"));
+    f.set("pair_validation", pairing);
+    f.set("image_a_name", ra->at("display_name"));
+    f.set("image_b_name", rb->at("display_name"));
+    f.set("image_a_config", ra->at("identity"));
+    f.set("image_b_config", rb->at("identity"));
+    std::string hashA, hashB;
+    if (!anvil_lab::sha256FileHexLab(framePath(lab, ra, frame).string(), hashA) ||
+        !anvil_lab::sha256FileHexLab(framePath(lab, rb, frame).string(), hashB))
+        return jsonError(409, "finding artifacts changed during evidence capture");
+    f.set("image_a_sha256", JsonValue::makeString(hashA));
+    f.set("image_b_sha256", JsonValue::makeString(hashB));
     // Persist any attached screenshot (base64 PNG) with its own hash.
     if (f.at("screenshot_png_base64").isString()
         && !f.at("screenshot_png_base64").str.empty()) {
