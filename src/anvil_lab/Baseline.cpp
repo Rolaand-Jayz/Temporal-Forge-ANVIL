@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <filesystem>
 
 #include "anvil/Sha256.hpp"
 
@@ -107,9 +108,26 @@ VerifyReport verifyBaselineTree(const BaselineDef& def, const std::string& repoR
                                    + "…, found " + digest.substr(0, 12) + "…)");
         }
     }
+    // Shared decoder and provenance sources are part of the reconstruction
+    // behavior, even though they live outside src/anvil/. Compare them to
+    // the pinned git commit; changes invalidate the baseline label.
+    const std::filesystem::path gitDir =
+        std::filesystem::path(repoRoot) / ".git";
+    if (std::filesystem::exists(gitDir)) {
+        const std::string deps =
+            "src/media/Demuxer.cpp src/media/Demuxer.hpp "
+            "src/media/VideoDecoder.cpp src/media/VideoDecoder.hpp "
+            "src/media/TimestampResolve.hpp src/util/Log.cpp src/util/Log.hpp "
+            "cmake/AnvilProvenance.cmake";
+        const std::string cmd = "git -C \\"" + repoRoot + "\\" diff --quiet "
+            + def.pinnedCommit + " -- " + deps + " 2>/dev/null";
+        if (std::system(cmd.c_str()) != 0)
+            rep.problems.push_back("shared decoder/log/build-provenance dependency "
+                "differs from the pinned baseline commit");
+    }
     rep.ok = rep.problems.empty();
     if (rep.ok)
-        rep.notes.push_back("worktree implementation matches the pinned baseline identity");
+        rep.notes.push_back("worktree implementation and shared dependencies match the pinned baseline identity");
     return rep;
 }
 
@@ -139,14 +157,35 @@ VerifyReport verifyRunIsBaseline(const BaselineDef& def, const JsonValue& manife
                                + def.configHash.substr(0, 12) + "…");
     }
     const std::string runSha = manifest.at("provenance").at("git_sha").asString();
-    if (runSha.empty()) {
+    if (!isCommitSha(runSha)) {
         rep.ok = false;
-        rep.problems.push_back("run manifest lacks git provenance");
-    } else if (runSha != def.pinnedCommit) {
-        rep.notes.push_back("run git SHA " + runSha.substr(0, 12)
-            + " differs from the pinned commit " + def.pinnedCommit.substr(0, 12)
-            + "; accepted only because the implementation tree is byte-identical "
-              "to the pinned baseline (verified above)");
+        rep.problems.push_back("run manifest lacks a valid 40-hex git provenance commit");
+    } else {
+        // A commit-shaped string is not credible provenance on its own.
+        // Require the object to exist and its reconstruction source to be
+        // identical to the pinned version. A fabricated or stale SHA fails.
+        const std::string cmd = "git -C \\"" + repoRoot + "\\" cat-file -e "
+            + runSha + "^{commit} 2>/dev/null";
+        if (std::system(cmd.c_str()) != 0) {
+            rep.ok = false;
+            rep.problems.push_back("run claims an unknown git commit: " + runSha);
+        } else if (runSha != def.pinnedCommit) {
+            const std::string src =
+                "src/anvil tools/anvil/main.cpp src/media/Demuxer.cpp "
+                "src/media/Demuxer.hpp src/media/VideoDecoder.cpp "
+                "src/media/VideoDecoder.hpp src/media/TimestampResolve.hpp "
+                "src/util/Log.cpp src/util/Log.hpp cmake/AnvilProvenance.cmake";
+            const std::string compare = "git -C \\"" + repoRoot + "\\" diff --quiet "
+                + def.pinnedCommit + " " + runSha + " -- " + src + " 2>/dev/null";
+            if (std::system(compare.c_str()) != 0) {
+                rep.ok = false;
+                rep.problems.push_back("run commit has changed reconstruction sources "
+                    "versus the canonical baseline");
+            } else {
+                rep.notes.push_back("different run commit verified to contain "
+                    "the same ANVIL reconstruction and decoder sources");
+            }
+        }
     }
     return rep;
 }
