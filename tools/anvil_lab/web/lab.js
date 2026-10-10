@@ -1103,14 +1103,7 @@ function initEvents() {
   vp.addEventListener("pointermove", (e) => {
     updateHud(e);
     if (!drag) return;
-    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-    if (state.mode === "split" && state.splitIndependent && drag.side === "b") {
-      state.splitPan.x = drag.splitX + dx;
-      state.splitPan.y = drag.splitY + dy;
-    } else {
-      state.panX = drag.panX + dx;
-      state.panY = drag.panY + dy;
-    }
+    applyPointerDrag(drag, e.clientX, e.clientY);
     render();
   });
   const endDrag = () => { drag = null; vp.classList.remove("dragging"); };
@@ -1210,6 +1203,18 @@ function initEvents() {
   });
 
   window.addEventListener("resize", () => { positionSlider(); render(); });
+}
+
+// Pure state transition, independently exercised by Node regressions.
+function applyPointerDrag(drag, clientX, clientY) {
+  const dx = clientX - drag.x, dy = clientY - drag.y;
+  if (state.mode === "split" && state.splitIndependent && drag.side === "b") {
+    state.splitPan.x = drag.splitX + dx;
+    state.splitPan.y = drag.splitY + dy;
+  } else {
+    state.panX = drag.panX + dx;
+    state.panY = drag.panY + dy;
+  }
 }
 
 function zoomBy(factor, anchorEvent) {
