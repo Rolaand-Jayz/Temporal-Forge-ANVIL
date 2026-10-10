@@ -659,7 +659,10 @@ HttpResponse handleFindings(LabState& lab, const HttpRequest& req) {
     // Roster status AT REVIEW TIME (snapshot, not a live link).
     f.set("roster_status_at_review",
           JsonValue::makeString(lab.roster.at("entries")
-                                    .at(f.at("image_b").asString())
+                                    .at(lab.findRecord(f.at("image_b").asString())
+                                        ? lab.findRecord(f.at("image_b").asString())
+                                            ->at("candidate_key").asString()
+                                        : std::string())
                                     .at("status")
                                     .asString("")));
     findings.arr.push_back(f);
