@@ -958,7 +958,8 @@ const modeOptionIds = { fade: "opt-fade", flicker: "opt-flicker", diff: "opt-dif
 
 function setMode(mode) {
   if (state.mode !== mode) {
-    ++state.revision;
+    // Mode changes should invalidate only mode-specific derivatives, not
+    // an image request still loading for the same A/B/frame selection.
     state.imgDiff = null;
     state.diffStats = null;
     state.regions = [];
