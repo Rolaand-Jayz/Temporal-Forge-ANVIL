@@ -110,6 +110,10 @@ namespace {
 // Parses one request from the buffer; returns 1 parsed, 0 need-more,
 // -1 malformed. Consumes the parsed bytes.
 int parseRequest(std::vector<uint8_t>& buf, HttpRequest& req) {
+    // This parser is retried while a POST body is still arriving. The
+    // previously parsed headers must not be mistaken for duplicate wire
+    // headers on the next pass. Only the raw input buffer persists.
+    req = HttpRequest{};
     const size_t headEnd = std::search(buf.begin(), buf.end(),
                                        reinterpret_cast<const uint8_t*>("\r\n\r\n"),
                                        reinterpret_cast<const uint8_t*>("\r\n\r\n") + 4)
