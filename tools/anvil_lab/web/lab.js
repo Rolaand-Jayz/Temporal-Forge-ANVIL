@@ -886,7 +886,7 @@ async function saveFinding() {
   try {
     await api(new Request("/api/findings", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Anvil-CSRF": state.data.csrf_token },
       body: JSON.stringify(body),
     }));
     $("f-observation").value = "";
@@ -1199,7 +1199,7 @@ function initEvents() {
       for (const f of list) {
         await api(new Request("/api/findings", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "X-Anvil-CSRF": state.data.csrf_token },
           body: JSON.stringify(f),
         }));
       }
