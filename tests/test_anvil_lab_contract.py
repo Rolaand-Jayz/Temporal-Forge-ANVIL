@@ -567,8 +567,12 @@ def test_findings_reject_forged_source_and_override_pair_claim(lab_server):
         "image_a_sha256": "not-a-real-hash",
         "roster_status_at_review": "starter",
     }
-    with submit(valid) as response:
-        assert response.status == 200
+    try:
+        with submit(valid) as response:
+            assert response.status == 200
+    except urllib.error.HTTPError as exc:
+        pytest.fail("otherwise valid finding refused: HTTP "
+                    + str(exc.code) + ": " + exc.read().decode(errors="replace"))
     _, body = get(base, "/api/findings")
     saved = next(x for x in json.loads(body)["findings"]
                  if x["observation"] == "forged-client-pair-claim")
