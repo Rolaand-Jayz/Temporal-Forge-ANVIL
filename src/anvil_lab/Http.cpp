@@ -182,6 +182,14 @@ int parseRequest(std::vector<uint8_t>& buf, HttpRequest& req) {
                 // No chunked support, especially no CL/TE ambiguity.
                 return -1;
             }
+            if (!lower.empty()) {
+                while (!val.empty() && (val.back() == ' ' || val.back() == '\t'))
+                    val.pop_back();
+                if (req.headers.count(lower)) return -1;
+                req.headers.emplace(lower, val);
+            }
+        } else if (!lineL.empty()) {
+            return -1; // malformed header line
         }
         if (eol == std::string::npos) break;
         rest = eol + 2;
