@@ -138,6 +138,7 @@ async function loadImages() {
 }
 
 async function refreshDiff() {
+  const revision = state.revision, a = state.a?.id, b = state.b?.id, frame = state.frame, mode = state.mode;
   state.imgDiff = null;
   state.diffStats = null;
   if (!state.a || !state.b) return;
@@ -148,35 +149,43 @@ async function refreshDiff() {
   try {
     const res = await api(`/api/diff?id_a=${encodeURIComponent(state.a.id)}&id_b=${encodeURIComponent(state.b.id)}`
       + `&frame=${state.frame}&mode=${kind}&gain=${gain}&channel=${channel}`);
+    if (!revisionCurrent(revision, a, b, frame, mode)) return;
     const statsHeader = res.headers.get("X-Anvil-Stats");
     if (statsHeader) { try { state.diffStats = JSON.parse(statsHeader); } catch {} }
     const blob = await res.blob();
+    if (!revisionCurrent(revision, a, b, frame, mode)) return;
     const url = URL.createObjectURL(blob);
     await new Promise((resolve, reject) => {
       const im = new Image();
-      im.onload = () => { state.imgDiff = im; resolve(); };
+      im.onload = () => { if (revisionCurrent(revision, a, b, frame, mode)) state.imgDiff = im; resolve(); };
       im.onerror = reject;
       im.src = url;
     });
     if (state.mode === "heatmap") renderHeatLegend();
   } catch (e) {
+    if (!revisionCurrent(revision, a, b, frame, mode)) return;
     state.diffError = e.message;
     showBanner("pair", `Difference unavailable: ${e.message}`, "invalid");
   }
+  if (!revisionCurrent(revision, a, b, frame, mode)) return;
   updateDiffStatsPanel();
 }
 
 async function refreshRegions() {
+  const revision = state.revision, a = state.a?.id, b = state.b?.id, frame = state.frame, mode = state.mode;
   state.regions = [];
   if (!state.a || !state.b || state.mode !== "regions") { renderRegionList(); return; }
   try {
     const j = await apiJson(`/api/regions?id_a=${encodeURIComponent(state.a.id)}&id_b=${encodeURIComponent(state.b.id)}`
       + `&frame=${state.frame}&threshold=${$("region-threshold").value}`
       + `&min_size=${$("region-minsize").value}&merge=${$("region-merge").value}`);
+    if (!revisionCurrent(revision, a, b, frame, mode)) return;
     state.regions = j.regions || [];
   } catch (e) {
+    if (!revisionCurrent(revision, a, b, frame, mode)) return;
     setStatus(`regions: ${e.message}`, true);
   }
+  if (!revisionCurrent(revision, a, b, frame, mode)) return;
   renderRegionList();
   render();
 }
@@ -948,6 +957,12 @@ function annotateAndDownload() {
 const modeOptionIds = { fade: "opt-fade", flicker: "opt-flicker", diff: "opt-diff", heatmap: "opt-heat", regions: "opt-regions" };
 
 function setMode(mode) {
+  if (state.mode !== mode) {
+    ++state.revision;
+    state.imgDiff = null;
+    state.diffStats = null;
+    state.regions = [];
+  }
   state.mode = mode;
   document.querySelectorAll("#mode-buttons .mode").forEach((b) => {
     b.classList.toggle("on", b.dataset.mode === mode);
