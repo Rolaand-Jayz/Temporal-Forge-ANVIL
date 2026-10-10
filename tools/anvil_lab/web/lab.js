@@ -239,7 +239,8 @@ function defaultSelection() {
     a = cat.find((r) => r.kind === "anvil_baseline" && byScene(r.id) === s);
     if (a) break;
   }
-  if (!a) a = cat.find((r) => r.kind === "reference") || cat[0];
+  if (!a) a = cat.find((r) => r.kind === "anvil_baseline")
+    || cat.find((r) => r.kind === "reference") || cat[0];
   const scene = byScene(a.id);
   b = cat.find((r) => r.kind === "anvil_candidate" && byScene(r.id) === scene
                && r.frames.count === a.frames.count)
