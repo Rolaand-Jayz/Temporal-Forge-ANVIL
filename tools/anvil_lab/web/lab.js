@@ -36,6 +36,7 @@ const state = {
   diffStats: null,
   compat: null,
   loading: 0,
+  revision: 0, // monotonic identity for every A/B/frame/mode request
 };
 
 // ---------------------------------------------------------------- API
@@ -88,32 +89,52 @@ function clampFrame(f) {
 
 // ---------------------------------------------------------------- loading
 
-let loadSeq = 0;
+function invalidateSelection() {
+  ++state.revision;
+  // No old image or verdict may remain under a newly selected label.
+  state.imgA = null; state.imgB = null; state.imgDiff = null;
+  state.compat = null; state.diffStats = null; state.regions = [];
+  state.loading = 0;
+  updateMetricsPanel();
+  $("head-validation").textContent = "evidence: checking";
+  $("head-validation").className = "head-state";
+  setStatus("loading selected frames…");
+  render();
+}
+
+function revisionCurrent(revision, a, b, frame, mode = null) {
+  return revision === state.revision &&
+    state.a?.id === a && state.b?.id === b && state.frame === frame &&
+    (mode === null || mode === state.mode);
+}
+
 async function loadImages() {
-  const seq = ++loadSeq;
-  const jobs = [];
+  const revision = state.revision;
+  const a = state.a?.id, b = state.b?.id, frame = state.frame;
+  state.imgA = null; state.imgB = null;
   const mk = (id) => new Promise((resolve, reject) => {
+    if (!id) { resolve(null); return; }
     const im = new Image();
     im.onload = () => resolve(im);
-    im.onerror = () => reject(new Error(`asset unavailable for '${id}' frame ${state.frame}`));
-    im.src = imageUrl(id, state.frame);
+    im.onerror = () => reject(new Error(`asset unavailable for '${id}' frame ${frame}`));
+    im.src = imageUrl(id, frame);
   });
   state.loading = 2;
-  setStatus("loading frames…");
-  try {
-    if (state.a) { jobs.push(mk(state.a.id).then((i) => { if (seq === loadSeq) state.imgA = i; })); }
-    if (state.b) { jobs.push(mk(state.b.id).then((i) => { if (seq === loadSeq) state.imgB = i; })); }
-    await Promise.all(jobs);
-  } catch (e) {
-    setStatus(`⚠ ${e.message}`, true);
-    showBanner("pair", `Asset missing: ${e.message} — no substitution performed.`, "invalid");
-  }
+  const results = await Promise.allSettled([mk(a), mk(b)]);
+  if (!revisionCurrent(revision, a, b, frame)) return;
+  state.imgA = results[0].status === "fulfilled" ? results[0].value : null;
+  state.imgB = results[1].status === "fulfilled" ? results[1].value : null;
   state.loading = 0;
-  if (seq !== loadSeq) return;
-  if (state.fitOnLoad) fitView();
-  await refreshDiff();
+  const errors = results.filter(r => r.status === "rejected").map(r => r.reason.message);
+  if (errors.length) {
+    setStatus("⚠ " + errors.join("; "), true);
+    showBanner("pair", "Asset unavailable — no substitution performed: " + errors.join("; "), "invalid");
+  } else {
+    setStatus("");
+  }
+  if (state.fitOnLoad && state.imgA && state.imgB) fitView();
   render();
-  setStatus("");
+  if (!errors.length) await refreshDiff();
 }
 
 async function refreshDiff() {
@@ -161,13 +182,18 @@ async function refreshRegions() {
 }
 
 async function refreshCompat() {
-  if (!state.a || !state.b) { $("pair-banner").classList.add("hidden"); state.compat = null; return; }
+  const revision = state.revision;
+  const a = state.a?.id, b = state.b?.id, frame = state.frame;
+  if (!a || !b) { $("pair-banner").classList.add("hidden"); state.compat = null; return; }
+  let verdict;
   try {
-    state.compat = await apiJson(`/api/compat?id_a=${encodeURIComponent(state.a.id)}&id_b=${encodeURIComponent(state.b.id)}&frame=${state.frame}`);
+    verdict = await apiJson(`/api/compat?id_a=${encodeURIComponent(a)}&id_b=${encodeURIComponent(b)}&frame=${frame}`);
   } catch (e) {
-    state.compat = { valid_pair: false, problems: [e.message], warnings: [] };
+    verdict = { valid_pair: false, qualified_experiment: false, problems: [e.message], warnings: [] };
   }
-  const c = state.compat;
+  if (!revisionCurrent(revision, a, b, frame)) return;
+  state.compat = verdict;
+  const c = verdict;
   const el = $("pair-banner");
   el.classList.remove("hidden", "valid", "invalid", "warnonly");
   const probs = c.problems || [];
@@ -214,12 +240,12 @@ function selectImage(side, id, { keepFrame = true } = {}) {
   }
   updateSelectorButtons();
   updateSeqBar();
-  refreshCompat().then(() => {
-    loadImages();
-    refreshRegions();
-    updateMetaPanels();
-    updatePipelinePanel();
-  });
+  invalidateSelection();
+  refreshCompat();
+  loadImages();
+  refreshRegions();
+  updateMetaPanels();
+  updatePipelinePanel();
 }
 
 function swapAB() {
@@ -230,7 +256,8 @@ function swapAB() {
   $("align-x").value = 0; $("align-y").value = 0;
   updateAlignBanner();
   updateSelectorButtons();
-  refreshCompat().then(() => { loadImages(); refreshRegions(); updateMetaPanels(); updatePipelinePanel(); });
+  invalidateSelection();
+  refreshCompat(); loadImages(); refreshRegions(); updateMetaPanels(); updatePipelinePanel();
 }
 
 function defaultSelection() {
@@ -648,6 +675,7 @@ function metaRows(rec, side) {
 }
 
 async function updateMetaPanels() {
+  const revision = state.revision, frame = state.frame;
   $("meta-grid-a").innerHTML = metaRows(state.a, "a");
   $("meta-grid-b").innerHTML = metaRows(state.b, "b");
   // Frame-level detail (size + artifact hash) for the active frame.
@@ -655,9 +683,9 @@ async function updateMetaPanels() {
     const rec = state[side];
     if (!rec) continue;
     try {
-      const m = await apiJson(`/api/meta?id=${encodeURIComponent(rec.id)}&frame=${state.frame}`);
+      const m = await apiJson(`/api/meta?id=${encodeURIComponent(rec.id)}&frame=${frame}`);
       const d = m.frame_detail;
-      if (d && m && state[side] === rec) {
+      if (d && m && revision === state.revision && state.frame === frame && state[side] === rec) {
         const grid = $(`meta-grid-${side}`);
         grid.innerHTML += `<div class="k">frame ${d.frame_index}</div><div class="v">${esc(d.file)} · ${d.file_size_bytes}B · ${d.artifact_sha256.slice(0, 16)}…</div>`;
       }
@@ -957,13 +985,8 @@ function setFrame(f, { fromScrub = false } = {}) {
   if (!fromScrub) $("seq-scrub").value = state.frame;
   $("seq-frame").value = state.frame;
   updateSeqBar();
-  // Pair validity and artifact SHA checks are frame-specific. Never carry a
-  // green validity banner across frames without revalidation.
-  refreshCompat().then(() => {
-    loadImages();
-    refreshRegions();
-    updateMetaPanels();
-  });
+  invalidateSelection();
+  refreshCompat(); loadImages(); refreshRegions(); updateMetaPanels();
 }
 
 function togglePlay() {
