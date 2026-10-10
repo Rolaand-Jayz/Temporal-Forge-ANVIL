@@ -842,8 +842,12 @@ def test_findings_validate_screenshot_png_and_padding(lab_server):
     req=urllib.request.Request(base+"/api/findings",
           data=json.dumps(dict(sample,screenshot_png_base64=good)).encode(),
           headers=valid)
-    with urllib.request.urlopen(req,timeout=10) as result:
-        assert result.status == 200
+    try:
+        with urllib.request.urlopen(req,timeout=10) as result:
+            assert result.status == 200
+    except urllib.error.HTTPError as exc:
+        pytest.fail("valid, CRC-checked PNG unexpectedly rejected: HTTP "
+                    + str(exc.code) + " " + exc.read().decode(errors="replace"))
     _,raw=get(base,"/api/findings")
     saved=next(x for x in json.loads(raw)["findings"]
                if x["observation"] == "screenshot-png-contract")
