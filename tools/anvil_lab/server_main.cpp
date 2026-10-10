@@ -881,10 +881,37 @@ int main(int argc, char** argv) {
         std::cerr << "anvil_review_lab: roster: " << err << "\n";
         return 2;
     }
-    for (const auto& e : fs::directory_iterator(lab.root / "artifacts" / "scenes")) {
-        JsonValue s;
-        if (jsonReadFile((e.path() / "scene.json").string(), s, err))
-            lab.scenes.arr.push_back(std::move(s));
+    // Roster disposition is mutable, whereas stored experiment identities
+    // are not. Resolve current global statuses on startup without rewriting
+    // the evidence catalog or historical at-test dispositions.
+    for (JsonValue& record : lab.catalog.arr) {
+        if (record.at("kind").asString() != "anvil_candidate") continue;
+        const std::string key = record.at("candidate_key").asString();
+        if (key.empty()) {
+            std::cerr << "anvil_review_lab: missing global candidate identity\n";
+            return 2;
+        }
+        const std::string status = lab.roster.at("entries").at(key)
+            .at("status").asString("tryout");
+        std::vector<std::string> mods;
+        for (const JsonValue& mod : record.at("modifications").arr)
+            mods.push_back(mod.at("detail").asString());
+        record.set("roster_status", JsonValue::makeString(status));
+        record.set("display_name", JsonValue::makeString(
+            anvil_lab::buildCandidateName(mods, status)));
+    }
+    // A clean checkout contains the metadata, not the gitignored frames.
+    // Absence must be an explicit missing-data state, not a server crash.
+    const fs::path scenesDir = lab.root / "artifacts" / "scenes";
+    if (fs::is_directory(scenesDir)) {
+        for (const auto& e : fs::directory_iterator(scenesDir)) {
+            JsonValue scene;
+            if (jsonReadFile((e.path() / "scene.json").string(), scene, err))
+                lab.scenes.arr.push_back(std::move(scene));
+        }
+    } else {
+        std::cerr << "anvil_review_lab: experiment frames absent; "
+                     "regenerate artifacts before image review\n";
     }
     if (fs::exists(lab.root / "METRICS.json")
         && !jsonReadFile((lab.root / "METRICS.json").string(), lab.metrics, err)) {
