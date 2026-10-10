@@ -73,7 +73,13 @@ A and B in lockstep. Zoom and crop persist across frames.
 3. Findings inform review; they never promote or cut a candidate. Roster
    transitions are made deliberately with
    `anvil_exhibit roster set --root <exhibition> '<transition JSON>'`, which requires
-   reason/authority/evidence (and merge evidence for `starter`).
+   reason/authority/evidence. **The local roster writer intentionally rejects
+   `starter` promotion:** arbitrary input strings, `integration_commit`, and
+   `merge_evidence: true` cannot authenticate a real merge on `main` or a
+   maintainer decision. Keep qualified candidates at `rookie` until an
+   authenticated maintainer-controlled integration workflow verifies the
+   merged commit and authorizes the roster update. No self-asserted starter
+   status may be displayed as verified.
 
 ## Exports
 
@@ -120,3 +126,7 @@ catalog, roster, and reports are tracked.
 ## Baseline-output evidence qualification
 
 `ANVIL baseline` always names the original source/configuration definition pinned to `f2f8b992`, not the advancing `main` branch. A **particular output run** qualifies as binary-observed only if its manifest includes `exhibition_attestation.runner_path`, matching `runner_sha256` / `runner_sha256_after`, and the same runner bytes remain accessible during verification. The exhibition tool records these for new executions and refuses silent executable replacement. This attests observed executable bytes, **not** independent source-to-binary reproducible compilation. An unverifiable dirty Git build and the older archived manifests require explicit limitations; do not claim their runner binaries have been authenticated. Re-execute the exhibition to obtain new qualified evidence. A standalone source-tree verification does **not** establish historic output quality.
+
+## Metric panels and comparison direction
+
+**Difference statistics** are computed from the currently selected **IMAGE A versus IMAGE B** on matched original pixels. The **reference-fidelity metric panel**, by contrast, shows **IMAGE B versus its recorded clean-LR or HR reference**, not the current A/B pair. Changing A without changing B does not change that fixed reference score. The selection header shows changes from the **ANVIL baseline to the candidate**, even when the visible A/B arrangement is swapped. The pipeline temporal-window labels must contain numeric values, for example `past 2 / future 2`, never blank strings.
