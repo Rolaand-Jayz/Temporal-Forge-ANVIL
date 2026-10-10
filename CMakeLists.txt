@@ -158,6 +158,9 @@ list(FILTER TFORGE_LIB_SOURCES EXCLUDE REGEX "${CMAKE_CURRENT_SOURCE_DIR}/src/ma
 # ANVIL successor isolation: the successor builds as its own FFmpeg-only
 # library and must not be absorbed into the FSR-era player library.
 list(FILTER TFORGE_LIB_SOURCES EXCLUDE REGEX "${CMAKE_CURRENT_SOURCE_DIR}/src/anvil/.*")
+# ANVIL Lab sources belong only to the lab targets below (they intentionally
+# carry no Qt/Vulkan/FFmpeg dependency).
+list(FILTER TFORGE_LIB_SOURCES EXCLUDE REGEX "${CMAKE_CURRENT_SOURCE_DIR}/src/anvil_lab/.*")
 
 add_library(temporal_forge_lib STATIC ${TFORGE_LIB_SOURCES} ${FSR4_SHADER_FILES}
     ${FSR1_SHADER_FILES})
@@ -288,6 +291,37 @@ add_executable(anvil_runner tools/anvil/main.cpp)
 target_include_directories(anvil_runner PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_compile_features(anvil_runner PRIVATE cxx_std_23)
 target_link_libraries(anvil_runner PRIVATE anvil_lib)
+
+# ANVIL Lab — Home Field Exhibition tooling + Visual Review Lab server.
+# Deliberately FFmpeg-free: evidence processing reads PNM artifacts, drives
+# the runner as a subprocess, and keeps the review server portable.
+add_library(anvil_lab STATIC
+    src/anvil_lab/Image.cpp
+    src/anvil_lab/PnmIo.cpp
+    src/anvil_lab/Png.cpp
+    src/anvil_lab/Json.cpp
+    src/anvil_lab/Resize.cpp
+    src/anvil_lab/Metrics.cpp
+    src/anvil_lab/DiffMap.cpp
+    src/anvil_lab/Catalog.cpp
+    src/anvil_lab/Baseline.cpp
+    src/anvil_lab/Scenes.cpp
+    src/anvil_lab/Http.cpp
+    src/anvil/Sha256.cpp)
+target_include_directories(anvil_lab PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/stb")
+target_compile_features(anvil_lab PUBLIC cxx_std_23)
+find_package(ZLIB REQUIRED)
+target_link_libraries(anvil_lab PUBLIC Threads::Threads ZLIB::ZLIB)
+
+add_executable(anvil_exhibit tools/anvil_lab/exhibit_main.cpp)
+target_compile_features(anvil_exhibit PRIVATE cxx_std_23)
+target_link_libraries(anvil_exhibit PRIVATE anvil_lab)
+
+add_executable(anvil_review_lab tools/anvil_lab/server_main.cpp)
+target_compile_features(anvil_review_lab PRIVATE cxx_std_23)
+target_link_libraries(anvil_review_lab PRIVATE anvil_lab)
 
 # Deterministic fine-timebase fixture generator (libavformat/libavcodec
 # only). The FFmpeg CLI tick-fixture route (settb+setpts with -enc_time_base

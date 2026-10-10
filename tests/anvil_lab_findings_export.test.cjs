@@ -1,0 +1,227 @@
+// Regression: the exported JSON must reflect the server's latest persisted
+// findings, not the cache that was loaded when the page first opened.
+// Pure Node test: no browser dependencies and no generated media required.
+"use strict";
+const { test } = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+
+test("exportFindings reads the persisted server state after a save", async () => {
+  const src = fs.readFileSync("tools/anvil_lab/web/lab.js", "utf8");
+  const start = src.indexOf("async function exportFindings()");
+  const stop = src.indexOf("// ---------------------------------------------------------------- exports", start);
+  assert.ok(start >= 0 && stop > start, "actual export function must exist");
+  let calls = 0;
+  const persisted = [{ observation: "old" }, { observation: "just saved" }];
+  const apiJson = async (path) => {
+    assert.equal(path, "/api/findings");
+    calls++;
+    return { findings: persisted };
+  };
+  let visible;
+  const renderFindings = (list) => { visible = list; };
+  const window = { __findingsCache: [{ observation: "old" }] };
+  let exported;
+  const URL = {
+    createObjectURL(blob) { exported = blob; return "blob:unit-test"; },
+  };
+  let clicked = false;
+  const document = {
+    createElement(tag) {
+      assert.equal(tag, "a");
+      return {
+        set href(value) { assert.equal(value, "blob:unit-test"); },
+        set download(value) { assert.match(value, /^anvil_findings_/); },
+        click() { clicked = true; },
+      };
+    },
+  };
+  const factory = new Function(
+    "apiJson", "renderFindings", "window", "document", "URL", "Blob", "Date",
+    src.slice(start, stop) + "\nreturn exportFindings;"
+  );
+  const runExport = factory(
+    apiJson, renderFindings, window, document, URL, Blob, Date
+  );
+  await runExport();
+  assert.equal(calls, 1, "export must refresh server state");
+  assert.equal(clicked, true);
+  assert.deepEqual(visible, persisted);
+  assert.deepEqual(window.__findingsCache, persisted);
+  const contents = JSON.parse(await exported.text());
+  assert.deepEqual(contents.findings, persisted);
+});
+
+test("reference metrics identify IMAGE B and never imply an A/B PSNR score", () => {
+  const src = fs.readFileSync("tools/anvil_lab/web/lab.js", "utf8");
+  const begin = src.indexOf("function updateMetricsPanel()");
+  const end = src.indexOf("function fmt(", begin);
+  assert.ok(begin >= 0 && end > begin);
+  const grid = { innerHTML: "" };
+  const $ = (id) => { assert.equal(id, "metrics-grid"); return grid; };
+  const state = {
+    a: { id: "scene/baseline", display_name: "ANVIL baseline" },
+    b: { id: "scene/tryout_mini",
+         display_name: "ANVIL baseline + refinement — tryout",
+         scene: { id: "scene" }, scale: { factor: 1 } },
+    compat: { valid_pair: true, qualified_experiment: true },
+    data: { metrics: { rows: [{
+      scene: "scene", arm: "tryout_mini",
+      native: { reference: "clean LR reference",
+                psnr_db_mean: 30, ssim_mean: 0.92,
+                edge_diff_mean: 3, temporal_delta_mean: 2,
+                reference_validity: "full-reference" },
+    }] } },
+  };
+  const fmt = (n, suffix) => n.toFixed(2) + (suffix || "");
+  const esc = (v) => String(v);
+  const render = new Function("state", "$", "fmt", "esc",
+    src.slice(begin, end) + "\nreturn updateMetricsPanel;");
+  render(state, $, fmt, esc)();
+  assert.match(grid.innerHTML, /IMAGE B vs recorded reference/);
+  assert.match(grid.innerHTML, /B vs reference PSNR/);
+  assert.match(grid.innerHTML, /clean LR reference/);
+  assert.match(grid.innerHTML, /Difference statistics panel/);
+  assert.doesNotMatch(grid.innerHTML, /A vs B PSNR/);
+  const before = grid.innerHTML;
+  state.a = { id: "scene/other-candidate", display_name: "other candidate" };
+  render(state, $, fmt, esc)();
+  assert.equal(grid.innerHTML, before, "B's reference score must not depend on IMAGE A");
+  state.compat.qualified_experiment = false;
+  render(state, $, fmt, esc)();
+  assert.match(grid.innerHTML, /UNQUALIFIED \/ historical reference scores hidden/);
+});
+
+test("split independent navigation moves only the selected image", () => {
+  const src = fs.readFileSync("tools/anvil_lab/web/lab.js", "utf8");
+  const start = src.indexOf("function applyPointerDrag(");
+  const zoom = src.indexOf("function zoomBy(", start);
+  const end = src.indexOf("function positionSlider()", zoom);
+  assert.ok(start > 0 && zoom > start && end > zoom);
+  const state = {
+    mode: "split", splitIndependent: true,
+    panX: 10, panY: 20, zoom: 1,
+    splitPan: { x: 100, y: 200, zoom: 2 },
+  };
+  const $ = (id) => {
+    assert.equal(id, "viewport");
+    return {getBoundingClientRect: () => ({left: 0, top: 0, width: 100, height: 80})};
+  };
+  let rendered = 0;
+  const api = new Function("state", "$", "render", src.slice(start, end) +
+    "\nreturn {applyPointerDrag, zoomBy};")(state, $, () => rendered++);
+  const origin = {x: 30, y: 40, panX: 10, panY: 20, splitX: 100, splitY: 200};
+  api.applyPointerDrag({...origin, side: "b"}, 40, 60);
+  assert.equal(state.panX, 10);
+  assert.equal(state.panY, 20);
+  assert.equal(state.splitPan.x, 110);
+  assert.equal(state.splitPan.y, 220);
+  api.applyPointerDrag({...origin, side: "a"}, 20, 30);
+  assert.equal(state.panX, 0);
+  assert.equal(state.panY, 10);
+  assert.equal(state.splitPan.x, 110);
+  const zoomA = state.zoom, panA = state.panX;
+  api.zoomBy(1.5, {clientX: 75, clientY: 20}); // right half B
+  assert.equal(state.zoom, zoomA);
+  assert.equal(state.panX, panA);
+  assert.equal(state.splitPan.zoom, 3);
+  const zoomB = state.splitPan.zoom, panB = state.splitPan.x;
+  api.zoomBy(2, {clientX: 20, clientY: 20}); // left half A
+  assert.equal(state.zoom, zoomA * 2);
+  assert.equal(state.splitPan.zoom, zoomB);
+  assert.equal(state.splitPan.x, panB);
+  assert.equal(rendered, 2);
+});
+
+test("unqualified run provenance hides historical PSNR and SSIM", () => {
+  const src = fs.readFileSync("tools/anvil_lab/web/lab.js", "utf8");
+  const start = src.indexOf("function updateMetricsPanel()");
+  const end = src.indexOf("function fmt(", start);
+  const grid = {innerHTML: ""};
+  const state = {
+    a: {id:"scene/baseline"},
+    b: {id:"scene/tryout_mini",scene:{id:"scene"},display_name:"tryout"},
+    compat: {valid_pair:true,qualified_experiment:false,
+             evidence_problems:["B: missing runner executable-byte attestation"]},
+    data: {metrics:{rows:[{scene:"scene",arm:"tryout_mini",
+                        native:{psnr_db_mean:99,ssim_mean:0.99}}]}},
+  };
+  const fn = new Function("state","$","fmt","esc",src.slice(start,end)+
+    "\nreturn updateMetricsPanel;")(state,()=>grid,()=>"",String);
+  fn();
+  assert.match(grid.innerHTML,/UNQUALIFIED/);
+  assert.doesNotMatch(grid.innerHTML,/99/);
+  assert.doesNotMatch(grid.innerHTML,/PSNR/);
+});
+
+test("out-of-order compatibility replies cannot replace the new selection verdict", async () => {
+  const src = fs.readFileSync("tools/anvil_lab/web/lab.js","utf8");
+  const start=src.indexOf("async function refreshCompat()");
+  const end=src.indexOf("// ---------------------------------------------------------------- selection", start);
+  assert.ok(start > 0 && end > start);
+  const elements = {};
+  const $=(id)=>elements[id] ||= {classList:{add(){},remove(){}},textContent:"",innerHTML:""};
+  const state={revision:1,a:{id:"scene/old"},b:{id:"scene/old-b"},frame:2,compat:null};
+  const waiting=[];
+  const apiJson=(url)=>new Promise(resolve=>waiting.push({url,resolve}));
+  let metrics=0;
+  const current=(rev,a,b,frame)=>rev===state.revision &&
+    a===state.a.id && b===state.b.id && frame===state.frame;
+  const f=new Function("state","$","apiJson","revisionCurrent",
+    "updateMetricsPanel","updateCompareHeader","esc",
+    src.slice(start,end)+"\nreturn refreshCompat;")(
+      state,$,apiJson,current,()=>metrics++,()=>{},String);
+  const previous=f();
+  state.revision=2;
+  state.a={id:"scene/new"};
+  state.b={id:"scene/new-b"};
+  state.frame=3;
+  state.compat=null;
+  const newer=f();
+  assert.equal(waiting.length,2);
+  waiting[1].resolve({valid_pair:false,qualified_experiment:false,
+    problems:["new image missing"],warnings:[]});
+  await newer;
+  assert.equal(state.compat.qualified_experiment,false);
+  waiting[0].resolve({valid_pair:true,qualified_experiment:true,problems:[],warnings:[]});
+  await previous;
+  assert.equal(state.compat.qualified_experiment,false);
+  assert.equal(metrics,1,"stale reply must not update metrics or green badge");
+  assert.match(elements["head-validation"].textContent,/UNQUALIFIED/);
+});
+
+test("failed PNG after rapid scene change never substitutes old selection pixels", async () => {
+  const src=fs.readFileSync("tools/anvil_lab/web/lab.js","utf8");
+  const start=src.indexOf("function revisionCurrent(");
+  const end=src.indexOf("async function refreshDiff()",start);
+  assert.ok(start>0 && end>start);
+  const images=[];
+  class Image {
+    constructor(){images.push(this);}
+    set src(url){this.url=url;}
+    error(){this.onerror(new Error("unavailable"));}
+    success(){this.onload();}
+  }
+  const state={revision:1,frame:3,a:{id:"scene/old-a"},b:{id:"scene/old-b"},
+    fitOnLoad:false,imgA:null,imgB:null,loading:0};
+  const statuses=[],draws=[];
+  const api=new Function("state","Image","imageUrl","setStatus","showBanner",
+    "fitView","render","refreshDiff",
+    src.slice(start,end)+"\nreturn {loadImages,revisionCurrent};")(
+    state,Image,(id,f)=>id+"?frame="+f,(s)=>statuses.push(s),()=>{},()=>{},
+    ()=>draws.push([state.imgA,state.imgB]),async()=>{});
+  const older=api.loadImages();
+  state.revision=2;
+  state.a={id:"scene/new-a"};
+  state.b={id:"scene/new-b"};
+  state.imgA=null;state.imgB=null;
+  const newer=api.loadImages();
+  images[0].success(); images[1].success(); await older;
+  assert.equal(state.imgA,null);
+  assert.equal(state.imgB,null);
+  images[2].error(); images[3].success(); await newer;
+  assert.equal(state.imgA,null,"failed A load must not reuse old A");
+  assert.equal(state.imgB,images[3]);
+  assert.equal(draws.length,1,"stale image result must not render");
+  assert.match(statuses.at(-1),/unavailable/);
+});

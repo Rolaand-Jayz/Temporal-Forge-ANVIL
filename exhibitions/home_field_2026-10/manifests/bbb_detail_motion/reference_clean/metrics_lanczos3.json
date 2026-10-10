@@ -1,0 +1,8 @@
+{
+  "filter": "lanczos3",
+  "reference": "master_hr",
+  "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
+  "frames_measured": 42,
+  "psnr_db_mean": 33.14638069,
+  "ssim_mean": 0.9393718186
+}

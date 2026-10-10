@@ -1,0 +1,9 @@
+{
+  "reference": "reference_clean/native",
+  "reference_validity": "full-reference: clean LR input through the identical decode/color/output path with accumulation disabled",
+  "frames_measured": 42,
+  "psnr_db_mean": 38.82169667,
+  "ssim_mean": 0.9561073367,
+  "edge_diff_mean": 8.475977432,
+  "temporal_delta_mean": 1.455411604
+}

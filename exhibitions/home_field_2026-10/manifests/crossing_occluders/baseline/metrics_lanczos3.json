@@ -1,0 +1,8 @@
+{
+  "filter": "lanczos3",
+  "reference": "master_hr",
+  "reference_validity": "full-reference vs pristine synthetic master",
+  "frames_measured": 42,
+  "psnr_db_mean": 33.34226571,
+  "ssim_mean": 0.9464685594
+}

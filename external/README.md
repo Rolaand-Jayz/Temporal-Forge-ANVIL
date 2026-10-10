@@ -30,3 +30,15 @@ gitignored.
   build does not reference it.
 - `vma.h` — Vulkan Memory Allocator single header, used by optional local
   development workflows only; not referenced by the default CMake targets.
+
+### `stb/stb_image_write.h`
+
+- stb_image_write **v1.16**, single-header C library (PNG writer).
+- Upstream: https://github.com/nothings/stb
+- Pinned commit: `external/stb/STB_IMAGE_WRITE_COMMIT.txt`
+- License: public domain OR MIT (both statements embedded in the header);
+  recorded in `THIRD_PARTY_LICENSES.md`.
+- Consumed by `src/anvil_lab/Png.cpp` (`#include "stb_image_write.h"`
+  resolved via `-Iexternal/stb`) for the Visual Review Lab's lossless 8-bit
+  PNG display derivatives and export compositions. The ANVIL Lab layer is
+  otherwise dependency-free and FFmpeg-free.

@@ -168,6 +168,21 @@ ANVIL_RUNNER=$PWD/build/anvil_runner python3 -m pytest -q tests/test_anvil_contr
 
 The ANVIL targets are headless and FFmpeg-based; see the current architecture document for the exact runner controls, evidence model, and clean-clone requirements.
 
+### ANVIL Home Field Exhibition & Visual Review Lab
+
+```sh
+cmake --build build --target anvil_exhibit anvil_review_lab --parallel
+build/anvil_exhibit run --root exhibitions/home_field_2026-10     --runner build/anvil_runner --repo-root .
+build/anvil_review_lab --root exhibitions/home_field_2026-10     --web-dir tools/anvil_lab/web --port 8787   # open http://127.0.0.1:8787
+```
+
+The exhibition report is
+[`exhibitions/home_field_2026-10/REPORT.md`](exhibitions/home_field_2026-10/REPORT.md)
+and the operator guide is
+[`exhibitions/home_field_2026-10/OPERATOR_GUIDE.md`](exhibitions/home_field_2026-10/OPERATOR_GUIDE.md).
+These tools are FFmpeg-free ANVIL successor tooling, separate from the
+preserved historical FSR review harness.
+
 ### Historical player
 
 ```sh

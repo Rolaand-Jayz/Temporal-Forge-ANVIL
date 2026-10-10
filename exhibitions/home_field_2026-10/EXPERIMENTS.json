@@ -1,0 +1,56 @@
+{
+  "exhibition": "home_field_2026-10",
+  "created": "2026-10-09",
+  "objective": "Measure the current ANVIL temporal-reconstruction pipeline against the decoded-frame control before outside candidates compete: does temporal accumulation provide measurable and visible improvement, and where does it degrade or accomplish nothing?",
+  "runner_binary": "build/anvil_runner",
+  "targets": {
+    "start": 2,
+    "count": 42,
+    "note": "46 input frames per scene; targets 2..43 keep a full past=2/future=2 window for every target frame"
+  },
+  "arms": [
+    {
+      "id": "control_decoded",
+      "kind": "control",
+      "mods": [],
+      "runner_args": ["--past", "0", "--future", "0", "--no-accumulate"],
+      "purpose": "Decoded-frame control: same input, temporal accumulation disabled, normal output/color processing retained"
+    },
+    {
+      "id": "baseline",
+      "kind": "anvil_baseline",
+      "mods": [],
+      "runner_args": ["--past", "2", "--future", "2"],
+      "purpose": "Frozen canonical ANVIL baseline: exact default stage modes with a live temporal window"
+    },
+    {
+      "id": "tryout_refinement_confidence",
+      "kind": "anvil_candidate",
+      "mods": ["local refinement", "estimated confidence"],
+      "runner_args": ["--past", "2", "--future", "2", "--refinement", "local", "--confidence", "estimate"],
+      "purpose": "First evaluation of the existing configurable refinement and confidence stages with all otherwise-equivalent settings"
+    },
+    {
+      "id": "tryout_refinement_confidence_geometry",
+      "kind": "anvil_candidate",
+      "mods": ["local refinement", "estimated confidence", "estimated geometry"],
+      "runner_args": ["--past", "2", "--future", "2", "--refinement", "local", "--confidence", "estimate", "--geometry", "estimate"],
+      "purpose": "Adds estimated sample geometry; whether valid geometry estimates were obtained is recorded, never fabricated"
+    }
+  ],
+  "reference_run": {
+    "id": "reference_clean",
+    "purpose": "Clean LR input through the identical decode/color/output path with accumulation disabled: representation-matched full reference for native-resolution metrics"
+  },
+  "delivery": {
+    "filters": ["bicubic", "lanczos3"],
+    "factor": 2,
+    "note": "Spatial delivery evaluation is separate from temporal reconstruction; each arm's native output is upscaled identically and compared against the HR master"
+  },
+  "expected_display_names": {
+    "control_decoded": "Decoded-frame control (temporal accumulation disabled)",
+    "baseline": "ANVIL baseline",
+    "tryout_refinement_confidence": "ANVIL baseline + local refinement + estimated confidence — tryout",
+    "tryout_refinement_confidence_geometry": "ANVIL baseline + local refinement + estimated confidence + estimated geometry — tryout"
+  }
+}

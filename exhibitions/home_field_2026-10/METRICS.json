@@ -1,0 +1,585 @@
+{
+  "exhibition": "home_field_2026-10",
+  "rows": [
+    {
+      "scene": "archive_grid_drift",
+      "arm": "reference_clean",
+      "native": {
+        "reference": "reference_clean/native",
+        "reference_validity": "full-reference: clean LR input through the identical decode/color/output path with accumulation disabled",
+        "frames_measured": 42,
+        "psnr_db_mean": 999,
+        "ssim_mean": 1,
+        "edge_diff_mean": 0,
+        "temporal_delta_mean": 5.487147262
+      },
+      "delivery_bicubic": {
+        "filter": "bicubic",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs pristine synthetic master",
+        "frames_measured": 42,
+        "psnr_db_mean": 29.18741714,
+        "ssim_mean": 0.9092036244
+      },
+      "delivery_lanczos3": {
+        "filter": "lanczos3",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs pristine synthetic master",
+        "frames_measured": 42,
+        "psnr_db_mean": 29.75815234,
+        "ssim_mean": 0.9230396237
+      }
+    },
+    {
+      "scene": "archive_grid_drift",
+      "arm": "control_decoded",
+      "native": {
+        "reference": "reference_clean/native",
+        "reference_validity": "full-reference: clean LR input through the identical decode/color/output path with accumulation disabled",
+        "frames_measured": 42,
+        "psnr_db_mean": 33.93812585,
+        "ssim_mean": 0.9759534059,
+        "edge_diff_mean": 15.86468424,
+        "temporal_delta_mean": 6.463192405
+      },
+      "delivery_bicubic": {
+        "filter": "bicubic",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs pristine synthetic master",
+        "frames_measured": 42,
+        "psnr_db_mean": 29.02796226,
+        "ssim_mean": 0.9071669496
+      },
+      "delivery_lanczos3": {
+        "filter": "lanczos3",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs pristine synthetic master",
+        "frames_measured": 42,
+        "psnr_db_mean": 29.48845562,
+        "ssim_mean": 0.9195733746
+      }
+    },
+    {
+      "scene": "archive_grid_drift",
+      "arm": "baseline",
+      "native": {
+        "reference": "reference_clean/native",
+        "reference_validity": "full-reference: clean LR input through the identical decode/color/output path with accumulation disabled",
+        "frames_measured": 42,
+        "psnr_db_mean": 34.67202729,
+        "ssim_mean": 0.9798428156,
+        "edge_diff_mean": 16.23710267,
+        "temporal_delta_mean": 4.237641592
+      },
+      "delivery_bicubic": {
+        "filter": "bicubic",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs pristine synthetic master",
+        "frames_measured": 42,
+        "psnr_db_mean": 28.5763652,
+        "ssim_mean": 0.8969427566
+      },
+      "delivery_lanczos3": {
+        "filter": "lanczos3",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs pristine synthetic master",
+        "frames_measured": 42,
+        "psnr_db_mean": 29.2351471,
+        "ssim_mean": 0.913724756
+      }
+    },
+    {
+      "scene": "archive_grid_drift",
+      "arm": "tryout_refinement_confidence",
+      "native": {
+        "reference": "reference_clean/native",
+        "reference_validity": "full-reference: clean LR input through the identical decode/color/output path with accumulation disabled",
+        "frames_measured": 42,
+        "psnr_db_mean": 35.24226825,
+        "ssim_mean": 0.9819937942,
+        "edge_diff_mean": 14.55074491,
+        "temporal_delta_mean": 4.302332076
+      },
+      "delivery_bicubic": {
+        "filter": "bicubic",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs pristine synthetic master",
+        "frames_measured": 42,
+        "psnr_db_mean": 28.88677875,
+        "ssim_mean": 0.9028456849
+      },
+      "delivery_lanczos3": {
+        "filter": "lanczos3",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs pristine synthetic master",
+        "frames_measured": 42,
+        "psnr_db_mean": 29.5408786,
+        "ssim_mean": 0.9186942148
+      }
+    },
+    {
+      "scene": "archive_grid_drift",
+      "arm": "tryout_refinement_confidence_geometry",
+      "native": {
+        "reference": "reference_clean/native",
+        "reference_validity": "full-reference: clean LR input through the identical decode/color/output path with accumulation disabled",
+        "frames_measured": 42,
+        "psnr_db_mean": 34.94213922,
+        "ssim_mean": 0.9803665858,
+        "edge_diff_mean": 17.57131515,
+        "temporal_delta_mean": 4.119120543
+      },
+      "delivery_bicubic": {
+        "filter": "bicubic",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs pristine synthetic master",
+        "frames_measured": 42,
+        "psnr_db_mean": 28.44453623,
+        "ssim_mean": 0.8918265663
+      },
+      "delivery_lanczos3": {
+        "filter": "lanczos3",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs pristine synthetic master",
+        "frames_measured": 42,
+        "psnr_db_mean": 29.18754895,
+        "ssim_mean": 0.9105803806
+      }
+    },
+    {
+      "scene": "crossing_occluders",
+      "arm": "reference_clean",
+      "native": {
+        "reference": "reference_clean/native",
+        "reference_validity": "full-reference: clean LR input through the identical decode/color/output path with accumulation disabled",
+        "frames_measured": 42,
+        "psnr_db_mean": 999,
+        "ssim_mean": 1,
+        "edge_diff_mean": 0,
+        "temporal_delta_mean": 2.905465539
+      },
+      "delivery_bicubic": {
+        "filter": "bicubic",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs pristine synthetic master",
+        "frames_measured": 42,
+        "psnr_db_mean": 34.81703907,
+        "ssim_mean": 0.9601363089
+      },
+      "delivery_lanczos3": {
+        "filter": "lanczos3",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs pristine synthetic master",
+        "frames_measured": 42,
+        "psnr_db_mean": 35.26831356,
+        "ssim_mean": 0.9622434692
+      }
+    },
+    {
+      "scene": "crossing_occluders",
+      "arm": "control_decoded",
+      "native": {
+        "reference": "reference_clean/native",
+        "reference_validity": "full-reference: clean LR input through the identical decode/color/output path with accumulation disabled",
+        "frames_measured": 42,
+        "psnr_db_mean": 36.43951868,
+        "ssim_mean": 0.9647611974,
+        "edge_diff_mean": 12.15962263,
+        "temporal_delta_mean": 5.063089421
+      },
+      "delivery_bicubic": {
+        "filter": "bicubic",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs pristine synthetic master",
+        "frames_measured": 42,
+        "psnr_db_mean": 33.90893943,
+        "ssim_mean": 0.9377714799
+      },
+      "delivery_lanczos3": {
+        "filter": "lanczos3",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs pristine synthetic master",
+        "frames_measured": 42,
+        "psnr_db_mean": 34.04941236,
+        "ssim_mean": 0.9341808447
+      }
+    },
+    {
+      "scene": "crossing_occluders",
+      "arm": "baseline",
+      "native": {
+        "reference": "reference_clean/native",
+        "reference_validity": "full-reference: clean LR input through the identical decode/color/output path with accumulation disabled",
+        "frames_measured": 42,
+        "psnr_db_mean": 36.66891562,
+        "ssim_mean": 0.9739762538,
+        "edge_diff_mean": 11.40765244,
+        "temporal_delta_mean": 2.474664351
+      },
+      "delivery_bicubic": {
+        "filter": "bicubic",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs pristine synthetic master",
+        "frames_measured": 42,
+        "psnr_db_mean": 32.96758818,
+        "ssim_mean": 0.9436062297
+      },
+      "delivery_lanczos3": {
+        "filter": "lanczos3",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs pristine synthetic master",
+        "frames_measured": 42,
+        "psnr_db_mean": 33.34226571,
+        "ssim_mean": 0.9464685594
+      }
+    },
+    {
+      "scene": "crossing_occluders",
+      "arm": "tryout_refinement_confidence",
+      "native": {
+        "reference": "reference_clean/native",
+        "reference_validity": "full-reference: clean LR input through the identical decode/color/output path with accumulation disabled",
+        "frames_measured": 42,
+        "psnr_db_mean": 38.56789774,
+        "ssim_mean": 0.9802909936,
+        "edge_diff_mean": 9.5794503,
+        "temporal_delta_mean": 3.02848835
+      },
+      "delivery_bicubic": {
+        "filter": "bicubic",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs pristine synthetic master",
+        "frames_measured": 42,
+        "psnr_db_mean": 34.34822373,
+        "ssim_mean": 0.9549018218
+      },
+      "delivery_lanczos3": {
+        "filter": "lanczos3",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs pristine synthetic master",
+        "frames_measured": 42,
+        "psnr_db_mean": 34.72097303,
+        "ssim_mean": 0.955587079
+      }
+    },
+    {
+      "scene": "crossing_occluders",
+      "arm": "tryout_refinement_confidence_geometry",
+      "native": {
+        "reference": "reference_clean/native",
+        "reference_validity": "full-reference: clean LR input through the identical decode/color/output path with accumulation disabled",
+        "frames_measured": 42,
+        "psnr_db_mean": 38.64005108,
+        "ssim_mean": 0.9808893919,
+        "edge_diff_mean": 9.560372054,
+        "temporal_delta_mean": 2.940326306
+      },
+      "delivery_bicubic": {
+        "filter": "bicubic",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs pristine synthetic master",
+        "frames_measured": 42,
+        "psnr_db_mean": 34.20727545,
+        "ssim_mean": 0.9544673968
+      },
+      "delivery_lanczos3": {
+        "filter": "lanczos3",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs pristine synthetic master",
+        "frames_measured": 42,
+        "psnr_db_mean": 34.62428595,
+        "ssim_mean": 0.9558528048
+      }
+    },
+    {
+      "scene": "bbb_detail_motion",
+      "arm": "reference_clean",
+      "native": {
+        "reference": "reference_clean/native",
+        "reference_validity": "full-reference: clean LR input through the identical decode/color/output path with accumulation disabled",
+        "frames_measured": 42,
+        "psnr_db_mean": 999,
+        "ssim_mean": 1,
+        "edge_diff_mean": 0,
+        "temporal_delta_mean": 1.939605902
+      },
+      "delivery_bicubic": {
+        "filter": "bicubic",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
+        "frames_measured": 42,
+        "psnr_db_mean": 33.14663579,
+        "ssim_mean": 0.9391692756
+      },
+      "delivery_lanczos3": {
+        "filter": "lanczos3",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
+        "frames_measured": 42,
+        "psnr_db_mean": 33.14638069,
+        "ssim_mean": 0.9393718186
+      }
+    },
+    {
+      "scene": "bbb_detail_motion",
+      "arm": "control_decoded",
+      "native": {
+        "reference": "reference_clean/native",
+        "reference_validity": "full-reference: clean LR input through the identical decode/color/output path with accumulation disabled",
+        "frames_measured": 42,
+        "psnr_db_mean": 37.11864762,
+        "ssim_mean": 0.8937610663,
+        "edge_diff_mean": 10.69584291,
+        "temporal_delta_mean": 3.975332734
+      },
+      "delivery_bicubic": {
+        "filter": "bicubic",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
+        "frames_measured": 42,
+        "psnr_db_mean": 32.45899702,
+        "ssim_mean": 0.8896626105
+      },
+      "delivery_lanczos3": {
+        "filter": "lanczos3",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
+        "frames_measured": 42,
+        "psnr_db_mean": 32.32317009,
+        "ssim_mean": 0.879774994
+      }
+    },
+    {
+      "scene": "bbb_detail_motion",
+      "arm": "baseline",
+      "native": {
+        "reference": "reference_clean/native",
+        "reference_validity": "full-reference: clean LR input through the identical decode/color/output path with accumulation disabled",
+        "frames_measured": 42,
+        "psnr_db_mean": 39.08468704,
+        "ssim_mean": 0.9503363744,
+        "edge_diff_mean": 7.871698029,
+        "temporal_delta_mean": 2.244311394
+      },
+      "delivery_bicubic": {
+        "filter": "bicubic",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
+        "frames_measured": 42,
+        "psnr_db_mean": 32.91052235,
+        "ssim_mean": 0.92400052
+      },
+      "delivery_lanczos3": {
+        "filter": "lanczos3",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
+        "frames_measured": 42,
+        "psnr_db_mean": 32.93263653,
+        "ssim_mean": 0.922474177
+      }
+    },
+    {
+      "scene": "bbb_detail_motion",
+      "arm": "tryout_refinement_confidence",
+      "native": {
+        "reference": "reference_clean/native",
+        "reference_validity": "full-reference: clean LR input through the identical decode/color/output path with accumulation disabled",
+        "frames_measured": 42,
+        "psnr_db_mean": 39.91749521,
+        "ssim_mean": 0.9491206416,
+        "edge_diff_mean": 7.452876847,
+        "temporal_delta_mean": 2.536515292
+      },
+      "delivery_bicubic": {
+        "filter": "bicubic",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
+        "frames_measured": 42,
+        "psnr_db_mean": 33.03342685,
+        "ssim_mean": 0.9252793847
+      },
+      "delivery_lanczos3": {
+        "filter": "lanczos3",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
+        "frames_measured": 42,
+        "psnr_db_mean": 33.01693436,
+        "ssim_mean": 0.9228311618
+      }
+    },
+    {
+      "scene": "bbb_detail_motion",
+      "arm": "tryout_refinement_confidence_geometry",
+      "native": {
+        "reference": "reference_clean/native",
+        "reference_validity": "full-reference: clean LR input through the identical decode/color/output path with accumulation disabled",
+        "frames_measured": 42,
+        "psnr_db_mean": 39.91749521,
+        "ssim_mean": 0.9491206416,
+        "edge_diff_mean": 7.452876847,
+        "temporal_delta_mean": 2.536515292
+      },
+      "delivery_bicubic": {
+        "filter": "bicubic",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
+        "frames_measured": 42,
+        "psnr_db_mean": 33.03342685,
+        "ssim_mean": 0.9252793847
+      },
+      "delivery_lanczos3": {
+        "filter": "lanczos3",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
+        "frames_measured": 42,
+        "psnr_db_mean": 33.01693436,
+        "ssim_mean": 0.9228311618
+      }
+    },
+    {
+      "scene": "bbb_occlusion",
+      "arm": "reference_clean",
+      "native": {
+        "reference": "reference_clean/native",
+        "reference_validity": "full-reference: clean LR input through the identical decode/color/output path with accumulation disabled",
+        "frames_measured": 42,
+        "psnr_db_mean": 999,
+        "ssim_mean": 1,
+        "edge_diff_mean": 0,
+        "temporal_delta_mean": 0.9667558134
+      },
+      "delivery_bicubic": {
+        "filter": "bicubic",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
+        "frames_measured": 42,
+        "psnr_db_mean": 30.31914408,
+        "ssim_mean": 0.85879951
+      },
+      "delivery_lanczos3": {
+        "filter": "lanczos3",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
+        "frames_measured": 42,
+        "psnr_db_mean": 30.50333759,
+        "ssim_mean": 0.8641367694
+      }
+    },
+    {
+      "scene": "bbb_occlusion",
+      "arm": "control_decoded",
+      "native": {
+        "reference": "reference_clean/native",
+        "reference_validity": "full-reference: clean LR input through the identical decode/color/output path with accumulation disabled",
+        "frames_measured": 42,
+        "psnr_db_mean": 36.35165128,
+        "ssim_mean": 0.9194006118,
+        "edge_diff_mean": 11.08940014,
+        "temporal_delta_mean": 3.335366862
+      },
+      "delivery_bicubic": {
+        "filter": "bicubic",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
+        "frames_measured": 42,
+        "psnr_db_mean": 29.95530304,
+        "ssim_mean": 0.8334529206
+      },
+      "delivery_lanczos3": {
+        "filter": "lanczos3",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
+        "frames_measured": 42,
+        "psnr_db_mean": 30.03774863,
+        "ssim_mean": 0.8322449884
+      }
+    },
+    {
+      "scene": "bbb_occlusion",
+      "arm": "baseline",
+      "native": {
+        "reference": "reference_clean/native",
+        "reference_validity": "full-reference: clean LR input through the identical decode/color/output path with accumulation disabled",
+        "frames_measured": 42,
+        "psnr_db_mean": 38.56885339,
+        "ssim_mean": 0.9558083981,
+        "edge_diff_mean": 8.740266228,
+        "temporal_delta_mean": 1.243896383
+      },
+      "delivery_bicubic": {
+        "filter": "bicubic",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
+        "frames_measured": 42,
+        "psnr_db_mean": 30.20958134,
+        "ssim_mean": 0.8531320548
+      },
+      "delivery_lanczos3": {
+        "filter": "lanczos3",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
+        "frames_measured": 42,
+        "psnr_db_mean": 30.38581319,
+        "ssim_mean": 0.8570677879
+      }
+    },
+    {
+      "scene": "bbb_occlusion",
+      "arm": "tryout_refinement_confidence",
+      "native": {
+        "reference": "reference_clean/native",
+        "reference_validity": "full-reference: clean LR input through the identical decode/color/output path with accumulation disabled",
+        "frames_measured": 42,
+        "psnr_db_mean": 38.82169667,
+        "ssim_mean": 0.9561073367,
+        "edge_diff_mean": 8.475977432,
+        "temporal_delta_mean": 1.455411604
+      },
+      "delivery_bicubic": {
+        "filter": "bicubic",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
+        "frames_measured": 42,
+        "psnr_db_mean": 30.24483088,
+        "ssim_mean": 0.8544018342
+      },
+      "delivery_lanczos3": {
+        "filter": "lanczos3",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
+        "frames_measured": 42,
+        "psnr_db_mean": 30.40921664,
+        "ssim_mean": 0.8579827638
+      }
+    },
+    {
+      "scene": "bbb_occlusion",
+      "arm": "tryout_refinement_confidence_geometry",
+      "native": {
+        "reference": "reference_clean/native",
+        "reference_validity": "full-reference: clean LR input through the identical decode/color/output path with accumulation disabled",
+        "frames_measured": 42,
+        "psnr_db_mean": 38.87579915,
+        "ssim_mean": 0.9572833679,
+        "edge_diff_mean": 8.499252351,
+        "temporal_delta_mean": 1.391778445
+      },
+      "delivery_bicubic": {
+        "filter": "bicubic",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
+        "frames_measured": 42,
+        "psnr_db_mean": 30.22677713,
+        "ssim_mean": 0.8536558496
+      },
+      "delivery_lanczos3": {
+        "filter": "lanczos3",
+        "reference": "master_hr",
+        "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
+        "frames_measured": 42,
+        "psnr_db_mean": 30.40254793,
+        "ssim_mean": 0.8576956353
+      }
+    }
+  ]
+}

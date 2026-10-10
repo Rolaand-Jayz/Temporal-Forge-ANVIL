@@ -70,6 +70,37 @@ BUILD_READY_FOR_RESEARCH = TRUE   (adjudicated 2026-10-09: evaluator CLEAN + mai
 
 This value was never self-promoted: internal repair/review loops and green CI were recorded as evidence only, and the gate closed only on the independent evaluator's verdict and the maintainer's explicit merge authorization.
 
+## Home Field Exhibition & Visual Review Lab — preliminary, unmerged
+
+The Home Field Exhibition and Visual Review Lab are being developed in **unmerged PR #4** on
+`feature/anvil-home-field-exhibition`. The canonical **ANVIL baseline** is
+defined by the original pinned source/configuration identity at `f2f8b992`;
+that *definition* is separate from whether any particular output run is
+scientifically qualified. The merged Build-Ready gate above remains TRUE,
+but it does not establish image-quality improvement.
+
+The original four-scene experiment (two analytic scenes and two Big Buck Bunny
+excerpts) reported native PSNR gains over decoded-frame controls, but the
+tracked run manifests were produced **before executable-byte attestation**,
+report `git_dirty: "true"`, and lack the now-required
+`exhibition_attestation`. The Blender upstream master is now pinned by
+digest in [`exhibitions/home_field_2026-10/SOURCES.md`](../../exhibitions/home_field_2026-10/SOURCES.md),
+but no pinned-source, attested regeneration has been executed yet. These
+are **historical preliminary results**, not
+current-head reproduced or qualified scientific evidence. Refinement+confidence
+was not the best arm by every metric or scene; there is no universal winner
+claim. The earlier 29/29 Chromium and Firefox browser checks are also
+**pre-repair** evidence, not current-head UX verification.
+
+The current qualification requirements and explicit limitations are in
+[the Home Field Exhibition report](../../exhibitions/home_field_2026-10/REPORT.md)
+and [operator guide](../../exhibitions/home_field_2026-10/OPERATOR_GUIDE.md).
+New experiments must be regenerated with validated input fingerprints,
+attested runner bytes and matched PTS/image hashes; visual checks must be
+repeated on the final repaired PR head. CI success alone does not fulfill
+these scientific and human-review gates. PR #4 is not approved or merged;
+Spring Training policy PR #3 remains separate and unmerged.
+
 ## Current validation snapshot
 
 - Implementation/evidence head `b6fbc7b43b25399ce34bfdddfcbf1bf5dc5e335e`: literal branch-head Actions run `37875251102` — **SUCCESS** (both jobs verified this exact SHA)

@@ -1,0 +1,85 @@
+{
+  "entries": {
+    "cfg:68328d9dc1b6b945b78d6ebc282291c385e5188432a08673d5ba2f5a673ef0ae": {
+      "status": "tryout"
+    },
+    "cfg:adefc599ec593a0f9ded66800faf49b38f0178af436ea40e9610db56f9950c47": {
+      "status": "tryout"
+    }
+  },
+  "history": [
+    {
+      "candidate_id": "archive_grid_drift/tryout_refinement_confidence",
+      "from": "",
+      "to": "tryout",
+      "timestamp": "",
+      "reason": "Home Field Exhibition invitation: first evaluation of existing refinement+confidence stages",
+      "authority": "maintainer assignment 2026-10-09",
+      "evidence_ref": "exhibitions/home_field_2026-10/EXPERIMENTS.json"
+    },
+    {
+      "candidate_id": "archive_grid_drift/tryout_refinement_confidence_geometry",
+      "from": "",
+      "to": "tryout",
+      "timestamp": "",
+      "reason": "Home Field Exhibition invitation: adds the estimated sample-geometry arm",
+      "authority": "maintainer assignment 2026-10-09",
+      "evidence_ref": "exhibitions/home_field_2026-10/EXPERIMENTS.json"
+    },
+    {
+      "candidate_id": "crossing_occluders/tryout_refinement_confidence",
+      "from": "",
+      "to": "tryout",
+      "timestamp": "",
+      "reason": "Home Field Exhibition invitation: first evaluation of existing refinement+confidence stages",
+      "authority": "maintainer assignment 2026-10-09",
+      "evidence_ref": "exhibitions/home_field_2026-10/EXPERIMENTS.json"
+    },
+    {
+      "candidate_id": "crossing_occluders/tryout_refinement_confidence_geometry",
+      "from": "",
+      "to": "tryout",
+      "timestamp": "",
+      "reason": "Home Field Exhibition invitation: adds the estimated sample-geometry arm",
+      "authority": "maintainer assignment 2026-10-09",
+      "evidence_ref": "exhibitions/home_field_2026-10/EXPERIMENTS.json"
+    },
+    {
+      "candidate_id": "bbb_detail_motion/tryout_refinement_confidence",
+      "from": "",
+      "to": "tryout",
+      "timestamp": "",
+      "reason": "Home Field Exhibition invitation: first evaluation of existing refinement+confidence stages",
+      "authority": "maintainer assignment 2026-10-09",
+      "evidence_ref": "exhibitions/home_field_2026-10/EXPERIMENTS.json"
+    },
+    {
+      "candidate_id": "bbb_detail_motion/tryout_refinement_confidence_geometry",
+      "from": "",
+      "to": "tryout",
+      "timestamp": "",
+      "reason": "Home Field Exhibition invitation: adds the estimated sample-geometry arm",
+      "authority": "maintainer assignment 2026-10-09",
+      "evidence_ref": "exhibitions/home_field_2026-10/EXPERIMENTS.json"
+    },
+    {
+      "candidate_id": "bbb_occlusion/tryout_refinement_confidence",
+      "from": "",
+      "to": "tryout",
+      "timestamp": "",
+      "reason": "Home Field Exhibition invitation: first evaluation of existing refinement+confidence stages",
+      "authority": "maintainer assignment 2026-10-09",
+      "evidence_ref": "exhibitions/home_field_2026-10/EXPERIMENTS.json"
+    },
+    {
+      "candidate_id": "bbb_occlusion/tryout_refinement_confidence_geometry",
+      "from": "",
+      "to": "tryout",
+      "timestamp": "",
+      "reason": "Home Field Exhibition invitation: adds the estimated sample-geometry arm",
+      "authority": "maintainer assignment 2026-10-09",
+      "evidence_ref": "exhibitions/home_field_2026-10/EXPERIMENTS.json"
+    }
+  ],
+  "identity_policy": "One current disposition per canonical configuration hash (cfg:<sha256>), independent of scene. Historical per-scene invitation records remain in history."
+}
