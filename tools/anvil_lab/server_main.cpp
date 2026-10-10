@@ -889,12 +889,7 @@ HttpResponse route(LabState& lab, const HttpRequest& req) {
         if (p == "/api/findings") return handleFindings(lab, req);
         if (p == "/api/baseline") return handleBaselineVerify(lab);
         if (p == "/api/contactsheet") return handleContactSheet(lab, req);
-        if (p == "/api/shutdown") {
-            lab.shutdown = true;
-            anvil_lab::requestServerShutdown();
-            return jsonResponse(anvil_lab::JsonValue::makeObject());
-        }
-    } else if (req.method == "POST") {
+     } else if (req.method == "POST") {
         if (p == "/api/findings") return handleFindings(lab, req);
     }
     return jsonError(404, "no such endpoint: " + p);
@@ -989,7 +984,7 @@ int main(int argc, char** argv) {
     std::cout << "ANVIL Visual Review Lab\n  root: " << lab.root.string()
               << "\n  catalog entries: " << lab.catalog.arr.size()
               << "\n  http://" << bind << ":" << port << "\n";
-    const volatile bool* shutdownFlag = nullptr;
+    const std::atomic<bool>* shutdownFlag = nullptr;
     if (!anvil_lab::httpServe(bind, static_cast<uint16_t>(port),
                               [&lab](const HttpRequest& r) { return route(lab, r); },
                               shutdownFlag, err)) {
