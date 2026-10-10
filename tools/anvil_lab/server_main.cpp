@@ -13,6 +13,10 @@
 #include <cmath>
 #include <cstring>
 #include <filesystem>
+#include <zlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <cerrno>
 #include <iostream>
 #include <mutex>
 #include <random>
@@ -700,6 +704,102 @@ HttpResponse handleRegions(LabState& lab, const HttpRequest& req) {
     return jsonResponse(out);
 }
 
+// Reject bytes that merely have a .png extension. Verify chunk framing,
+// CRCs, canonical IHDR, bounded geometry and the decompressed scanline bytes.
+bool validateScreenshotPng(const std::vector<uint8_t>& png, std::string& error) {
+    static constexpr uint8_t sig[] = {137,80,78,71,13,10,26,10};
+    if (png.size() < 57 || png.size() > 32 * 1024 * 1024 ||
+        !std::equal(std::begin(sig), std::end(sig), png.begin())) {
+        error = "not a bounded PNG with the correct signature"; return false;
+    }
+    auto be = [&](size_t i) -> uint32_t {
+        return (uint32_t(png[i]) << 24) | (uint32_t(png[i+1]) << 16) |
+               (uint32_t(png[i+2]) << 8) | uint32_t(png[i+3]);
+    };
+    size_t pos = 8, chunks = 0;
+    uint32_t width = 0, height = 0;
+    int channels = 0;
+    bool ihdr = false, idat = false, iend = false;
+    std::vector<uint8_t> compressed;
+    while (pos + 12 <= png.size() && ++chunks < 4096) {
+        const size_t len = be(pos), data = pos + 8;
+        if (len > png.size() - pos - 12) break;
+        const std::string type(reinterpret_cast<const char*>(&png[pos+4]), 4);
+        const uLong crc = crc32(crc32(0,nullptr,0),png.data()+pos+4,
+                                static_cast<uInt>(len+4));
+        if (static_cast<uint32_t>(crc) != be(data+len)) {
+            error = "PNG chunk CRC mismatch"; return false;
+        }
+        if (type == "IHDR") {
+            if (ihdr || chunks != 1 || len != 13) break;
+            ihdr = true;
+            width = be(data); height = be(data+4);
+            const int depth = png[data+8], color = png[data+9];
+            if (width == 0 || height == 0 || width > 8192 || height > 8192 ||
+                uint64_t(width)*height > 20000000 || depth != 8 ||
+                (color != 0 && color != 2 && color != 4 && color != 6) ||
+                png[data+10] != 0 || png[data+11] != 0 || png[data+12] != 0)
+                break;
+            channels = color == 0 ? 1 : color == 2 ? 3 : color == 4 ? 2 : 4;
+        } else if (type == "IDAT") {
+            if (!ihdr || iend || len > 32*1024*1024 - compressed.size()) break;
+            idat = true;
+            compressed.insert(compressed.end(),png.begin()+data,png.begin()+data+len);
+        } else if (type == "IEND") {
+            if (!idat || iend || len != 0 || data+4 != png.size()) break;
+            iend = true;
+            break;
+        } else if (!ihdr || (png[pos+4] & 0x20) == 0) {
+            // Unknown *critical* chunks change interpretation; reject them.
+            break;
+        }
+        pos = data + len + 4;
+    }
+    if (!ihdr || !idat || !iend) {
+        error = "malformed or incomplete PNG structure"; return false;
+    }
+    const uint64_t stride = uint64_t(width)*channels;
+    const uint64_t needed = uint64_t(height)*(stride+1);
+    if (needed > 100*1024*1024) {
+        error = "PNG decoded frame exceeds limit"; return false;
+    }
+    std::vector<uint8_t> raw(static_cast<size_t>(needed));
+    uLongf rawLen = static_cast<uLongf>(raw.size());
+    if (uncompress(raw.data(), &rawLen, compressed.data(), compressed.size()) != Z_OK ||
+        rawLen != needed) {
+        error = "PNG IDAT cannot decode to expected scanlines"; return false;
+    }
+    for (uint32_t y=0;y<height;++y) {
+        if (raw[size_t(y)*(stride+1)] > 4) {
+            error = "PNG has unsupported scanline filter"; return false;
+        }
+    }
+    return true;
+}
+
+bool writeScreenshotAtomically(const fs::path& path,
+                               const std::vector<uint8_t>& bytes,std::string& err) {
+    std::string pattern=path.string()+".tmp.XXXXXX";
+    std::vector<char> tmp(pattern.begin(),pattern.end());
+    tmp.push_back('\0');
+    const int fd=::mkstemp(tmp.data());
+    if(fd<0){err="cannot open screenshot temporary file";return false;}
+    size_t done=0; bool ok=true;
+    while(done<bytes.size()) {
+        const ssize_t n=::write(fd,bytes.data()+done,bytes.size()-done);
+        if(n<0 && errno==EINTR)continue;
+        if(n<=0){ok=false;break;}
+        done+=static_cast<size_t>(n);
+    }
+    if(ok && ::fsync(fd)!=0)ok=false;
+    if(::close(fd)!=0)ok=false;
+    if(ok && ::rename(tmp.data(),path.c_str())!=0)ok=false;
+    if(!ok){::unlink(tmp.data());err="cannot atomically store screenshot";return false;}
+    const int dirfd=::open(path.parent_path().c_str(),O_RDONLY|O_DIRECTORY);
+    if(dirfd>=0){::fsync(dirfd);::close(dirfd);}
+    return true;
+}
+
 HttpResponse handleFindings(LabState& lab, const HttpRequest& req) {
     std::lock_guard<std::mutex> lock(lab.mutex);
     const fs::path dir = lab.root / "findings";
@@ -798,8 +898,8 @@ HttpResponse handleFindings(LabState& lab, const HttpRequest& req) {
             return -1;
         };
         std::vector<uint8_t> png;
-        bool b64Bad = false;
-        for (size_t i = 0; i < b64.size(); i += 4) {
+        bool b64Bad = b64.empty() || b64.size()%4 != 0 || b64.size() > 44*1024*1024;
+        for (size_t i = 0; !b64Bad && i < b64.size(); i += 4) {
             // Groups may end with '=' padding (0, 1, or 2 pad chars); the
             // browser's toDataURL emits padded base64.
             int vals[4] = {0, 0, 0, 0};
@@ -813,22 +913,26 @@ HttpResponse handleFindings(LabState& lab, const HttpRequest& req) {
                 vals[k] = b64val(c);
                 if (vals[k] < 0) { b64Bad = true; break; }
             }
+            if (pad > 0 && i + 4 != b64.size()) b64Bad = true;
+            if (vals[0] < 0 || vals[1] < 0 || (vals[2] < 0 && vals[3] >= 0)) b64Bad = true;
+            if (pad == 2 && (vals[1] & 15) != 0) b64Bad = true;
+            if (pad == 1 && (vals[2] & 3) != 0) b64Bad = true;
             if (b64Bad) break;
             png.push_back(static_cast<uint8_t>((vals[0] << 2) | (vals[1] >> 4)));
             if (vals[2] >= 0) png.push_back(static_cast<uint8_t>(((vals[1] & 15) << 4) | (vals[2] >> 2)));
             if (vals[3] >= 0) png.push_back(static_cast<uint8_t>(((vals[2] & 3) << 6) | vals[3]));
         }
-        if (b64Bad || png.size() < 8)
-            return jsonError(400, "screenshot is not valid (padded) base64 PNG");
+        std::string pngError;
+        if (b64Bad || !validateScreenshotPng(png,pngError))
+            return jsonError(400, "screenshot invalid: " + (b64Bad
+                ? std::string("invalid RFC4648 padding/base64") : pngError));
         const std::string sha =
             anvil::sha256Hex(png.data(), png.size());
         std::error_code ec;
         fs::create_directories(dir / "screenshots", ec);
         const fs::path shot = dir / "screenshots" / (sha.substr(0, 16) + ".png");
-        FILE* fp = std::fopen(shot.string().c_str(), "wb");
-        if (!fp) return jsonError(500, "cannot store screenshot");
-        std::fwrite(png.data(), 1, png.size(), fp);
-        std::fclose(fp);
+        if (ec || !writeScreenshotAtomically(shot,png,err))
+            return jsonError(500, "cannot store screenshot: " + (ec ? ec.message() : err));
         f.set("screenshot_file", JsonValue::makeString(
             "findings/screenshots/" + shot.filename().string()));
         f.set("screenshot_sha256", JsonValue::makeString(sha));
