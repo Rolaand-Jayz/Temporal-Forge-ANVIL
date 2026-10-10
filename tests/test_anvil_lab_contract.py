@@ -314,6 +314,15 @@ def get(base, path, expect=200):
         return r, body
 
 
+
+def post_headers(base):
+    _, raw = get(base, "/api/catalog")
+    token = json.loads(raw)["csrf_token"]
+    assert len(token) >= 32
+    return {"Content-Type": "application/json",
+            "Origin": base, "X-Anvil-CSRF": token}
+
+
 def test_serves_catalog_and_web_ui(lab_server):
     base, _ = lab_server
     _, body = get(base, "/api/catalog")
@@ -509,7 +518,7 @@ def test_findings_roundtrip_identifies_exact_configs(lab_server):
     }
     req = urllib.request.Request(base + "/api/findings",
                                  data=json.dumps(finding).encode(),
-                                 headers={"Content-Type": "application/json"})
+                                 headers=post_headers(base))
     with urllib.request.urlopen(req, timeout=10) as r:
         assert r.status == 200
     _, body = get(base, "/api/findings")
@@ -524,7 +533,7 @@ def test_findings_roundtrip_identifies_exact_configs(lab_server):
     bad = dict(finding, category="nonsense")
     req = urllib.request.Request(base + "/api/findings",
                                  data=json.dumps(bad).encode(),
-                                 headers={"Content-Type": "application/json"})
+                                 headers=post_headers(base))
     try:
         urllib.request.urlopen(req, timeout=10)
         assert False, "expected 400"
@@ -538,7 +547,7 @@ def test_findings_reject_forged_source_and_override_pair_claim(lab_server):
     def submit(data):
         req = urllib.request.Request(
             base + "/api/findings", data=json.dumps(data).encode(),
-            headers={"Content-Type": "application/json"})
+            headers=post_headers(base))
         return urllib.request.urlopen(req, timeout=10)
 
     valid = {
@@ -610,7 +619,7 @@ def test_duplicate_json_keys_cannot_forge_provenance(lab_server):
                 '"category":"improvement","observation":"duplicate-attack",'
                 + trailing + '}').encode()
         req = urllib.request.Request(base + "/api/findings", data=body,
-                                     headers={"Content-Type": "application/json"})
+                                     headers=post_headers(base))
         with pytest.raises(urllib.error.HTTPError) as exc:
             urllib.request.urlopen(req, timeout=10)
         assert exc.value.code == 400
