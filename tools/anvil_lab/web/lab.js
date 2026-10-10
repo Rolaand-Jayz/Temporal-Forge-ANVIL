@@ -172,19 +172,23 @@ async function refreshCompat() {
   el.classList.remove("hidden", "valid", "invalid", "warnonly");
   const probs = c.problems || [];
   const warns = c.warnings || [];
-  if (probs.length === 0 && warns.length === 0) {
+  const evidenceWarnings = c.evidence_problems || [];
+  if (c.qualified_experiment && probs.length === 0 && warns.length === 0) {
     el.classList.add("valid");
-    el.textContent = "✓ Valid scientific pair — matched scene, frame geometry, color representation, and verified artifacts. Recorded metrics are shown.";
+    el.textContent = "✓ QUALIFIED experiment — pixel pairing, experiment eligibility, and executed-run attestation verified.";
   } else if (probs.length === 0) {
     el.classList.add("warnonly");
-    el.innerHTML = "⚠ Pair valid with cautions: " + esc(warns.join(" · "));
+    el.innerHTML = "⚠ " + (c.valid_pair ? "Pixel pair compatible" : "Exploratory/non-experiment pair")
+      + " — " + esc([...warns, ...evidenceWarnings].join(" · ")
+        || "not eligible or not qualified as scientific evidence")
+      + ". Historical scores are NOT qualified.";
   } else {
     el.classList.add("invalid");
     el.innerHTML = "✗ INVALID EXPERIMENTAL PAIR — " + esc(probs.join(" · "))
       + ". Exploratory viewing only; this is not a valid paired experiment and recorded metrics are hidden.";
   }
-  $("head-validation").textContent = probs.length ? "pair: INVALID" : "pair: valid";
-  $("head-validation").className = "head-state " + (probs.length ? "bad" : "ok");
+  $("head-validation").textContent = c.qualified_experiment ? "evidence: QUALIFIED" : "evidence: UNQUALIFIED";
+  $("head-validation").className = "head-state " + (c.qualified_experiment ? "ok" : "bad");
   updateMetricsPanel();
   updateCompareHeader();
 }
@@ -663,11 +667,11 @@ async function updateMetaPanels() {
 
 function updateMetricsPanel() {
   const grid = $("metrics-grid");
-  const valid = state.compat?.valid_pair;
+  const valid = state.compat?.qualified_experiment;
   // These are per-arm reference scores, NOT a numeric score for A-vs-B.
   // A-vs-B pixel differences are reported separately in the Difference panel.
   if (!valid) {
-    grid.innerHTML = `<div class="k">status</div><div class="v">hidden — pair is not a valid experiment</div>`;
+    grid.innerHTML = `<div class="k">status</div><div class="v">UNQUALIFIED / historical reference scores hidden — ${esc((state.compat?.evidence_problems || []).join(" · ") || (state.compat?.problems || []).join(" · ") || "pair not an independently qualified experiment")}</div>`;
     return;
   }
   const sceneId = state.b?.scene?.id;
@@ -710,7 +714,8 @@ function updateDiffStatsPanel() {
   if (!state.diffStats) { el.innerHTML = ""; return; }
   const s = state.diffStats;
   el.innerHTML = `
-    <div class="meta-title">server-computed difference (original samples)</div>
+    <div class="meta-title">${s.qualified_experiment ? "QUALIFIED A/B difference" : "EXPLORATORY PIXEL DESCRIPTORS — NOT SCIENTIFIC METRICS"}</div>
+    <div class="k">qualification</div><div class="v">${esc(s.qualified_experiment ? "qualified" : (s.qualification_reason || "unqualified"))}</div>
     <div class="k">mean |Δ|</div><div class="v">${s.mean_abs.toFixed(3)} / ${s.maxval}</div>
     <div class="k">max |Δ|</div><div class="v">${s.max_abs.toFixed(0)}</div>
     <div class="k">nonzero px</div><div class="v">${s.nonzero_pixels.toLocaleString()}</div>
