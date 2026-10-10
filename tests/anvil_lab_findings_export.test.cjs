@@ -153,3 +153,75 @@ test("unqualified run provenance hides historical PSNR and SSIM", () => {
   assert.doesNotMatch(grid.innerHTML,/99/);
   assert.doesNotMatch(grid.innerHTML,/PSNR/);
 });
+
+test("out-of-order compatibility replies cannot replace the new selection verdict", async () => {
+  const src = fs.readFileSync("tools/anvil_lab/web/lab.js","utf8");
+  const start=src.indexOf("async function refreshCompat()");
+  const end=src.indexOf("// ---------------------------------------------------------------- selection", start);
+  assert.ok(start > 0 && end > start);
+  const elements = {};
+  const $=(id)=>elements[id] ||= {classList:{add(){},remove(){}},textContent:"",innerHTML:""};
+  const state={revision:1,a:{id:"scene/old"},b:{id:"scene/old-b"},frame:2,compat:null};
+  const waiting=[];
+  const apiJson=(url)=>new Promise(resolve=>waiting.push({url,resolve}));
+  let metrics=0;
+  const current=(rev,a,b,frame)=>rev===state.revision &&
+    a===state.a.id && b===state.b.id && frame===state.frame;
+  const f=new Function("state","$","apiJson","revisionCurrent",
+    "updateMetricsPanel","updateCompareHeader","esc",
+    src.slice(start,end)+"\nreturn refreshCompat;")(
+      state,$,apiJson,current,()=>metrics++,()=>{},String);
+  const previous=f();
+  state.revision=2;
+  state.a={id:"scene/new"};
+  state.b={id:"scene/new-b"};
+  state.frame=3;
+  state.compat=null;
+  const newer=f();
+  assert.equal(waiting.length,2);
+  waiting[1].resolve({valid_pair:false,qualified_experiment:false,
+    problems:["new image missing"],warnings:[]});
+  await newer;
+  assert.equal(state.compat.qualified_experiment,false);
+  waiting[0].resolve({valid_pair:true,qualified_experiment:true,problems:[],warnings:[]});
+  await previous;
+  assert.equal(state.compat.qualified_experiment,false);
+  assert.equal(metrics,1,"stale reply must not update metrics or green badge");
+  assert.match(elements["head-validation"].textContent,/UNQUALIFIED/);
+});
+
+test("failed PNG after rapid scene change never substitutes old selection pixels", async () => {
+  const src=fs.readFileSync("tools/anvil_lab/web/lab.js","utf8");
+  const start=src.indexOf("function revisionCurrent(");
+  const end=src.indexOf("async function refreshDiff()",start);
+  assert.ok(start>0 && end>start);
+  const images=[];
+  class Image {
+    constructor(){images.push(this);}
+    set src(url){this.url=url;}
+    error(){this.onerror(new Error("unavailable"));}
+    success(){this.onload();}
+  }
+  const state={revision:1,frame:3,a:{id:"scene/old-a"},b:{id:"scene/old-b"},
+    fitOnLoad:false,imgA:null,imgB:null,loading:0};
+  const statuses=[],draws=[];
+  const api=new Function("state","Image","imageUrl","setStatus","showBanner",
+    "fitView","render","refreshDiff",
+    src.slice(start,end)+"\nreturn {loadImages,revisionCurrent};")(
+    state,Image,(id,f)=>id+"?frame="+f,(s)=>statuses.push(s),()=>{},()=>{},
+    ()=>draws.push([state.imgA,state.imgB]),async()=>{});
+  const older=api.loadImages();
+  state.revision=2;
+  state.a={id:"scene/new-a"};
+  state.b={id:"scene/new-b"};
+  state.imgA=null;state.imgB=null;
+  const newer=api.loadImages();
+  images[0].success(); images[1].success(); await older;
+  assert.equal(state.imgA,null);
+  assert.equal(state.imgB,null);
+  images[2].error(); images[3].success(); await newer;
+  assert.equal(state.imgA,null,"failed A load must not reuse old A");
+  assert.equal(state.imgB,images[3]);
+  assert.equal(draws.length,1,"stale image result must not render");
+  assert.match(statuses.at(-1),/unavailable/);
+});
