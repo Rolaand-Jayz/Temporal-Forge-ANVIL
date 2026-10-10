@@ -9,12 +9,17 @@
 
 #include <cctype>
 #include <cstring>
+#include <atomic>
+#include <csignal>
+#include <poll.h>
 #include <thread>
 
 namespace anvil_lab {
 
 namespace {
-volatile bool gShutdown = false;
+std::atomic<bool> gShutdown{false};
+volatile std::sig_atomic_t gSignalStop = 0;
+void signalStop(int) { gSignalStop = 1; }
 
 constexpr size_t kMaxHeaderBytes = 32 * 1024;
 constexpr size_t kMaxBodyBytes = 64 * 1024 * 1024; // annotated screenshots
@@ -108,6 +113,7 @@ int parseRequest(std::vector<uint8_t>& buf, HttpRequest& req) {
         if (buf.size() > kMaxHeaderBytes) return -1;
         return 0;
     }
+    if (headEnd > kMaxHeaderBytes) return -1;
     std::string head(buf.begin(), buf.begin() + static_cast<long>(headEnd));
     size_t lineEnd = head.find("\r\n");
     const std::string reqLine = head.substr(0, lineEnd == std::string::npos
@@ -147,6 +153,7 @@ int parseRequest(std::vector<uint8_t>& buf, HttpRequest& req) {
 
     // Content-Length body (the only body form accepted).
     size_t contentLength = 0;
+    bool sawLength = false;
     size_t rest = lineEnd == std::string::npos ? head.size() : lineEnd + 2;
     while (rest < head.size()) {
         size_t eol = head.find("\r\n", rest);
@@ -157,12 +164,23 @@ int parseRequest(std::vector<uint8_t>& buf, HttpRequest& req) {
             const std::string name = lineL.substr(0, colon);
             std::string val = lineL.substr(colon + 1);
             while (!val.empty() && val.front() == ' ') val.erase(0, 1);
-            if (name == "Content-Length" || name == "content-length") {
-                if (val.empty() || val.find_first_not_of("0123456789")
-                        != std::string::npos)
-                    return -1;
-                contentLength = static_cast<size_t>(std::stoull(val));
-                if (contentLength > kMaxBodyBytes) return -1;
+            std::string lower = name;
+            for (char& ch : lower)
+                ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+            if (lower == "content-length") {
+                if (sawLength || val.empty() || val.find_first_not_of("0123456789")
+                        != std::string::npos) return -1;
+                sawLength = true;
+                size_t parsed = 0;
+                for (char digit : val) {
+                    const size_t d = static_cast<size_t>(digit - '0');
+                    if (parsed > (kMaxBodyBytes - d) / 10) return -2;
+                    parsed = parsed * 10 + d;
+                }
+                contentLength = parsed;
+            } else if (lower == "transfer-encoding") {
+                // No chunked support, especially no CL/TE ambiguity.
+                return -1;
             }
         }
         if (eol == std::string::npos) break;
@@ -183,12 +201,15 @@ void handleConnection(int fd, const HttpHandler& handler) {
     for (int served = 0; served < 64; ++served) {
         HttpRequest req;
         int st = 0;
-        while ((st = parseRequest(buf, req)) == 0) {
-            if (!recvSome(fd, buf)) { ::close(fd); return; }
-        }
+        try {
+            while ((st = parseRequest(buf, req)) == 0) {
+                if (!recvSome(fd, buf)) { ::close(fd); return; }
+            }
+        } catch (const std::exception&) { st = -1; }
         if (st < 0) {
-            const std::string msg = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0"
-                "\r\nConnection: close\r\n\r\n";
+            const std::string msg = st == -2
+                ? "HTTP/1.1 413 Payload Too Large\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                : "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
             sendAll(fd, reinterpret_cast<const uint8_t*>(msg.data()), msg.size());
             break;
         }
@@ -216,9 +237,12 @@ void handleConnection(int fd, const HttpHandler& handler) {
 } // namespace
 
 bool httpServe(const std::string& bindAddr, uint16_t port,
-               const HttpHandler& handler, const volatile bool*& shutdownFlag,
+               const HttpHandler& handler, const std::atomic<bool>*& shutdownFlag,
                std::string& err) {
-    gShutdown = false;
+    gShutdown.store(false);
+    gSignalStop = 0;
+    std::signal(SIGINT, signalStop);
+    std::signal(SIGTERM, signalStop);
     shutdownFlag = &gShutdown;
     const int fd = ::socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) {
@@ -248,15 +272,23 @@ bool httpServe(const std::string& bindAddr, uint16_t port,
         ::close(fd);
         return false;
     }
-    while (!gShutdown) {
+    std::vector<std::thread> workers;
+    while (!gShutdown.load() && !gSignalStop) {
+        pollfd pfd{fd, POLLIN, 0};
+        const int ready = ::poll(&pfd, 1, 200);
+        if (ready <= 0 || !(pfd.revents & POLLIN)) continue;
         const int conn = ::accept(fd, nullptr, nullptr);
         if (conn < 0) continue;
-        std::thread(handleConnection, conn, handler).detach();
+        timeval timeout{1, 0};
+        ::setsockopt(conn, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout);
+        ::setsockopt(conn, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof timeout);
+        workers.emplace_back(handleConnection, conn, handler);
     }
     ::close(fd);
+    for (auto& worker : workers) if (worker.joinable()) worker.join();
     return true;
 }
 
-void requestServerShutdown() { gShutdown = true; }
+void requestServerShutdown() { gShutdown.store(true); }
 
 } // namespace anvil_lab
