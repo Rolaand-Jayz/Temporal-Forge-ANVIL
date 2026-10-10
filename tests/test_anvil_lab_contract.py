@@ -18,6 +18,7 @@ observed end-to-end:
 import base64
 import binascii
 import hashlib
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 import struct
 import zlib
@@ -742,6 +743,30 @@ def test_canonical_baseline_run_rejects_forged_config_with_matching_catalog(
         assert pair["pixel_pair_valid"] is True
         assert pair["qualified_experiment"] is False
         assert any("immutable baseline" in x for x in pair["evidence_problems"])
+
+
+def test_bounded_http_workers_survive_connection_bursts(lab_server):
+    base, _ = lab_server
+    port = int(base.rsplit(":", 1)[1])
+    request = (b"GET /api/catalog HTTP/1.1\\r\\nHost: 127.0.0.1:"
+               + str(port).encode()
+               + b"\\r\\nConnection: close\\r\\n\\r\\n")
+    def client(_):
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=3) as conn:
+                conn.settimeout(5)
+                conn.sendall(request)
+                data=conn.recv(1000)
+                return b"200" in data or b"503" in data
+        except (ConnectionError, TimeoutError, OSError):
+            return False
+    for _ in range(125):
+        assert client(0), "sequential connection should never crash the server"
+    with ThreadPoolExecutor(max_workers=40) as pool:
+        results=list(pool.map(client,range(80)))
+    assert sum(results)>=40, "worker pool must handle or reject bursts explicitly"
+    _, body=get(base,"/api/catalog")
+    assert json.loads(body)["catalog"], "server must remain alive"
 
 
 def test_cross_origin_findings_writes_rejected(lab_server):
