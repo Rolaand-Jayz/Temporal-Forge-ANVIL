@@ -64,7 +64,7 @@ test("reference metrics identify IMAGE B and never imply an A/B PSNR score", () 
     b: { id: "scene/tryout_mini",
          display_name: "ANVIL baseline + refinement — tryout",
          scene: { id: "scene" }, scale: { factor: 1 } },
-    compat: { valid_pair: true },
+    compat: { valid_pair: true, qualified_experiment: true },
     data: { metrics: { rows: [{
       scene: "scene", arm: "tryout_mini",
       native: { reference: "clean LR reference",
@@ -87,7 +87,7 @@ test("reference metrics identify IMAGE B and never imply an A/B PSNR score", () 
   state.a = { id: "scene/other-candidate", display_name: "other candidate" };
   render(state, $, fmt, esc)();
   assert.equal(grid.innerHTML, before, "B's reference score must not depend on IMAGE A");
-  state.compat.valid_pair = false;
+  state.compat.qualified_experiment = false;
   render(state, $, fmt, esc)();
-  assert.match(grid.innerHTML, /hidden — pair is not a valid experiment/);
+  assert.match(grid.innerHTML, /UNQUALIFIED \/ historical reference scores hidden/);
 });
