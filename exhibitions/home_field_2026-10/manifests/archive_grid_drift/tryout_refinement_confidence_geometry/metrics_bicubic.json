@@ -3,6 +3,6 @@
   "reference": "master_hr",
   "reference_validity": "full-reference vs pristine synthetic master",
   "frames_measured": 42,
-  "psnr_db_mean": 28.44453623,
-  "ssim_mean": 0.8918265663
+  "psnr_db_mean": 28.45820205,
+  "ssim_mean": 0.8919484409
 }

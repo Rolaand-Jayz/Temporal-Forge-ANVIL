@@ -1,1 +1,3921 @@
-{"config":{"input_path":"exhibitions/home_field_2026-10/artifacts/scenes/bbb_occlusion/input_noisy.mp4","output_dir":"exhibitions/home_field_2026-10/artifacts/runs/bbb_occlusion/tryout_refinement_confidence/native","start_frame":2,"start_pts_us":null,"start_pts_ticks":null,"frame_count":42,"past":2,"future":2,"side_info_normalization_mode":"normalize","correspondence_mode":"estimate","refinement_mode":"local","visibility_mode":"valid","confidence_mode":"estimate","geometry_mode":"unknown","excluded_neighbors":[],"accumulate_enabled":true,"color_convert_enabled":true,"forced_cut_frames":[],"auto_scene_cut":false,"auto_cut_threshold":12,"oracle_dir":"","dump_dir":"","dump_stages":"","seed":0,"deterministic_no_random_components":true,"output_backend":"pnm","output_format":"ppm_or_depth_preserving_pgm_planes"},"provenance":{"git_sha":"a88b4b391ccc3b124f3c95d5b3c4ecf383722aa2","git_dirty":"true","git_dirty_hash":"0106d6fc7d9721b05ab2a9c412b2040709552e8b9a6ca1cf3a975c955b219f12","provenance_source":"build_generated","ffmpeg_version":"n9.0.2","build_type":"Release","compiler":"GNU 16.2.1","input_sha256":"f4c76febc44175199daa733e6eedf41332abca2bdf6864201f199e1e2b53d38d","input_size_bytes":797045,"input_hash_ok":true,"decode_mode":"software"},"codec_capabilities":{"h264":{"encoder":"libx264","encoder_available":true,"decoder_available":true,"decode_probe_passed":true,"mv_export_proven":true,"probe_mv_frames":7,"probe_total_frames":8,"note":""},"hevc":{"encoder":"libx265","encoder_available":true,"decoder_available":true,"decode_probe_passed":true,"mv_export_proven":false,"probe_mv_frames":0,"probe_total_frames":8,"note":"decoded ok but no AV_FRAME_DATA_MOTION_VECTORS side data observed from this software decoder"},"av1":{"encoder":"libsvtav1","encoder_available":true,"decoder_available":true,"decode_probe_passed":true,"mv_export_proven":false,"probe_mv_frames":0,"probe_total_frames":8,"note":"decoded ok but no AV_FRAME_DATA_MOTION_VECTORS side data observed from this software decoder"}},"stage_timings":[{"stage":"decode","nanoseconds":14582306},{"stage":"window_select","nanoseconds":992},{"stage":"side_info_normalization","nanoseconds":30448},{"stage":"correspondence","nanoseconds":206832943},{"stage":"correspondence_refinement","nanoseconds":26988750},{"stage":"visibility","nanoseconds":993350},{"stage":"sample_geometry","nanoseconds":311},{"stage":"confidence","nanoseconds":14203294},{"stage":"color_convert","nanoseconds":1193},{"stage":"accumulate","nanoseconds":22181069},{"stage":"color_convert","nanoseconds":371216},{"stage":"output","nanoseconds":504199},{"stage":"window_select","nanoseconds":1322},{"stage":"side_info_normalization","nanoseconds":31621},{"stage":"correspondence","nanoseconds":206537331},{"stage":"correspondence_refinement","nanoseconds":27718599},{"stage":"visibility","nanoseconds":800774},{"stage":"sample_geometry","nanoseconds":321},{"stage":"confidence","nanoseconds":14078947},{"stage":"color_convert","nanoseconds":1253},{"stage":"accumulate","nanoseconds":19317388},{"stage":"color_convert","nanoseconds":332553},{"stage":"output","nanoseconds":461137},{"stage":"window_select","nanoseconds":1213},{"stage":"side_info_normalization","nanoseconds":30879},{"stage":"correspondence","nanoseconds":205068475},{"stage":"correspondence_refinement","nanoseconds":27318869},{"stage":"visibility","nanoseconds":795003},{"stage":"sample_geometry","nanoseconds":441},{"stage":"confidence","nanoseconds":14115227},{"stage":"color_convert","nanoseconds":1293},{"stage":"accumulate","nanoseconds":19407550},{"stage":"color_convert","nanoseconds":333305},{"stage":"output","nanoseconds":460076},{"stage":"window_select","nanoseconds":1593},{"stage":"side_info_normalization","nanoseconds":29647},{"stage":"correspondence","nanoseconds":207823769},{"stage":"correspondence_refinement","nanoseconds":27544938},{"stage":"visibility","nanoseconds":796206},{"stage":"sample_geometry","nanoseconds":230},{"stage":"confidence","nanoseconds":13709355},{"stage":"color_convert","nanoseconds":1152},{"stage":"accumulate","nanoseconds":19439571},{"stage":"color_convert","nanoseconds":315661},{"stage":"output","nanoseconds":444336},{"stage":"window_select","nanoseconds":1162},{"stage":"side_info_normalization","nanoseconds":30809},{"stage":"correspondence","nanoseconds":207823149},{"stage":"correspondence_refinement","nanoseconds":27505864},{"stage":"visibility","nanoseconds":789653},{"stage":"sample_geometry","nanoseconds":370},{"stage":"confidence","nanoseconds":14070833},{"stage":"color_convert","nanoseconds":1362},{"stage":"accumulate","nanoseconds":19362314},{"stage":"color_convert","nanoseconds":356088},{"stage":"output","nanoseconds":486145},{"stage":"window_select","nanoseconds":1252},{"stage":"side_info_normalization","nanoseconds":30518},{"stage":"correspondence","nanoseconds":208161854},{"stage":"correspondence_refinement","nanoseconds":27112366},{"stage":"visibility","nanoseconds":840630},{"stage":"sample_geometry","nanoseconds":231},{"stage":"confidence","nanoseconds":14059911},{"stage":"color_convert","nanoseconds":1233},{"stage":"accumulate","nanoseconds":19425404},{"stage":"color_convert","nanoseconds":320230},{"stage":"output","nanoseconds":443484},{"stage":"window_select","nanoseconds":1172},{"stage":"side_info_normalization","nanoseconds":32111},{"stage":"correspondence","nanoseconds":207499583},{"stage":"correspondence_refinement","nanoseconds":27167812},{"stage":"visibility","nanoseconds":783341},{"stage":"sample_geometry","nanoseconds":330},{"stage":"confidence","nanoseconds":14028532},{"stage":"color_convert","nanoseconds":1263},{"stage":"accumulate","nanoseconds":19339671},{"stage":"color_convert","nanoseconds":331982},{"stage":"output","nanoseconds":454465},{"stage":"window_select","nanoseconds":902},{"stage":"side_info_normalization","nanoseconds":32882},{"stage":"correspondence","nanoseconds":200810321},{"stage":"correspondence_refinement","nanoseconds":26539496},{"stage":"visibility","nanoseconds":815362},{"stage":"sample_geometry","nanoseconds":310},{"stage":"confidence","nanoseconds":13724814},{"stage":"color_convert","nanoseconds":1042},{"stage":"accumulate","nanoseconds":18898692},{"stage":"color_convert","nanoseconds":327664},{"stage":"output","nanoseconds":452441},{"stage":"window_select","nanoseconds":1002},{"stage":"side_info_normalization","nanoseconds":31269},{"stage":"correspondence","nanoseconds":213153836},{"stage":"correspondence_refinement","nanoseconds":25452917},{"stage":"visibility","nanoseconds":790996},{"stage":"sample_geometry","nanoseconds":571},{"stage":"confidence","nanoseconds":13796731},{"stage":"color_convert","nanoseconds":1122},{"stage":"accumulate","nanoseconds":19004243},{"stage":"color_convert","nanoseconds":332052},{"stage":"output","nanoseconds":469674},{"stage":"window_select","nanoseconds":1072},{"stage":"side_info_normalization","nanoseconds":32792},{"stage":"correspondence","nanoseconds":209092095},{"stage":"correspondence_refinement","nanoseconds":27532094},{"stage":"visibility","nanoseconds":801716},{"stage":"sample_geometry","nanoseconds":301},{"stage":"confidence","nanoseconds":13729853},{"stage":"color_convert","nanoseconds":1192},{"stage":"accumulate","nanoseconds":18806335},{"stage":"color_convert","nanoseconds":327283},{"stage":"output","nanoseconds":452381},{"stage":"window_select","nanoseconds":1273},{"stage":"side_info_normalization","nanoseconds":30688},{"stage":"correspondence","nanoseconds":203852502},{"stage":"correspondence_refinement","nanoseconds":28449360},{"stage":"visibility","nanoseconds":817587},{"stage":"sample_geometry","nanoseconds":250},{"stage":"confidence","nanoseconds":13682984},{"stage":"color_convert","nanoseconds":991},{"stage":"accumulate","nanoseconds":18901317},{"stage":"color_convert","nanoseconds":328175},{"stage":"output","nanoseconds":450347},{"stage":"window_select","nanoseconds":1273},{"stage":"side_info_normalization","nanoseconds":31430},{"stage":"correspondence","nanoseconds":204910645},{"stage":"correspondence_refinement","nanoseconds":27136541},{"stage":"visibility","nanoseconds":801616},{"stage":"sample_geometry","nanoseconds":381},{"stage":"confidence","nanoseconds":13754771},{"stage":"color_convert","nanoseconds":1412},{"stage":"accumulate","nanoseconds":19682254},{"stage":"color_convert","nanoseconds":316613},{"stage":"output","nanoseconds":441190},{"stage":"window_select","nanoseconds":1172},{"stage":"side_info_normalization","nanoseconds":32793},{"stage":"correspondence","nanoseconds":214013933},{"stage":"correspondence_refinement","nanoseconds":27076056},{"stage":"visibility","nanoseconds":786698},{"stage":"sample_geometry","nanoseconds":420},{"stage":"confidence","nanoseconds":13931628},{"stage":"color_convert","nanoseconds":1352},{"stage":"accumulate","nanoseconds":18967423},{"stage":"color_convert","nanoseconds":345277},{"stage":"output","nanoseconds":472800},{"stage":"window_select","nanoseconds":1162},{"stage":"side_info_normalization","nanoseconds":33193},{"stage":"correspondence","nanoseconds":217682546},{"stage":"correspondence_refinement","nanoseconds":27427064},{"stage":"visibility","nanoseconds":793460},{"stage":"sample_geometry","nanoseconds":261},{"stage":"confidence","nanoseconds":13761343},{"stage":"color_convert","nanoseconds":1012},{"stage":"accumulate","nanoseconds":19111898},{"stage":"color_convert","nanoseconds":331211},{"stage":"output","nanoseconds":458563},{"stage":"window_select","nanoseconds":1232},{"stage":"side_info_normalization","nanoseconds":33684},{"stage":"correspondence","nanoseconds":209587368},{"stage":"correspondence_refinement","nanoseconds":26117893},{"stage":"visibility","nanoseconds":794993},{"stage":"sample_geometry","nanoseconds":371},{"stage":"confidence","nanoseconds":13785048},{"stage":"color_convert","nanoseconds":1052},{"stage":"accumulate","nanoseconds":19047415},{"stage":"color_convert","nanoseconds":324778},{"stage":"output","nanoseconds":448985},{"stage":"window_select","nanoseconds":1242},{"stage":"side_info_normalization","nanoseconds":31199},{"stage":"correspondence","nanoseconds":204569617},{"stage":"correspondence_refinement","nanoseconds":27541883},{"stage":"visibility","nanoseconds":813889},{"stage":"sample_geometry","nanoseconds":381},{"stage":"confidence","nanoseconds":14127741},{"stage":"color_convert","nanoseconds":1353},{"stage":"accumulate","nanoseconds":19217058},{"stage":"color_convert","nanoseconds":329517},{"stage":"output","nanoseconds":459955},{"stage":"window_select","nanoseconds":1373},{"stage":"side_info_normalization","nanoseconds":32552},{"stage":"correspondence","nanoseconds":207134078},{"stage":"correspondence_refinement","nanoseconds":27662553},{"stage":"visibility","nanoseconds":858824},{"stage":"sample_geometry","nanoseconds":301},{"stage":"confidence","nanoseconds":13888966},{"stage":"color_convert","nanoseconds":1123},{"stage":"accumulate","nanoseconds":19273164},{"stage":"color_convert","nanoseconds":319959},{"stage":"output","nanoseconds":445298},{"stage":"window_select","nanoseconds":952},{"stage":"side_info_normalization","nanoseconds":31741},{"stage":"correspondence","nanoseconds":206965127},{"stage":"correspondence_refinement","nanoseconds":25984739},{"stage":"visibility","nanoseconds":778341},{"stage":"sample_geometry","nanoseconds":301},{"stage":"confidence","nanoseconds":13829723},{"stage":"color_convert","nanoseconds":1062},{"stage":"accumulate","nanoseconds":18920854},{"stage":"color_convert","nanoseconds":333254},{"stage":"output","nanoseconds":454085},{"stage":"window_select","nanoseconds":972},{"stage":"side_info_normalization","nanoseconds":31170},{"stage":"correspondence","nanoseconds":211033861},{"stage":"correspondence_refinement","nanoseconds":25436677},{"stage":"visibility","nanoseconds":788951},{"stage":"sample_geometry","nanoseconds":330},{"stage":"confidence","nanoseconds":13736757},{"stage":"color_convert","nanoseconds":1232},{"stage":"accumulate","nanoseconds":18873975},{"stage":"color_convert","nanoseconds":308898},{"stage":"output","nanoseconds":433285},{"stage":"window_select","nanoseconds":1302},{"stage":"side_info_normalization","nanoseconds":31711},{"stage":"correspondence","nanoseconds":206078008},{"stage":"correspondence_refinement","nanoseconds":30721796},{"stage":"visibility","nanoseconds":1352444},{"stage":"sample_geometry","nanoseconds":731},{"stage":"confidence","nanoseconds":18124449},{"stage":"color_convert","nanoseconds":1984},{"stage":"accumulate","nanoseconds":19731477},{"stage":"color_convert","nanoseconds":330148},{"stage":"output","nanoseconds":460326},{"stage":"window_select","nanoseconds":1763},{"stage":"side_info_normalization","nanoseconds":32672},{"stage":"correspondence","nanoseconds":203519188},{"stage":"correspondence_refinement","nanoseconds":28534002},{"stage":"visibility","nanoseconds":820191},{"stage":"sample_geometry","nanoseconds":301},{"stage":"confidence","nanoseconds":13722329},{"stage":"color_convert","nanoseconds":1152},{"stage":"accumulate","nanoseconds":19135423},{"stage":"color_convert","nanoseconds":343824},{"stage":"output","nanoseconds":487438},{"stage":"window_select","nanoseconds":1072},{"stage":"side_info_normalization","nanoseconds":32202},{"stage":"correspondence","nanoseconds":207900698},{"stage":"correspondence_refinement","nanoseconds":26462249},{"stage":"visibility","nanoseconds":779003},{"stage":"sample_geometry","nanoseconds":421},{"stage":"confidence","nanoseconds":13805848},{"stage":"color_convert","nanoseconds":1242},{"stage":"accumulate","nanoseconds":18919081},{"stage":"color_convert","nanoseconds":326191},{"stage":"output","nanoseconds":452792},{"stage":"window_select","nanoseconds":1152},{"stage":"side_info_normalization","nanoseconds":33604},{"stage":"correspondence","nanoseconds":211895913},{"stage":"correspondence_refinement","nanoseconds":26276004},{"stage":"visibility","nanoseconds":790575},{"stage":"sample_geometry","nanoseconds":370},{"stage":"confidence","nanoseconds":14494930},{"stage":"color_convert","nanoseconds":1293},{"stage":"accumulate","nanoseconds":19221566},{"stage":"color_convert","nanoseconds":314478},{"stage":"output","nanoseconds":446711},{"stage":"window_select","nanoseconds":1262},{"stage":"side_info_normalization","nanoseconds":32132},{"stage":"correspondence","nanoseconds":210142775},{"stage":"correspondence_refinement","nanoseconds":29408005},{"stage":"visibility","nanoseconds":816835},{"stage":"sample_geometry","nanoseconds":321},{"stage":"confidence","nanoseconds":13743970},{"stage":"color_convert","nanoseconds":1162},{"stage":"accumulate","nanoseconds":19083444},{"stage":"color_convert","nanoseconds":328034},{"stage":"output","nanoseconds":454926},{"stage":"window_select","nanoseconds":1153},{"stage":"side_info_normalization","nanoseconds":33012},{"stage":"correspondence","nanoseconds":202587425},{"stage":"correspondence_refinement","nanoseconds":28323982},{"stage":"visibility","nanoseconds":816364},{"stage":"sample_geometry","nanoseconds":301},{"stage":"confidence","nanoseconds":13775420},{"stage":"color_convert","nanoseconds":1282},{"stage":"accumulate","nanoseconds":18931293},{"stage":"color_convert","nanoseconds":337732},{"stage":"output","nanoseconds":476187},{"stage":"window_select","nanoseconds":1112},{"stage":"side_info_normalization","nanoseconds":32341},{"stage":"correspondence","nanoseconds":208745297},{"stage":"correspondence_refinement","nanoseconds":27138145},{"stage":"visibility","nanoseconds":803409},{"stage":"sample_geometry","nanoseconds":301},{"stage":"confidence","nanoseconds":13806299},{"stage":"color_convert","nanoseconds":1232},{"stage":"accumulate","nanoseconds":19164298},{"stage":"color_convert","nanoseconds":345277},{"stage":"output","nanoseconds":474593},{"stage":"window_select","nanoseconds":1253},{"stage":"side_info_normalization","nanoseconds":32542},{"stage":"correspondence","nanoseconds":206427945},{"stage":"correspondence_refinement","nanoseconds":26852732},{"stage":"visibility","nanoseconds":793420},{"stage":"sample_geometry","nanoseconds":321},{"stage":"confidence","nanoseconds":14111680},{"stage":"color_convert","nanoseconds":1362},{"stage":"accumulate","nanoseconds":19178515},{"stage":"color_convert","nanoseconds":315741},{"stage":"output","nanoseconds":453743},{"stage":"window_select","nanoseconds":1442},{"stage":"side_info_normalization","nanoseconds":31920},{"stage":"correspondence","nanoseconds":212746703},{"stage":"correspondence_refinement","nanoseconds":25590018},{"stage":"visibility","nanoseconds":790776},{"stage":"sample_geometry","nanoseconds":270},{"stage":"confidence","nanoseconds":13780520},{"stage":"color_convert","nanoseconds":1253},{"stage":"accumulate","nanoseconds":19122397},{"stage":"color_convert","nanoseconds":347411},{"stage":"output","nanoseconds":481667},{"stage":"window_select","nanoseconds":1302},{"stage":"side_info_normalization","nanoseconds":32252},{"stage":"correspondence","nanoseconds":218648576},{"stage":"correspondence_refinement","nanoseconds":26939296},{"stage":"visibility","nanoseconds":799592},{"stage":"sample_geometry","nanoseconds":270},{"stage":"confidence","nanoseconds":13985721},{"stage":"color_convert","nanoseconds":1403},{"stage":"accumulate","nanoseconds":19057885},{"stage":"color_convert","nanoseconds":310821},{"stage":"output","nanoseconds":445408},{"stage":"window_select","nanoseconds":1062},{"stage":"side_info_normalization","nanoseconds":32452},{"stage":"correspondence","nanoseconds":202519697},{"stage":"correspondence_refinement","nanoseconds":26005589},{"stage":"visibility","nanoseconds":803729},{"stage":"sample_geometry","nanoseconds":431},{"stage":"confidence","nanoseconds":14030085},{"stage":"color_convert","nanoseconds":14036},{"stage":"accumulate","nanoseconds":18974265},{"stage":"color_convert","nanoseconds":309119},{"stage":"output","nanoseconds":436261},{"stage":"window_select","nanoseconds":1222},{"stage":"side_info_normalization","nanoseconds":32802},{"stage":"correspondence","nanoseconds":201864160},{"stage":"correspondence_refinement","nanoseconds":27081036},{"stage":"visibility","nanoseconds":793060},{"stage":"sample_geometry","nanoseconds":350},{"stage":"confidence","nanoseconds":14047098},{"stage":"color_convert","nanoseconds":1212},{"stage":"accumulate","nanoseconds":19401930},{"stage":"color_convert","nanoseconds":330299},{"stage":"output","nanoseconds":474113},{"stage":"window_select","nanoseconds":1252},{"stage":"side_info_normalization","nanoseconds":33935},{"stage":"correspondence","nanoseconds":206769516},{"stage":"correspondence_refinement","nanoseconds":27222917},{"stage":"visibility","nanoseconds":824489},{"stage":"sample_geometry","nanoseconds":381},{"stage":"confidence","nanoseconds":14057807},{"stage":"color_convert","nanoseconds":1012},{"stage":"accumulate","nanoseconds":19178515},{"stage":"color_convert","nanoseconds":322845},{"stage":"output","nanoseconds":461729},{"stage":"window_select","nanoseconds":1313},{"stage":"side_info_normalization","nanoseconds":31720},{"stage":"correspondence","nanoseconds":209017596},{"stage":"correspondence_refinement","nanoseconds":27515664},{"stage":"visibility","nanoseconds":792128},{"stage":"sample_geometry","nanoseconds":320},{"stage":"confidence","nanoseconds":14063078},{"stage":"color_convert","nanoseconds":1092},{"stage":"accumulate","nanoseconds":19251203},{"stage":"color_convert","nanoseconds":315660},{"stage":"output","nanoseconds":444255},{"stage":"window_select","nanoseconds":1443},{"stage":"side_info_normalization","nanoseconds":33443},{"stage":"correspondence","nanoseconds":205987498},{"stage":"correspondence_refinement","nanoseconds":26416351},{"stage":"visibility","nanoseconds":824639},{"stage":"sample_geometry","nanoseconds":391},{"stage":"confidence","nanoseconds":14021499},{"stage":"color_convert","nanoseconds":1162},{"stage":"accumulate","nanoseconds":19348768},{"stage":"color_convert","nanoseconds":317474},{"stage":"output","nanoseconds":447862},{"stage":"window_select","nanoseconds":1202},{"stage":"side_info_normalization","nanoseconds":32162},{"stage":"correspondence","nanoseconds":199945507},{"stage":"correspondence_refinement","nanoseconds":27227736},{"stage":"visibility","nanoseconds":780436},{"stage":"sample_geometry","nanoseconds":371},{"stage":"confidence","nanoseconds":13845583},{"stage":"color_convert","nanoseconds":1173},{"stage":"accumulate","nanoseconds":19020002},{"stage":"color_convert","nanoseconds":343383},{"stage":"output","nanoseconds":473140},{"stage":"window_select","nanoseconds":1313},{"stage":"side_info_normalization","nanoseconds":31470},{"stage":"correspondence","nanoseconds":203867523},{"stage":"correspondence_refinement","nanoseconds":27791058},{"stage":"visibility","nanoseconds":847623},{"stage":"sample_geometry","nanoseconds":301},{"stage":"confidence","nanoseconds":13993365},{"stage":"color_convert","nanoseconds":1102},{"stage":"accumulate","nanoseconds":19357175},{"stage":"color_convert","nanoseconds":322934},{"stage":"output","nanoseconds":448163},{"stage":"window_select","nanoseconds":1293},{"stage":"side_info_normalization","nanoseconds":35808},{"stage":"correspondence","nanoseconds":204887144},{"stage":"correspondence_refinement","nanoseconds":26816753},{"stage":"visibility","nanoseconds":856029},{"stage":"sample_geometry","nanoseconds":361},{"stage":"confidence","nanoseconds":14072586},{"stage":"color_convert","nanoseconds":1282},{"stage":"accumulate","nanoseconds":19363828},{"stage":"color_convert","nanoseconds":325660},{"stage":"output","nanoseconds":450928},{"stage":"window_select","nanoseconds":1262},{"stage":"side_info_normalization","nanoseconds":34996},{"stage":"correspondence","nanoseconds":203667152},{"stage":"correspondence_refinement","nanoseconds":27087118},{"stage":"visibility","nanoseconds":790765},{"stage":"sample_geometry","nanoseconds":321},{"stage":"confidence","nanoseconds":14091151},{"stage":"color_convert","nanoseconds":1283},{"stage":"accumulate","nanoseconds":19170118},{"stage":"color_convert","nanoseconds":310140},{"stage":"output","nanoseconds":436140},{"stage":"window_select","nanoseconds":1152},{"stage":"side_info_normalization","nanoseconds":33113},{"stage":"correspondence","nanoseconds":208274531},{"stage":"correspondence_refinement","nanoseconds":28085338},{"stage":"visibility","nanoseconds":812707},{"stage":"sample_geometry","nanoseconds":371},{"stage":"confidence","nanoseconds":14003574},{"stage":"color_convert","nanoseconds":1243},{"stage":"accumulate","nanoseconds":19343408},{"stage":"color_convert","nanoseconds":322844},{"stage":"output","nanoseconds":450658},{"stage":"window_select","nanoseconds":1052},{"stage":"side_info_normalization","nanoseconds":31740},{"stage":"correspondence","nanoseconds":216072474},{"stage":"correspondence_refinement","nanoseconds":25837630},{"stage":"visibility","nanoseconds":776638},{"stage":"sample_geometry","nanoseconds":341},{"stage":"confidence","nanoseconds":14117892},{"stage":"color_convert","nanoseconds":1243},{"stage":"accumulate","nanoseconds":19305737},{"stage":"color_convert","nanoseconds":430760},{"stage":"output","nanoseconds":563522},{"stage":"window_select","nanoseconds":1212},{"stage":"side_info_normalization","nanoseconds":32111},{"stage":"correspondence","nanoseconds":203874517},{"stage":"correspondence_refinement","nanoseconds":26507495},{"stage":"visibility","nanoseconds":795965},{"stage":"sample_geometry","nanoseconds":341},{"stage":"confidence","nanoseconds":14129754},{"stage":"color_convert","nanoseconds":1283},{"stage":"accumulate","nanoseconds":19389727},{"stage":"color_convert","nanoseconds":309018},{"stage":"output","nanoseconds":439035},{"stage":"window_select","nanoseconds":1273},{"stage":"side_info_normalization","nanoseconds":32662},{"stage":"correspondence","nanoseconds":216676474},{"stage":"correspondence_refinement","nanoseconds":26409979},{"stage":"visibility","nanoseconds":787018},{"stage":"sample_geometry","nanoseconds":451},{"stage":"confidence","nanoseconds":13873657},{"stage":"color_convert","nanoseconds":1372},{"stage":"accumulate","nanoseconds":19020915},{"stage":"color_convert","nanoseconds":320330},{"stage":"output","nanoseconds":455918}],"events":[{"frame":2,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":3,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":4,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":5,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":6,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":7,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":8,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":9,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":10,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":11,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":12,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":13,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":14,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":15,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":16,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":17,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":18,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":19,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":20,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":21,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":22,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":23,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":24,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":25,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":26,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":27,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":28,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":29,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":30,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":31,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":32,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":33,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":34,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":35,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":36,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":37,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":38,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":39,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":40,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":41,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":42,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"},{"frame":43,"type":"side_info_ambiguous","detail":"codec MV side data exported but reference identity unproven; not applied to reconstruction"}],"ground_truth":[],"oracle_artifacts":[],"output_files":["frame_2.ppm","frame_3.ppm","frame_4.ppm","frame_5.ppm","frame_6.ppm","frame_7.ppm","frame_8.ppm","frame_9.ppm","frame_10.ppm","frame_11.ppm","frame_12.ppm","frame_13.ppm","frame_14.ppm","frame_15.ppm","frame_16.ppm","frame_17.ppm","frame_18.ppm","frame_19.ppm","frame_20.ppm","frame_21.ppm","frame_22.ppm","frame_23.ppm","frame_24.ppm","frame_25.ppm","frame_26.ppm","frame_27.ppm","frame_28.ppm","frame_29.ppm","frame_30.ppm","frame_31.ppm","frame_32.ppm","frame_33.ppm","frame_34.ppm","frame_35.ppm","frame_36.ppm","frame_37.ppm","frame_38.ppm","frame_39.ppm","frame_40.ppm","frame_41.ppm","frame_42.ppm","frame_43.ppm","manifest.json"],"dump_files":[],"frames":[{"frame_index":2,"pts_us":83333,"pts_ticks":1024,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1786,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":3,"pts_us":125000,"pts_ticks":1536,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1878,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":4,"pts_us":166667,"pts_ticks":2048,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1797,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":5,"pts_us":208333,"pts_ticks":2560,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1842,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":6,"pts_us":250000,"pts_ticks":3072,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1809,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":7,"pts_us":291667,"pts_ticks":3584,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1814,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":8,"pts_us":333333,"pts_ticks":4096,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1884,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":9,"pts_us":375000,"pts_ticks":4608,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1916,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":10,"pts_us":416667,"pts_ticks":5120,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1824,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":11,"pts_us":458333,"pts_ticks":5632,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1961,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":12,"pts_us":500000,"pts_ticks":6144,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1820,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":13,"pts_us":541667,"pts_ticks":6656,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1878,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":14,"pts_us":583333,"pts_ticks":7168,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1942,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":15,"pts_us":625000,"pts_ticks":7680,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1955,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":16,"pts_us":666667,"pts_ticks":8192,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1991,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":17,"pts_us":708333,"pts_ticks":8704,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1806,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":18,"pts_us":750000,"pts_ticks":9216,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1946,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":19,"pts_us":791667,"pts_ticks":9728,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1907,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":20,"pts_us":833333,"pts_ticks":10240,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1861,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":21,"pts_us":875000,"pts_ticks":10752,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1883,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":22,"pts_us":916667,"pts_ticks":11264,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1887,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":23,"pts_us":958333,"pts_ticks":11776,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1908,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":24,"pts_us":1000000,"pts_ticks":12288,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1983,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":25,"pts_us":1041667,"pts_ticks":12800,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1892,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":26,"pts_us":1083333,"pts_ticks":13312,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1915,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":27,"pts_us":1125000,"pts_ticks":13824,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1953,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":28,"pts_us":1166667,"pts_ticks":14336,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1944,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":29,"pts_us":1208333,"pts_ticks":14848,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1891,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":30,"pts_us":1250000,"pts_ticks":15360,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1919,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":31,"pts_us":1291667,"pts_ticks":15872,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1906,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":32,"pts_us":1333333,"pts_ticks":16384,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1947,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":33,"pts_us":1375000,"pts_ticks":16896,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":2007,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":34,"pts_us":1416667,"pts_ticks":17408,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1887,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":35,"pts_us":1458333,"pts_ticks":17920,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1989,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":36,"pts_us":1500000,"pts_ticks":18432,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1889,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":37,"pts_us":1541667,"pts_ticks":18944,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1865,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":38,"pts_us":1583333,"pts_ticks":19456,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1848,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":39,"pts_us":1625000,"pts_ticks":19968,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1917,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":40,"pts_us":1666667,"pts_ticks":20480,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1931,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":41,"pts_us":1708333,"pts_ticks":20992,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1856,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":42,"pts_us":1750000,"pts_ticks":21504,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1907,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600},{"frame_index":43,"pts_us":1791667,"pts_ticks":22016,"timebase_num":1,"timebase_den":12288,"timestamp_source":"pts","side_info_state":"ambiguous","side_info_normalization":"normalized","codec_mv_count":1895,"codec_mv_usable_count":0,"correspondence_source":"estimate","confidence_source":"estimate","geometry_state":"unknown","color_conversion":"yuv->rgb24 explicit matrix=bt709 range=limited","has_ground_truth":false,"color_source":{"range":"limited","primaries":"bt709","transfer":"bt709","matrix":"bt709","chroma_location":"left","pixel_format":"yuv420p","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"color_output":{"range":"full","primaries":"bt709","transfer":"bt709","matrix":"rgb","chroma_location":"not_applicable","pixel_format":"rgb24","bit_depth":8,"hdr_mastering_display_present":false,"hdr_content_light_level_present":false},"valid_samples":921600,"total_samples":921600}]}
+{
+  "config": {
+    "input_path": "exhibitions/home_field_2026-10/artifacts/scenes/bbb_occlusion/input_noisy.mp4",
+    "output_dir": "exhibitions/home_field_2026-10/artifacts/runs/bbb_occlusion/tryout_refinement_confidence/native",
+    "start_frame": 2,
+    "start_pts_us": null,
+    "start_pts_ticks": null,
+    "frame_count": 42,
+    "past": 2,
+    "future": 2,
+    "side_info_normalization_mode": "normalize",
+    "correspondence_mode": "estimate",
+    "refinement_mode": "local",
+    "visibility_mode": "valid",
+    "confidence_mode": "estimate",
+    "geometry_mode": "unknown",
+    "excluded_neighbors": [],
+    "accumulate_enabled": true,
+    "color_convert_enabled": true,
+    "forced_cut_frames": [],
+    "auto_scene_cut": false,
+    "auto_cut_threshold": 12,
+    "oracle_dir": "",
+    "dump_dir": "",
+    "dump_stages": "",
+    "seed": 0,
+    "deterministic_no_random_components": true,
+    "output_backend": "pnm",
+    "output_format": "ppm_or_depth_preserving_pgm_planes"
+  },
+  "provenance": {
+    "git_sha": "9c25063ac2d57c05c87c4f35ff4dd789c86d6fcd",
+    "git_dirty": "false",
+    "git_dirty_hash": null,
+    "provenance_source": "build_generated",
+    "ffmpeg_version": "n9.0.2",
+    "build_type": "Release",
+    "compiler": "GNU 16.2.1",
+    "input_sha256": "c58a85e26b942d37ea99dba448bc02a27c0dff6a20e15d5e7d0e9bcc8b8ad582",
+    "input_size_bytes": 793140,
+    "input_hash_ok": true,
+    "decode_mode": "software"
+  },
+  "codec_capabilities": {
+    "h264": {
+      "encoder": "libx264",
+      "encoder_available": true,
+      "decoder_available": true,
+      "decode_probe_passed": true,
+      "mv_export_proven": true,
+      "probe_mv_frames": 7,
+      "probe_total_frames": 8,
+      "note": ""
+    },
+    "hevc": {
+      "encoder": "libx265",
+      "encoder_available": true,
+      "decoder_available": true,
+      "decode_probe_passed": true,
+      "mv_export_proven": false,
+      "probe_mv_frames": 0,
+      "probe_total_frames": 8,
+      "note": "decoded ok but no AV_FRAME_DATA_MOTION_VECTORS side data observed from this software decoder"
+    },
+    "av1": {
+      "encoder": "libsvtav1",
+      "encoder_available": true,
+      "decoder_available": true,
+      "decode_probe_passed": true,
+      "mv_export_proven": false,
+      "probe_mv_frames": 0,
+      "probe_total_frames": 8,
+      "note": "decoded ok but no AV_FRAME_DATA_MOTION_VECTORS side data observed from this software decoder"
+    }
+  },
+  "stage_timings": [
+    {
+      "stage": "decode",
+      "nanoseconds": 15818247
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1052
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 27181
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 251945302
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 54826700
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 1942500
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 781
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 19491593
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1864
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 29739049
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 422685
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 1094624
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1683
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 32101
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 261287565
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 35356698
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 934891
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 541
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 18406676
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1843
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 28121759
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 355537
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 654436
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1623
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 29296
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 286143404
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 32736228
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 799413
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 781
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 16038627
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 2084
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 27567534
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 359605
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 652933
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1854
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 30027
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 263006839
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 35499250
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 786858
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 491
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 16867275
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 2235
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 25751735
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 327784
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 615251
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1553
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 30709
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 268641460
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 31852394
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 795294
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 521
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 14778856
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1894
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 20667722
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 331882
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 587098
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1563
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 29847
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 217825028
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 28930900
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 892450
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 470
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 14375789
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1984
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 20279173
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 344987
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 610463
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1382
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 29657
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 313051552
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 30583207
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 910434
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 491
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 16363225
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1674
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 23568808
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 351349
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 607207
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1443
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 29295
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 391127431
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 40620794
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 1086850
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 641
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 20278211
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1954
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 35092325
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 551701
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 903571
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1953
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 33013
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 300071150
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 27594124
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 816665
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 351
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 14859170
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 2044
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 23155931
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 366688
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 682239
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1654
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 31710
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 231663755
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 30009494
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 943897
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 481
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 15749355
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1793
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 24038573
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 563773
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 865098
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1422
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 30678
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 255190072
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 26203276
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 794864
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 391
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 14520224
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 2064
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 19912825
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 396706
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 663634
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1744
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 30468
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 309062013
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 52422701
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 834088
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 481
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 16915766
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 2044
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 22201755
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 332594
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 604060
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1933
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 31270
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 226102984
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 30160242
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 966831
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 371
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 14531195
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1604
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 19694328
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 330139
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 582649
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1693
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 30338
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 229498942
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 32307601
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 1295016
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 602
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 18912579
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1713
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 23721188
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 331812
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 589923
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 2084
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 29677
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 251316745
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 30217180
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 1504756
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 681
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 24593440
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 2235
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 27224430
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 409210
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 27669267
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 2395
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 34436
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 258931006
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 31080665
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 793892
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 561
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 14625716
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1703
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 21099425
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 414430
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 674424
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1313
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 31029
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 263387314
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 33832335
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 809782
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 591
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 14635153
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 2004
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 20964047
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 395062
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 689514
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1733
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 30829
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 228011148
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 29408320
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 796597
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 520
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 16600546
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1903
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 22027533
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 338936
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 598290
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1423
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 30027
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 228720970
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 30068617
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 785646
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 461
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 14455110
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1553
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 19186762
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 329758
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 584874
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1744
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 30979
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 216756593
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 29501697
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 800945
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 571
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 15650938
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1513
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 19379699
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 330950
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 588611
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1533
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 29576
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 211584163
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 31934541
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 813048
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 531
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 14660823
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1864
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 22662251
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 326261
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 582580
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1663
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 29857
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 231824611
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 29462132
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 815292
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 411
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 14594666
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1723
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 22159143
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 333435
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 624749
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1943
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 33314
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 227551593
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 32387083
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 791748
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 431
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 14419222
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1764
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 24448483
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 336140
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 586857
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1462
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 29707
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 219092532
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 26893270
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 820503
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 541
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 14400576
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1903
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 19950056
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 327313
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 576337
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1403
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 31400
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 227817870
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 33957043
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 1483886
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 642
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 21158297
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1623
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 21940025
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 327063
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 585515
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1382
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 32853
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 225572584
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 30791474
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 809783
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 621
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 17201912
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1533
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 22848035
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 513909
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 826123
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1713
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 33163
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 225102018
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 31121913
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 1049870
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 531
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 16202077
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1984
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 30241045
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 598259
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 991628
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 2024
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 33945
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 247283283
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 27784988
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 845610
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 541
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 14137075
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1482
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 20052481
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 328646
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 604571
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1703
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 31901
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 215246027
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 27635272
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 1468727
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 561
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 15848014
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 2024
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 38105805
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 606745
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 954658
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 2004
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 34055
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 237953604
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 29433197
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 968735
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 551
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 16785860
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1623
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 22412716
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 337994
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 613839
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1453
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 30588
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 223267363
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 40501568
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 829971
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 942
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 15934277
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1673
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 21457307
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 329077
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 583632
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1634
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 31550
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 234430003
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 28341618
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 799132
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 390
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 14282222
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1693
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 20025770
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 334868
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 595213
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1763
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 30258
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 246272578
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 29814824
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 798611
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 391
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 15745478
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1693
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 20556812
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 334648
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 592839
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1543
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 30128
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 340007611
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 48897858
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 1535004
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 762
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 19249161
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 2004
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 20593712
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 355978
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 641502
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1352
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 30468
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 240999095
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 41562979
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 1568688
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 551
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 17620619
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1523
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 22361248
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 432283
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 754026
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 2023
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 33604
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 233808950
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 33259935
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 802718
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 621
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 16267282
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 2155
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 21004003
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 332163
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 594963
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1573
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 30618
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 240072931
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 31941674
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 1442367
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 761
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 16068734
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1563
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 20267710
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 352612
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 618798
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1573
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 30528
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 266088438
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 40307277
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 929240
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 521
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 15523856
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1583
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 20108878
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 333205
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 610152
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1543
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 31019
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 246585926
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 29015462
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 834640
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 380
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 14114252
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1613
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 19784791
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 329478
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 604471
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1392
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 30238
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 231777251
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 30308925
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 1408973
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 491
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 15555917
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1663
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 24015579
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 442112
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 748686
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1753
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 31430
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 262586539
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 31449527
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 888372
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 491
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 16976512
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 1533
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 21496050
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 325340
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 614290
+    },
+    {
+      "stage": "window_select",
+      "nanoseconds": 1684
+    },
+    {
+      "stage": "side_info_normalization",
+      "nanoseconds": 30177
+    },
+    {
+      "stage": "correspondence",
+      "nanoseconds": 227877114
+    },
+    {
+      "stage": "correspondence_refinement",
+      "nanoseconds": 29577632
+    },
+    {
+      "stage": "visibility",
+      "nanoseconds": 869977
+    },
+    {
+      "stage": "sample_geometry",
+      "nanoseconds": 591
+    },
+    {
+      "stage": "confidence",
+      "nanoseconds": 16474356
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 2094
+    },
+    {
+      "stage": "accumulate",
+      "nanoseconds": 22075694
+    },
+    {
+      "stage": "color_convert",
+      "nanoseconds": 343464
+    },
+    {
+      "stage": "output",
+      "nanoseconds": 682780
+    }
+  ],
+  "events": [
+    {
+      "frame": 2,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 3,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 4,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 5,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 6,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 7,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 8,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 9,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 10,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 11,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 12,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 13,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 14,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 15,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 16,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 17,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 18,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 19,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 20,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 21,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 22,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 23,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 24,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 25,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 26,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 27,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 28,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 29,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 30,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 31,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 32,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 33,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 34,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 35,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 36,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 37,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 38,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 39,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 40,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 41,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 42,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    },
+    {
+      "frame": 43,
+      "type": "side_info_ambiguous",
+      "detail": "codec MV side data exported but reference identity unproven; not applied to reconstruction"
+    }
+  ],
+  "ground_truth": [],
+  "oracle_artifacts": [],
+  "output_files": [
+    "frame_2.ppm",
+    "frame_3.ppm",
+    "frame_4.ppm",
+    "frame_5.ppm",
+    "frame_6.ppm",
+    "frame_7.ppm",
+    "frame_8.ppm",
+    "frame_9.ppm",
+    "frame_10.ppm",
+    "frame_11.ppm",
+    "frame_12.ppm",
+    "frame_13.ppm",
+    "frame_14.ppm",
+    "frame_15.ppm",
+    "frame_16.ppm",
+    "frame_17.ppm",
+    "frame_18.ppm",
+    "frame_19.ppm",
+    "frame_20.ppm",
+    "frame_21.ppm",
+    "frame_22.ppm",
+    "frame_23.ppm",
+    "frame_24.ppm",
+    "frame_25.ppm",
+    "frame_26.ppm",
+    "frame_27.ppm",
+    "frame_28.ppm",
+    "frame_29.ppm",
+    "frame_30.ppm",
+    "frame_31.ppm",
+    "frame_32.ppm",
+    "frame_33.ppm",
+    "frame_34.ppm",
+    "frame_35.ppm",
+    "frame_36.ppm",
+    "frame_37.ppm",
+    "frame_38.ppm",
+    "frame_39.ppm",
+    "frame_40.ppm",
+    "frame_41.ppm",
+    "frame_42.ppm",
+    "frame_43.ppm",
+    "manifest.json"
+  ],
+  "dump_files": [],
+  "frames": [
+    {
+      "frame_index": 2,
+      "pts_us": 83333,
+      "pts_ticks": 1024,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1709,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 3,
+      "pts_us": 125000,
+      "pts_ticks": 1536,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1843,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 4,
+      "pts_us": 166667,
+      "pts_ticks": 2048,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1801,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 5,
+      "pts_us": 208333,
+      "pts_ticks": 2560,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1838,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 6,
+      "pts_us": 250000,
+      "pts_ticks": 3072,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1920,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 7,
+      "pts_us": 291667,
+      "pts_ticks": 3584,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1876,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 8,
+      "pts_us": 333333,
+      "pts_ticks": 4096,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1855,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 9,
+      "pts_us": 375000,
+      "pts_ticks": 4608,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1825,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 10,
+      "pts_us": 416667,
+      "pts_ticks": 5120,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1846,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 11,
+      "pts_us": 458333,
+      "pts_ticks": 5632,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1852,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 12,
+      "pts_us": 500000,
+      "pts_ticks": 6144,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1856,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 13,
+      "pts_us": 541667,
+      "pts_ticks": 6656,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1894,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 14,
+      "pts_us": 583333,
+      "pts_ticks": 7168,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1926,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 15,
+      "pts_us": 625000,
+      "pts_ticks": 7680,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1906,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 16,
+      "pts_us": 666667,
+      "pts_ticks": 8192,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1856,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 17,
+      "pts_us": 708333,
+      "pts_ticks": 8704,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1896,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 18,
+      "pts_us": 750000,
+      "pts_ticks": 9216,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1916,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 19,
+      "pts_us": 791667,
+      "pts_ticks": 9728,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1914,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 20,
+      "pts_us": 833333,
+      "pts_ticks": 10240,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1882,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 21,
+      "pts_us": 875000,
+      "pts_ticks": 10752,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1942,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 22,
+      "pts_us": 916667,
+      "pts_ticks": 11264,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1832,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 23,
+      "pts_us": 958333,
+      "pts_ticks": 11776,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1848,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 24,
+      "pts_us": 1000000,
+      "pts_ticks": 12288,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1970,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 25,
+      "pts_us": 1041667,
+      "pts_ticks": 12800,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1860,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 26,
+      "pts_us": 1083333,
+      "pts_ticks": 13312,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1979,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 27,
+      "pts_us": 1125000,
+      "pts_ticks": 13824,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1932,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 28,
+      "pts_us": 1166667,
+      "pts_ticks": 14336,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1917,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 29,
+      "pts_us": 1208333,
+      "pts_ticks": 14848,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1917,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 30,
+      "pts_us": 1250000,
+      "pts_ticks": 15360,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1971,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 31,
+      "pts_us": 1291667,
+      "pts_ticks": 15872,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1930,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 32,
+      "pts_us": 1333333,
+      "pts_ticks": 16384,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1914,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 33,
+      "pts_us": 1375000,
+      "pts_ticks": 16896,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1949,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 34,
+      "pts_us": 1416667,
+      "pts_ticks": 17408,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1870,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 35,
+      "pts_us": 1458333,
+      "pts_ticks": 17920,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1896,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 36,
+      "pts_us": 1500000,
+      "pts_ticks": 18432,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1899,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 37,
+      "pts_us": 1541667,
+      "pts_ticks": 18944,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1902,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 38,
+      "pts_us": 1583333,
+      "pts_ticks": 19456,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1904,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 39,
+      "pts_us": 1625000,
+      "pts_ticks": 19968,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1904,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 40,
+      "pts_us": 1666667,
+      "pts_ticks": 20480,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1939,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 41,
+      "pts_us": 1708333,
+      "pts_ticks": 20992,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1897,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 42,
+      "pts_us": 1750000,
+      "pts_ticks": 21504,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1911,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    },
+    {
+      "frame_index": 43,
+      "pts_us": 1791667,
+      "pts_ticks": 22016,
+      "timebase_num": 1,
+      "timebase_den": 12288,
+      "timestamp_source": "pts",
+      "side_info_state": "ambiguous",
+      "side_info_normalization": "normalized",
+      "codec_mv_count": 1750,
+      "codec_mv_usable_count": 0,
+      "correspondence_source": "estimate",
+      "confidence_source": "estimate",
+      "geometry_state": "unknown",
+      "color_conversion": "yuv->rgb24 explicit matrix=bt709 range=limited",
+      "has_ground_truth": false,
+      "color_source": {
+        "range": "limited",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "bt709",
+        "chroma_location": "left",
+        "pixel_format": "yuv420p",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "color_output": {
+        "range": "full",
+        "primaries": "bt709",
+        "transfer": "bt709",
+        "matrix": "rgb",
+        "chroma_location": "not_applicable",
+        "pixel_format": "rgb24",
+        "bit_depth": 8,
+        "hdr_mastering_display_present": false,
+        "hdr_content_light_level_present": false
+      },
+      "valid_samples": 921600,
+      "total_samples": 921600
+    }
+  ],
+  "exhibition_attestation": {
+    "runner_path": "/mnt/workdrive/Temporal-Forge-ANVIL/build/anvil_runner",
+    "runner_sha256": "b9f264916d5b0678869ec75725c52a6d45a1a70ef220a95c7bb5c7fd1d215719",
+    "runner_sha256_after": "b9f264916d5b0678869ec75725c52a6d45a1a70ef220a95c7bb5c7fd1d215719",
+    "source": "anvil_exhibit orchestration",
+    "scope": "observed executable byte identity; not proof of reproducible compilation"
+  }
+}

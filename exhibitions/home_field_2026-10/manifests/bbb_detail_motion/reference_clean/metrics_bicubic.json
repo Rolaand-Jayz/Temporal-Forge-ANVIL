@@ -3,6 +3,6 @@
   "reference": "master_hr",
   "reference_validity": "full-reference vs decoded real excerpt (already lossy master; ABSOLUTE values include master coding loss — paired comparisons between arms remain valid)",
   "frames_measured": 42,
-  "psnr_db_mean": 33.14663579,
-  "ssim_mean": 0.9391692756
+  "psnr_db_mean": 33.20625853,
+  "ssim_mean": 0.9391434262
 }

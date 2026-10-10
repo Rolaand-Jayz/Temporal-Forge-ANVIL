@@ -1,9 +1,21 @@
 # ANVIL Home Field Exhibition — Technical Report
 
-**Exhibition:** `home_field_2026-10` · 2026-10-09
+**Exhibition:** `home_field_2026-10` · 2026-10-09, **regenerated 2026-10-10** (attested campaign)
 **Branch:** `feature/anvil-home-field-exhibition` (base `origin-anvil/main` @ `f2f8b992`)
 **Assignment:** ANVIL Home Field Exhibition & Visual Review Lab (2026-10-09)
 **Status:** implemented and validated; PR prepared, **not merged**
+
+**Regeneration note (2026-10-10).** The entire campaign was regenerated from
+the digest-verified pinned Big Buck Bunny master (see `SOURCES.md`) with a
+clean-tree runner build whose bytes are attested in every run manifest.
+Synthetic-scene HR masters reproduced **byte-identically**; the LR inputs and
+re-encoded clips differ from the historical 2026-10-09 artifacts because the
+vertical-kernel border clamping in `src/anvil_lab/Resize.cpp` was fixed on
+this branch after the original artifacts were produced (the original LR
+downsampling read past image borders at edges). All numbers in this report
+are the recalculated attested measurements; the pre-fix numbers are
+superseded (the qualitative conclusions are unchanged except where §6 notes
+a delivery-claim change).
 
 ---
 
@@ -14,14 +26,14 @@
 - **No ANVIL reconstruction code was modified.** `src/anvil/` and `tools/anvil/` are byte-identical to the merged main implementation (verified by the baseline identity below). The lab layer is FFmpeg-free; it drives `anvil_runner` as a subprocess and processes its PNM artifacts.
 - **Architecture:** exhibition definitions (`EXPERIMENTS.json`) → `anvil_exhibit run` (executes arms via the runner, verifies each baseline run fail-closed, applies delivery scaling) → `measure` (full-reference metrics against representation-matched references) → `catalog build` (validated candidate records + roster linkage). The Review Lab server (`anvil_review_lab`) serves the catalog, hash-linked 8-bit display derivatives, and computes all difference math server-side from the original PNM samples.
 - **New dependency:** vendored `stb_image_write.h` v1.16 (public domain / MIT, pinned commit recorded in `external/stb/STB_IMAGE_WRITE_COMMIT.txt`); recorded in `THIRD_PARTY_LICENSES.md`. No other new dependencies.
-- **Remaining limitations:** single-user loopback server; UI verified in Chromium and Firefox 157 (stable, headless real render) at 2560×1440 — WebKit untested; no automatic image alignment (manual display-only offsets are provided and disclosed); synthetic scenes are analytic renderings, not natural footage.
+- **Remaining limitations:** single-user loopback server; UI verified by the 2026-10-10 interaction matrix in real headless Chromium and Firefox (29/29 each, zero console errors) — WebKit untested; no automatic image alignment (manual display-only offsets are provided and disclosed); synthetic scenes are analytic renderings, not natural footage.
 
 ## 2. Baseline identity (permanent)
 
 - `BASELINE.json` pins **ANVIL baseline** to commit `f2f8b9929c1cc3845dab90bbe80d889b44c99390` (post-merge main head) with per-file SHA-256 of all 32 implementation files (`src/anvil/*`, `tools/anvil/main.cpp`), the canonical configuration (`past=2, future=2`, all stage modes at their defaults), and its hash.
 - `verify-baseline` fails closed on: implementation hash mismatch (a future merged candidate cannot silently redefine the baseline), missing pinned commit, or a run whose canonical configuration hash differs from the frozen one.
 - Reproduction: `git checkout f2f8b992` + the build/run command recorded inside `BASELINE.json`.
-- The baseline arm in every scene was verified run-by-run during the exhibition (`verifyRunIsBaseline`); run manifests record the tooling-branch SHA with an explicit note that acceptance rests on the byte-identical implementation tree.
+- The baseline arm in every scene was verified run-by-run during the exhibition (`verifyRunIsBaseline`). The regenerated (2026-10-10) manifests record the clean PR-head SHA (`git_dirty: "false"`) with observed runner-byte attestation; acceptance of the different-from-pinned run commit rests on the verified byte-identical reconstruction sources.
 
 ## 3. Scenes
 
@@ -42,22 +54,22 @@ Full-reference PSNR/SSIM against the clean LR input passed through the identical
 
 | Scene | Arm | PSNR (dB) | SSIM | edge Δ | temporal Δ |
 |---|---|---:|---:|---:|---:|
-| archive_grid_drift | control | 33.94 | 0.9760 | 15.87 | 6.46 |
-| | **ANVIL baseline** | 34.67 | 0.9798 | 16.24 | 4.24 |
-| | + refinement + confidence | **35.24** | **0.9820** | **14.55** | 4.30 |
-| | + … + geometry | 34.94 | 0.9804 | 17.57 | **4.12** |
-| crossing_occluders | control | 36.44 | 0.9648 | 12.16 | 5.06 |
-| | **ANVIL baseline** | 36.67 | 0.9740 | 11.41 | 2.48 |
-| | + refinement + confidence | 38.57 | 0.9803 | 9.58 | 3.03 |
-| | + … + geometry | **38.64** | **0.9809** | **9.56** | 2.94 |
-| bbb_detail_motion | control | 37.12 | 0.8938 | 10.70 | 3.98 |
-| | **ANVIL baseline** | 39.08 | 0.9503 | 7.87 | 2.24 |
-| | + refinement + confidence | **39.92** | 0.9491 | **7.45** | 2.54 |
-| | + … + geometry | 39.92 | 0.9491 | 7.45 | 2.54 |
-| bbb_occlusion | control | 36.35 | 0.9194 | 11.09 | 3.34 |
-| | **ANVIL baseline** | 38.57 | 0.9558 | 8.74 | 1.24 |
-| | + refinement + confidence | 38.82 | 0.9561 | 8.48 | 1.46 |
-| | + … + geometry | **38.88** | **0.9573** | **8.50** | 1.39 |
+| archive_grid_drift | control | 33.93 | 0.9759 | 15.88 | 6.48 |
+| | **ANVIL baseline** | 34.68 | 0.9799 | 16.26 | 4.24 |
+| | + refinement + confidence | **35.25** | **0.9820** | **14.56** | 4.30 |
+| | + … + geometry | 34.95 | 0.9804 | 17.58 | **4.12** |
+| crossing_occluders | control | 36.45 | 0.9648 | 12.15 | 5.05 |
+| | **ANVIL baseline** | 36.69 | 0.9740 | 11.39 | 2.47 |
+| | + refinement + confidence | 38.59 | 0.9803 | 9.56 | 3.02 |
+| | + … + geometry | **38.66** | **0.9809** | **9.54** | 2.94 |
+| bbb_detail_motion | control | 37.14 | 0.8940 | 10.70 | 3.97 |
+| | **ANVIL baseline** | 39.20 | 0.9505 | 7.86 | 2.25 |
+| | + refinement + confidence | **39.96** | 0.9493 | **7.45** | 2.53 |
+| | + … + geometry | 39.96 | 0.9493 | 7.45 | 2.53 |
+| bbb_occlusion | control | 36.37 | 0.9198 | 11.10 | 3.33 |
+| | **ANVIL baseline** | 38.61 | 0.9561 | 8.74 | 1.24 |
+| | + refinement + confidence | 38.85 | 0.9563 | 8.48 | 1.45 |
+| | + … + geometry | **38.90** | **0.9575** | **8.50** | 1.39 |
 
 Temporal participation is proven in every accumulation run's manifest (e.g. 38,707,200/38,707,200 valid temporal samples; the geometry arm truthfully excludes ~0.4% as insufficient-evidence).
 
@@ -65,29 +77,29 @@ Temporal participation is proven in every accumulation run's manifest (e.g. 38,7
 
 | Scene | Arm | Bicubic | Lanczos3 |
 |---|---|---:|---:|
-| archive_grid_drift | control (spatial) | 29.03 | 29.49 |
-| | ANVIL baseline | 28.58 | 29.24 |
-| | + refinement + confidence | 28.89 | **29.54** |
-| crossing_occluders | control (spatial) | 33.91 | 34.05 |
-| | ANVIL baseline | 32.97 | 33.34 |
-| | + refinement + confidence | **34.35** | **34.72** |
-| bbb_detail_motion | control (spatial) | 32.46 | 32.32 |
-| | ANVIL baseline | 32.91 | 32.93 |
-| | + refinement + confidence | **33.03** | **33.02** |
-| bbb_occlusion | control (spatial) | 29.96 | 30.04 |
-| | ANVIL baseline | 30.21 | 30.39 |
-| | + refinement + confidence | **30.24** | **30.41** |
+| archive_grid_drift | control (spatial) | 29.04 | 29.50 |
+| | ANVIL baseline | 28.59 | 29.25 |
+| | + refinement + confidence | 28.90 | **29.56** |
+| crossing_occluders | control (spatial) | 33.94 | 34.08 |
+| | ANVIL baseline | 32.99 | 33.37 |
+| | + refinement + confidence | **34.38** | **34.75** |
+| bbb_detail_motion | control (spatial) | 32.51 | 32.38 |
+| | ANVIL baseline | 32.94 | 32.96 |
+| | + refinement + confidence | **33.07** | **33.06** |
+| bbb_occlusion | control (spatial) | 29.98 | 30.06 |
+| | ANVIL baseline | 30.23 | 30.41 |
+| | + refinement + confidence | **30.27** | **30.43** |
 
 Synthetic-scene delivery reference is the pristine master; BBB delivery reference is the decoded excerpt (already lossy — absolute values include the master's coding loss, paired comparisons remain valid, and the catalog labels this accordingly).
 
 ## 6. Findings (measured facts → observations → open questions)
 
 **Measured facts.**
-1. Temporal accumulation improves native-resolution fidelity vs the decoded-frame control on all four scenes (+0.23 to +2.22 dB PSNR; +0.0027 to +0.0565 SSIM) and reduces output flicker (temporal Δ) on all four scenes.
-2. Refinement+confidence improves native PSNR over the frozen baseline on all four scenes, but it is **not** the universal winner: estimated geometry yields higher PSNR on `crossing_occluders` and `bbb_occlusion`; its PSNR ties refinement+confidence on `bbb_detail_motion`, while refinement+confidence SSIM (0.9491) is below the baseline SSIM (0.9503). Report individual metrics rather than a single unqualified winner.
+1. Temporal accumulation improves native-resolution fidelity vs the decoded-frame control on all four scenes (+0.24 to +2.24 dB PSNR; +0.0040 to +0.0565 SSIM) and reduces output flicker (temporal Δ) on all four scenes.
+2. Refinement+confidence improves native PSNR over the frozen baseline on all four scenes, but it is **not** the universal winner: estimated geometry yields higher PSNR on `crossing_occluders` and `bbb_occlusion`; its PSNR ties refinement+confidence on `bbb_detail_motion`, while refinement+confidence SSIM (0.9493) is below the baseline SSIM (0.9505). Report individual metrics rather than a single unqualified winner.
 3. Estimated sample geometry: on `crossing_occluders` and `bbb_occlusion` the estimator produced phases on 42/42 frames and marginally improved results; on `archive_grid_drift` it slightly degraded PSNR/SSIM (consistent with the estimator's documented parabolic contraction bias on periodic textures); on `bbb_detail_motion` it produced **no** usable estimates (`geometry_estimation_insufficient` events; 0/42 frames) and the arm is byte-identical to its parent — an honest degradation, not a fabricated phase.
 4. Lanczos3 beats bicubic for 2× delivery in 7 of 8 measurements.
-5. After 2× delivery, ANVIL arms beat the decoded-frame spatial control on both real scenes but **not** on the two synthetic scenes (e.g. baseline 28.58 vs control 29.03 dB on `archive_grid_drift`).
+5. After 2× delivery, the ANVIL **baseline** beats the decoded-frame spatial control on the two real scenes but **not** on the two synthetic scenes (e.g. baseline 29.25 vs control 29.50 dB Lanczos3 on `archive_grid_drift`). Unlike the pre-fix historical campaign, **refinement+confidence now beats the spatial control on all four scenes** after 2× Lanczos3 delivery (29.56 / 34.75 / 33.06 / 30.43 dB) — the synthetic-scene delivery gap is closed by the candidate arm, not the baseline.
 
 **Observations (interpretation, not measurements).**
 - The real-scene delivery win is plausibly because denoising before upscaling prevents noise amplification; on the synthetic scenes the pristine master contains fine periodic detail that no 640×360 observation can recover, and denoising slightly flattens what the scaler then has to work with.
@@ -113,9 +125,10 @@ Synthetic-scene delivery reference is the pristine master; BBB delivery referenc
 
 ## 9. Validation evidence
 
-- CTest: **33/33 non-disabled tests pass** on the PR head build (includes `anvil_lab_tests`: 2175 assertions over metrics oracles, naming/roster contracts, baseline fail-closed matrix, PNM/PNG/JSON round-trips, scene determinism).
-- Python: `test_anvil_contract.py` 56/56 and `test_anvil_lab_contract.py` 13/13 (builds a complete miniature exhibition end-to-end, then exercises the live server: hash-linked derivatives, zero-diff on identical inputs, invalid-pair fail-closed, missing-asset 404s, findings round-trip with exact A/B identity, falsified/moved baseline rejection).
-- Browser: 29/29 scripted checks were reported in Chromium **and** 29/29 in Firefox 157 (stable) at 2560×1440 on the earlier implementation head. Re-run after the subsequent PR repair commits; these archived results are not a substitute for exact-head validation (selection, filters, all 7 comparison modes, regions, sequence playback, zoom/pan/fit/1:1, nearest/bilinear, alignment disclosure, refusal on missing assets, baseline `<dialog>` modal, findings round-trip, metrics gating), plus visual inspection of the captures in `verification/` (engine-specific captures archived).
+- **Regeneration provenance (2026-10-10):** the campaign was regenerated from the digest-verified pinned master (`dc2146a2…` accepted by the executable `prep-real` gate) with a clean-tree `anvil_runner` build; every run manifest records `git_dirty: "false"` at the regeneration head and carries `exhibition_attestation` with the observed runner bytes. `/api/compat` returns `qualified_experiment: true` for control/baseline and control/candidate pairs, and for HR-master vs 2×-delivery pairs, on this evidence.
+- CTest: **33/33 non-disabled tests pass** on the regeneration head build (includes `anvil_lab_tests` over metrics oracles, naming/roster contracts, baseline fail-closed matrix, PNM/PNG/JSON round-trips, scene determinism). Exact-head GitHub CI remains the authoritative gate before any merge-eligibility claim.
+- Python: full contract suite **162 passed** at repair head `9c25063a` (Actions run 38085573028, SUCCESS), covering the miniature end-to-end exhibition, live-server contracts (hash-linked derivatives, zero-diff, invalid-pair fail-closed, missing-asset 404s, findings round-trip with exact A/B identity, falsified/moved baseline rejection), reference-qualification tamper matrix, the source-pin gate with exploratory inheritance, and evidence-inventory states.
+- Browser interaction matrix (2026-10-10, regenerated evidence): **29/29 in Chromium and 29/29 in Firefox, zero console/page errors in both**, via real headless renders (Playwright `chromium-1248` / `firefox-1532`, 1600×900) against the live server. Coverage: selection (search + scene/kind filters), qualified-pair banner, swap, all 7 comparison modes, frame stepping, sequence playback (verified stop), **rapid frame scrubbing settling on the final frame without stale verdicts**, zoom/fit/1:1, nearest/bilinear, server diff statistics, alignment disclosure, metadata panels, baseline `<dialog>` modal, **HR-master vs delivery qualification in the UI**, metrics gating, the **partial-evidence missing-data banner with per-record counts**, **missing-asset refusal with no substitution**, findings round-trip (persist + reload + JSON export containing the observation). Captures: `verification/regen_*.png`; the pre-regeneration 29/29×2 results remain archived as honest history.
 - Baseline verification on this tree: **OK** (worktree matches pinned identity; pinned commit present).
 
 ## 10. Roster state after the exhibition

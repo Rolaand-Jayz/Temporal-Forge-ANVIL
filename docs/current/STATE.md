@@ -79,18 +79,26 @@ that *definition* is separate from whether any particular output run is
 scientifically qualified. The merged Build-Ready gate above remains TRUE,
 but it does not establish image-quality improvement.
 
-The original four-scene experiment (two analytic scenes and two Big Buck Bunny
-excerpts) reported native PSNR gains over decoded-frame controls, but the
-tracked run manifests were produced **before executable-byte attestation**,
-report `git_dirty: "true"`, and lack the now-required
-`exhibition_attestation`. The Blender upstream master is now pinned by
-digest in [`exhibitions/home_field_2026-10/SOURCES.md`](../../exhibitions/home_field_2026-10/SOURCES.md),
-but no pinned-source, attested regeneration has been executed yet. These
-are **historical preliminary results**, not
-current-head reproduced or qualified scientific evidence. Refinement+confidence
-was not the best arm by every metric or scene; there is no universal winner
-claim. The earlier 29/29 Chromium and Firefox browser checks are also
-**pre-repair** evidence, not current-head UX verification.
+The four-scene experiment (two analytic scenes and two Big Buck Bunny
+excerpts) was **regenerated on 2026-10-10** from the digest-verified pinned
+master ([`exhibitions/home_field_2026-10/SOURCES.md`](../../exhibitions/home_field_2026-10/SOURCES.md),
+enforced by the `prep-real` source gate) with a clean-tree runner build:
+every tracked run manifest now records `git_dirty: "false"` at the
+regeneration head and carries `exhibition_attestation` of the observed
+runner bytes. The Review Lab returns `qualified_experiment: true` for
+control/baseline, control/candidate, and HR-master-vs-delivery pairs on
+this evidence; all reported metrics were recalculated from the attested
+runs (synthetic HR masters reproduced byte-identically; LR inputs differ
+from the superseded 2026-10-09 artifacts because of the vertical-border
+resampler fix on this branch — see the REPORT regeneration note). One
+qualitative claim changed: refinement+confidence now beats the spatial
+control after 2× delivery on all four scenes, while the baseline still
+does not on the two synthetic scenes. A 29/29 Chromium and 29/29 Firefox
+interaction matrix (zero console errors, real headless renders) passed on
+the regenerated evidence at the current head; captures are in
+`verification/regen_*.png`. Exact-head CI on the regeneration commit and
+independent evaluator review remain required before any merge claim;
+WebKit remains untested; `starter` promotion stays fail-closed.
 
 The current qualification requirements and explicit limitations are in
 [the Home Field Exhibition report](../../exhibitions/home_field_2026-10/REPORT.md)
