@@ -780,9 +780,12 @@ function esc(s) {
 async function loadFindings() {
   try {
     const j = await apiJson("/api/findings");
-    renderFindings(j.findings || []);
+    // One source of truth for visible cards and user-exportable findings.
+    window.__findingsCache = j.findings || [];
+    renderFindings(window.__findingsCache);
   } catch (e) {
-    renderFindings([]);
+    // A transient fetch error must not erase previously loaded evidence.
+    setStatus("Unable to refresh findings: " + e.message, true);
   }
 }
 
@@ -833,14 +836,25 @@ async function saveFinding() {
     }));
     $("f-observation").value = "";
     setStatus("finding saved");
-    loadFindings();
+    await loadFindings();
   } catch (e) {
     alert("Save failed: " + e.message);
   }
 }
 
-function exportFindings() {
-  const blob = new Blob([JSON.stringify({ exported_by: "ANVIL Visual Review Lab", findings: (window.__findingsCache || []) }, null, 2)],
+async function exportFindings() {
+  // Never export a stale startup snapshot after saving a new observation.
+  // Fetch the persisted server state immediately before creating the file.
+  let persisted;
+  try {
+    persisted = (await apiJson("/api/findings")).findings || [];
+  } catch (e) {
+    alert("Cannot export findings: " + e.message);
+    return;
+  }
+  window.__findingsCache = persisted;
+  renderFindings(persisted);
+  const blob = new Blob([JSON.stringify({ exported_by: "ANVIL Visual Review Lab", findings: persisted }, null, 2)],
                         { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
