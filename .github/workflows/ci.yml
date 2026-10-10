@@ -93,6 +93,9 @@ jobs:
         with:
           lfs: false
           fetch-depth: 1
+
+      - name: Validate Visual Review Lab JavaScript syntax
+        run: node --check tools/anvil_lab/web/lab.js
           # pull_request defaults to refs/pull/<n>/merge. Build-Ready
           # provenance must validate the literal PR branch head instead.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
