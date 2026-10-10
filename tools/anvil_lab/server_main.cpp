@@ -333,6 +333,57 @@ HttpResponse handleMeta(LabState& lab, const HttpRequest& req) {
     return jsonResponse(out);
 }
 
+// Execution qualification is independent of image pixel compatibility.
+// This conservative gate rejects old/pre-repair manifests with no observed
+// runner binary, dirty source identity, or missing/mismatched bytes.
+bool evidenceQualified(const LabState& lab, const JsonValue* record,
+                       std::string& reason) {
+    if (!record) { reason = "missing catalog record"; return false; }
+    const JsonValue* rec = record;
+    if (rec->at("kind").asString() == "delivery_variant" ||
+        (rec->at("kind").asString() == "external_control" &&
+         !rec->at("parent").asString().empty())) {
+        rec = lab.findRecord(rec->at("parent").asString());
+        if (!rec) { reason = "delivery parent missing"; return false; }
+    }
+    if (rec->at("id").asString().find("/hr_master") != std::string::npos) {
+        reason = "HR master source identity has no pinned upstream master hash";
+        return false;
+    }
+    const std::string rel = rec->at("identity").at("manifest_path").asString();
+    if (rel.empty() || fs::path(rel).is_absolute() || rel.find("..") != std::string::npos) {
+        reason = "run manifest path missing or unsafe"; return false;
+    }
+    JsonValue manifest; std::string error;
+    if (!jsonReadFile((lab.root / rel).string(), manifest, error)) {
+        reason = "run manifest absent or unreadable: " + error; return false;
+    }
+    std::string fileSha;
+    if (!anvil_lab::sha256FileHexLab((lab.root / rel).string(), fileSha) ||
+        fileSha != rec->at("identity").at("manifest_sha256").asString()) {
+        reason = "run manifest differs from recorded immutable digest"; return false;
+    }
+    const JsonValue& att = manifest.at("exhibition_attestation");
+    const std::string expected = att.at("runner_sha256").asString();
+    const std::string after = att.at("runner_sha256_after").asString();
+    const std::string executable = att.at("runner_path").asString();
+    if (expected.size() != 64 || expected != after ||
+        executable.empty() || !fs::is_regular_file(executable)) {
+        reason = "missing runner executable-byte attestation (historical/unqualified)";
+        return false;
+    }
+    std::string observed;
+    if (!anvil_lab::sha256FileHexLab(executable, observed) || observed != expected) {
+        reason = "runner executable no longer matches attested bytes";
+        return false;
+    }
+    if (manifest.at("provenance").at("git_dirty").asString() != "false") {
+        reason = "run provenance dirty or unverified"; return false;
+    }
+    reason.clear();
+    return true;
+}
+
 // Scientific pairing: same scene, same frame, same output geometry, same
 // color representation, both artifacts present with verifiable hashes.
 HttpResponse handleCompat(LabState& lab, const HttpRequest& req) {
@@ -425,16 +476,41 @@ HttpResponse handleCompat(LabState& lab, const HttpRequest& req) {
             problems.arr.push_back(JsonValue::makeString(
                 "same frame number has different native timestamps"));
     }
-    out.set("valid_pair", JsonValue::makeBool(problems.arr.empty()));
+    const bool pixelMatch = problems.arr.empty();
+    const bool aReference = ra->at("kind").asString() == "reference";
+    const bool bReference = rb->at("kind").asString() == "reference";
+    const bool eligible = a != b && !(aReference && bReference);
+    if (!eligible)
+        warnings.arr.push_back(JsonValue::makeString(
+            a == b ? "self comparison is exploratory, not an independent experiment"
+                   : "two reference images do not constitute an experiment"));
+    std::string reasonA, reasonB;
+    const bool qualifiedA = evidenceQualified(lab, ra, reasonA);
+    const bool qualifiedB = evidenceQualified(lab, rb, reasonB);
+    const bool qualified = pixelMatch && eligible && qualifiedA && qualifiedB;
+    JsonValue qualifications = JsonValue::makeArray();
+    if (!qualifiedA) qualifications.arr.push_back(JsonValue::makeString("A: " + reasonA));
+    if (!qualifiedB) qualifications.arr.push_back(JsonValue::makeString("B: " + reasonB));
+    out.set("pixel_pair_valid", JsonValue::makeBool(pixelMatch));
+    out.set("experiment_eligible", JsonValue::makeBool(eligible));
+    out.set("evidence_qualified", JsonValue::makeBool(qualifiedA && qualifiedB));
+    out.set("qualified_experiment", JsonValue::makeBool(qualified));
+    out.set("evidence_problems", std::move(qualifications));
+    // Legacy valid_pair explicitly means geometrically valid and eligible;
+    // only qualified_experiment authorizes scientific metric claims.
+    out.set("valid_pair", JsonValue::makeBool(pixelMatch && eligible));
     out.set("problems", std::move(problems));
     out.set("warnings", std::move(warnings));
-    // Changed/unchanged from validated configuration differences.
+    // For baseline comparisons always show candidate minus baseline.
+    // For candidate-to-candidate comparisons show B minus A.
     if (!ra->at("pipeline").isNull() && !rb->at("pipeline").isNull()) {
         const bool aBase = ra->at("kind").asString() == "anvil_baseline";
         const bool bBase = rb->at("kind").asString() == "anvil_baseline";
-        if (aBase != bBase)
-            out.set("pipeline_diff", anvil_lab::pipelineDiff(
-                                        aBase ? *rb : *ra, aBase ? *ra : *rb));
+        const JsonValue& candidate = aBase && !bBase ? *rb : *ra;
+        const JsonValue& reference = bBase && !aBase ? *rb : *ra;
+        out.set("pipeline_diff", anvil_lab::pipelineDiff(candidate, reference));
+        out.set("pipeline_diff_direction", JsonValue::makeString(
+            aBase != bBase ? "candidate minus ANVIL baseline" : "IMAGE B minus IMAGE A"));
     }
     return jsonResponse(out);
 }
