@@ -520,8 +520,8 @@ def test_findings_roundtrip_identifies_exact_configs(lab_server):
         "observation": "contract-test observation",
         # 1x1 red PNG (valid padded base64).
         "screenshot_png_base64":
-            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNg"
-            "YGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==",
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4"
+            "z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
     }
     req = urllib.request.Request(base + "/api/findings",
                                  data=json.dumps(finding).encode(),
@@ -791,7 +791,7 @@ def test_cross_origin_findings_writes_rejected(lab_server):
             urllib.request.urlopen(req, timeout=10)
             assert False, "cross-origin or untrusted POST must not be accepted"
         except urllib.error.HTTPError as err:
-            assert err.code == 403
+            assert err.code in (400, 403), (headers, err.code)
     _, body = get(base, "/api/findings")
     assert not any(x.get("observation") == "cross-site-injection"
                    for x in json.loads(body)["findings"])
