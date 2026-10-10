@@ -1017,3 +1017,197 @@ def test_catalog_only_checkout_reports_missing_evidence(mini_exhibition,
             pass
         proc.terminate()
         proc.wait(timeout=5)
+
+
+@contextmanager
+def lab_server_at(root):
+    """Boot a review-lab server against an arbitrary exhibition root."""
+    port = free_port()
+    proc = subprocess.Popen(
+        [SERVER, "--root", str(root), "--port", str(port),
+         "--web-dir", str(REPO_ROOT / "tools" / "anvil_lab" / "web")],
+        cwd=REPO_ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    base = f"http://127.0.0.1:{port}"
+    try:
+        for _ in range(80):
+            try:
+                urllib.request.urlopen(base + "/api/catalog", timeout=1)
+                break
+            except Exception:
+                time.sleep(0.25)
+        else:
+            pytest.fail(f"review lab server for {root} did not come up")
+        yield base
+    finally:
+        try:
+            urllib.request.urlopen(base + "/api/shutdown", timeout=2)
+        except Exception:
+            pass
+        proc.terminate()
+        proc.wait(timeout=5)
+
+
+def compat(base, id_a, id_b, frame):
+    _, raw = get(base, f"/api/compat?id_a={id_a}&id_b={id_b}&frame={frame}")
+    return json.loads(raw)
+
+
+def test_hr_master_reference_qualification_and_tamper_matrix(
+        mini_exhibition, tmp_path):
+    """(#1) HR-master references qualify on frame digests, timestamps and
+    source provenance — and each tamper axis independently breaks it."""
+    with lab_server_at(mini_exhibition) as base:
+        d = compat(base, "archive_grid_drift/hr_master",
+                   "archive_grid_drift/baseline", 3)
+        assert d["evidence_qualified"] is True
+        assert d["evidence_problems"] == []
+
+    def mutated(label):
+        dst = tmp_path / label
+        shutil.copytree(mini_exhibition, dst)
+        return dst
+
+    # Tampered master frame: availability stays true, integrity fails.
+    t1 = mutated("tampered_frame")
+    master = t1 / "artifacts" / "scenes" / "archive_grid_drift" / "master_hr"
+    victim = sorted(master.glob("frame_*.ppm"))[3]
+    with open(victim, "ab") as f:
+        f.write(b"\0")
+    with lab_server_at(t1) as base:
+        _, raw = get(base, "/api/catalog")
+        assert json.loads(raw)["evidence_present"] is True
+        d = compat(base, "archive_grid_drift/hr_master",
+                   "archive_grid_drift/baseline", 3)
+        assert d["evidence_qualified"] is False
+        assert any("tracked digest" in p for p in d["evidence_problems"])
+
+    # Tampered timestamp mapping: index points at an unverified frame.
+    t2 = mutated("tampered_timestamp")
+    cat_path = t2 / "catalog" / "catalog.json"
+    cat = json.loads(cat_path.read_text())
+    hr = next(r for r in cat if r["id"] == "archive_grid_drift/hr_master")
+    hr["frames"]["index"][0]["frame"] = 999
+    cat_path.write_text(json.dumps(cat))
+    with lab_server_at(t2) as base:
+        d = compat(base, "archive_grid_drift/hr_master",
+                   "archive_grid_drift/baseline", 3)
+        assert d["evidence_qualified"] is False
+        assert any("unverified master" in p for p in d["evidence_problems"])
+
+    # Missing master frame: explicit missing-evidence failure.
+    t3 = mutated("missing_frame")
+    master = t3 / "artifacts" / "scenes" / "archive_grid_drift" / "master_hr"
+    sorted(master.glob("frame_*.ppm"))[3].unlink()
+    with lab_server_at(t3) as base:
+        d = compat(base, "archive_grid_drift/hr_master",
+                   "archive_grid_drift/baseline", 3)
+        assert d["evidence_qualified"] is False
+        assert any("master frame missing" in p for p in d["evidence_problems"])
+
+
+def test_prep_real_source_gate_and_exploratory_inheritance(tmp_path):
+    """(#2) prep-real refuses a non-pinned master; the explicit override
+    builds an exploratory dataset that cannot inherit canonical labels."""
+    fake = tmp_path / "fake_master.mov"
+    subprocess.run(
+        [FFMPEG, "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+         "testsrc2=size=1920x1080:rate=24", "-frames:v", "48",
+         "-pix_fmt", "yuv420p", str(fake)],
+        check=True, capture_output=True)
+
+    root = tmp_path / "expl"
+    (root / "exhibitions" / "expl").parent.mkdir(parents=True, exist_ok=True)
+    exp = root / "exhibitions" / "expl"
+    exp.mkdir(parents=True)
+    (exp / "EXPERIMENTS.json").write_text(json.dumps(MINI_EXPERIMENTS))
+
+    denied = run_tool("prep-real", "--root", exp, "--source", fake,
+                      "--excerpt", "expl_scene:0", "--frames", "8",
+                      check=False)
+    assert denied.returncode != 0
+    combined = denied.stdout + denied.stderr
+    assert "pinned canonical" in combined, combined
+
+    run_tool("prep-real", "--root", exp, "--source", fake,
+             "--excerpt", "expl_scene:0", "--frames", "8",
+             "--allow-unpinned-source")
+    scene = json.loads((exp / "artifacts" / "scenes" / "expl_scene"
+                        / "scene.json").read_text())
+    assert scene["real_source"]["canonical"] is False
+    assert scene["real_source"]["dataset_class"] == "exploratory"
+    assert scene["real_source"]["canonical_pin"]
+
+    runner = os.environ.get("ANVIL_RUNNER") or str(REPO_ROOT / "build" / "anvil_runner")
+    if not pathlib.Path(runner).is_file():
+        pytest.skip("anvil_runner unavailable for the exploratory pipeline")
+    # Freeze the baseline (probe run + pinned commit) as the mini fixture
+    # does; `run` refuses to produce baseline evidence otherwise.
+    probe_dir = root / "probe"
+    probe_dir.mkdir()
+    scene_clip = exp / "artifacts" / "scenes" / "expl_scene" / "input_noisy.mp4"
+    subprocess.run([runner, "--input", str(scene_clip),
+                    "--output-dir", str(probe_dir), "--start-frame", "2",
+                    "--frame-count", "1", "--past", "1", "--future", "1"],
+                   check=True, capture_output=True)
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT,
+                          capture_output=True, text=True,
+                          check=True).stdout.strip()
+    run_tool("freeze-baseline", "--root", exp, "--commit", head,
+             "--repo-root", REPO_ROOT, "--baseline-manifest",
+             probe_dir / "manifest.json", cwd=root)
+    run_tool("run", "--root", exp, "--runner", runner,
+             "--repo-root", REPO_ROOT, cwd=root)
+    run_tool("measure", "--root", exp, cwd=root)
+    run_tool("catalog", "build", "--root", exp, cwd=root)
+    cat = json.loads((exp / "catalog" / "catalog.json").read_text())
+    assert cat and all(r["source_canonical"] is False for r in cat)
+
+    with lab_server_at(exp) as base:
+        _, raw = get(base, "/api/catalog")
+        assert json.loads(raw)["evidence_present"] is True
+        d = compat(base, "expl_scene/hr_master", "expl_scene/baseline", 3)
+        assert d["evidence_qualified"] is False
+        assert any("pinned canonical master" in p
+                   for p in d["evidence_problems"])
+
+
+def test_evidence_inventory_reports_partial_artifacts(mini_exhibition,
+                                                      tmp_path):
+    """(#3) Evidence readiness follows the per-record artifact inventory:
+    complete, partially populated, and truncated states are all accurate."""
+    with lab_server_at(mini_exhibition) as base:
+        _, raw = get(base, "/api/catalog")
+        d = json.loads(raw)
+        assert d["evidence_present"] is True
+        assert d["evidence_complete_records"] == d["evidence_total_records"]
+        assert d["evidence_complete_records"] > 0
+        assert d["evidence_inventory"] == []
+
+    partial = tmp_path / "partial"
+    shutil.copytree(mini_exhibition, partial)
+    frames = sorted((partial / "artifacts" / "runs" / "archive_grid_drift"
+                     / "baseline" / "native").glob("frame_*.ppm"))
+    frames[1].unlink()
+    with lab_server_at(partial) as base:
+        _, raw = get(base, "/api/catalog")
+        d = json.loads(raw)
+        assert d["evidence_present"] is False
+        entry = next(e for e in d["evidence_inventory"]
+                     if e["id"] == "archive_grid_drift/baseline")
+        assert entry["complete"] is False
+        assert entry["present_frames"] == entry["expected_frames"] - 1
+        assert "regenerated" in d["missing_evidence_note"]
+        assert "SOURCES.md" in d["missing_evidence_note"]
+
+    truncated = tmp_path / "truncated"
+    shutil.copytree(mini_exhibition, truncated)
+    victim = sorted((truncated / "artifacts" / "scenes" / "archive_grid_drift"
+                     / "master_hr").glob("frame_*.ppm"))[3]
+    victim.write_bytes(b"")
+    with lab_server_at(truncated) as base:
+        _, raw = get(base, "/api/catalog")
+        d = json.loads(raw)
+        assert d["evidence_present"] is False
+        entry = next(e for e in d["evidence_inventory"]
+                     if e["id"] == "archive_grid_drift/hr_master")
+        assert entry["complete"] is False

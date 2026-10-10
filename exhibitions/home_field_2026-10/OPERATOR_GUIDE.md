@@ -136,6 +136,41 @@ build/anvil_exhibit catalog build --root exhibitions/home_field_2026-10
 Frames and clips live under `artifacts/` (gitignored); manifests, metrics,
 catalog, roster, and reports are tracked.
 
+## Source identity and reference qualification
+
+**The source pin is an executable gate, not a checklist item.** `prep-real`
+fails closed when the supplied master's SHA-256 is not the canonical digest
+recorded in [`SOURCES.md`](SOURCES.md) (executable form:
+`src/anvil_lab/Sources.hpp`); internal consistency of scene/manifest/artifact
+hashes never establishes that the designated source material was used. The
+only escape hatch is `--allow-unpinned-source`, which exists solely for
+separately labeled **exploratory datasets**: the scene's `scene.json` records
+`real_source.canonical: false` and `dataset_class: "exploratory"`, `catalog
+build` stamps every record of that scene `source_canonical: false`, and the
+Review Lab independently re-derives the scene's source digest and refuses
+canonical evidence labels for *any* record — runs, controls, or references —
+of a non-pinned real scene. Exploratory data can be browsed, never promoted
+into canonical evidence by relabeling.
+
+**HR-master references qualify on their own terms.** References are not
+reconstruction runs and carry no runner attestation; the Review Lab qualifies
+an `hr_master` record when (a) every master frame matches the tracked
+catalog's per-frame SHA-256 inventory, (b) every catalog timestamp entry maps
+onto a verified frame and carries native `pts_us`/`pts_ticks` identity, and
+(c) provenance traces to the seeded synthetic generator (`scene.json` seed)
+or to the pinned real master with the scene's recorded input clips still
+matching their generation-time digests. Synthetic and real references are
+held to the same standard; only the provenance source differs.
+
+**Evidence readiness is a per-record inventory.** `/api/catalog` reports
+`evidence_present` only when *every* catalog record has every expected frame
+present and non-empty, with `evidence_inventory` listing each incomplete
+record (`expected_frames` / `present_frames`). Zero-byte (truncated) frames
+count as missing. The inventory reports *availability*: frame content
+integrity is enforced separately by tracked digests at qualification and
+serve time, so a present-but-tampered frame still fails qualification while
+remaining visible as available.
+
 ## Baseline-output evidence qualification
 
 `ANVIL baseline` always names the original source/configuration definition pinned to `f2f8b992`, not the advancing `main` branch. A **particular output run** qualifies as binary-observed only if its manifest includes `exhibition_attestation.runner_path`, matching `runner_sha256` / `runner_sha256_after`, and the same runner bytes remain accessible during verification. The exhibition tool records these for new executions and refuses silent executable replacement. This attests observed executable bytes, **not** independent source-to-binary reproducible compilation. An unverifiable dirty Git build and the older archived manifests require explicit limitations; do not claim their runner binaries have been authenticated. Re-execute the exhibition to obtain new qualified evidence. A standalone source-tree verification does **not** establish historic output quality.

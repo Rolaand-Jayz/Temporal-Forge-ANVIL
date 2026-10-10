@@ -33,6 +33,7 @@
 #include "anvil_lab/PnmIo.hpp"
 #include "anvil_lab/Resize.hpp"
 #include "anvil_lab/Scenes.hpp"
+#include "anvil_lab/Sources.hpp"
 
 namespace fs = std::filesystem;
 using anvil_lab::JsonValue;
@@ -313,8 +314,9 @@ int cmdPrepReal(const std::vector<std::string>& args) {
     std::vector<std::pair<std::string, double>> excerpts; // sceneId, startSeconds
     int frames = 46;
     double sigma = 6.0;
+    bool allowUnpinnedSource = false;
     for (size_t i = 0; i < args.size(); ++i) {
-        if (args[i] == "--root") root = args[++i];
+        if (args[i] == "--root") root = fs::path(args[++i]);
         else if (args[i] == "--source") source = fs::path(args[++i]);
         else if (args[i] == "--excerpt") {
             const std::string v = args[++i];
@@ -324,6 +326,7 @@ int cmdPrepReal(const std::vector<std::string>& args) {
             excerpts.emplace_back(v.substr(0, colon), std::stod(v.substr(colon + 1)));
         } else if (args[i] == "--frames") frames = std::stoi(args[++i]);
         else if (args[i] == "--noise-sigma") sigma = std::stod(args[++i]);
+        else if (args[i] == "--allow-unpinned-source") allowUnpinnedSource = true;
         else return usageError("prep-real: unknown option " + args[i]);
     }
     if (source.empty() || excerpts.empty())
@@ -331,6 +334,21 @@ int cmdPrepReal(const std::vector<std::string>& args) {
     if (!fs::exists(source))
         return fail("real source not found: " + source.string());
     const std::string sourceSha = sha256File(source);
+    // Source identity is an executable qualification gate, not a manual
+    // checklist item: a canonical exhibition must be cut from the pinned
+    // master recorded in SOURCES.md (anvil_lab/Sources.hpp). Internal
+    // consistency of scene/manifest/artifact hashes does not establish
+    // reproduction of the designated source material.
+    const bool canonicalSource = sourceSha == anvil_lab::kCanonicalBbbMasterSha256;
+    if (!canonicalSource && !allowUnpinnedSource)
+        return fail("source sha256 " + sourceSha.substr(0, 12)
+            + "… is NOT the pinned canonical Big Buck Bunny master "
+              "(expected " + std::string(anvil_lab::kCanonicalBbbMasterSha256).substr(0, 12)
+            + "…, see exhibitions/home_field_2026-10/SOURCES.md). A canonical "
+              "exhibition must reproduce the designated master. Use "
+              "--allow-unpinned-source only for a separately labeled "
+              "exploratory dataset; its scenes can never qualify as "
+              "canonical evidence.");
 
     for (const auto& [sceneId, startSec] : excerpts) {
         const fs::path sceneDir = root / "artifacts" / "scenes" / sceneId;
@@ -376,6 +394,13 @@ int cmdPrepReal(const std::vector<std::string>& args) {
         JsonValue src = JsonValue::makeObject();
         src.set("path", JsonValue::makeString(source.string()));
         src.set("sha256", JsonValue::makeString(sourceSha));
+        // Executable source-identity record: canonical means digest-verified
+        // against the tracked pin; anything else is exploratory by name.
+        src.set("canonical", JsonValue::makeBool(canonicalSource));
+        src.set("canonical_pin",
+                JsonValue::makeString(anvil_lab::kCanonicalBbbMasterSha256));
+        src.set("dataset_class", JsonValue::makeString(
+            canonicalSource ? "canonical" : "exploratory"));
         src.set("license", JsonValue::makeString(
             "© Blender Foundation | peach.blender.org, CC BY 3.0"));
         src.set("official_url", JsonValue::makeString(
@@ -991,6 +1016,9 @@ int cmdCatalog(const std::vector<std::string>& args) {
         if (!jsonReadFile((root / "EXPERIMENTS.json").string(), ex, err))
             return fail("EXPERIMENTS.json: " + err);
         JsonValue catalog = JsonValue::makeArray();
+        // Real scenes cut from anything but the pinned master are
+        // exploratory datasets; their records get stamped below.
+        std::set<std::string> nonCanonicalScenes;
         for (const auto& sceneEntry :
              fs::directory_iterator(root / "artifacts" / "scenes")) {
             const fs::path sceneDir = sceneEntry.path();
@@ -998,6 +1026,11 @@ int cmdCatalog(const std::vector<std::string>& args) {
             JsonValue sceneMeta;
             if (!jsonReadFile((sceneDir / "scene.json").string(), sceneMeta, err))
                 return fail(err);
+            if (!(sceneMeta.at("synthetic").asBool(true)
+                  || (sceneMeta.has("real_source")
+                      && sceneMeta.at("real_source").at("sha256").asString()
+                          == anvil_lab::kCanonicalBbbMasterSha256)))
+                nonCanonicalScenes.insert(sceneId);
             const int obsW = static_cast<int>(sceneMeta.at("observation_width").asInt());
             const int obsH = static_cast<int>(sceneMeta.at("observation_height").asInt());
             const int mastW = static_cast<int>(sceneMeta.at("master_width").asInt());
@@ -1384,6 +1417,13 @@ int cmdCatalog(const std::vector<std::string>& args) {
                 sceneDir / "master_hr", "frame_%04d.ppm", "master frames"));
             catalog.arr.push_back(std::move(hr));
         }
+        // Source canonicality is scene-level provenance: stamp every record
+        // so exploratory datasets cannot inherit canonical evidence labels
+        // (the review lab independently re-derives this from scene.json).
+        for (JsonValue& r : catalog.arr)
+            r.set("source_canonical", JsonValue::makeBool(
+                !nonCanonicalScenes.count(
+                    r.at("scene").at("id").asString())));
         // Validate every record against the naming/identity contracts.
         std::vector<std::string> errs;
         for (const JsonValue& r : catalog.arr)

@@ -38,6 +38,7 @@
 #include "anvil_lab/Png.hpp"
 #include "anvil_lab/PnmIo.hpp"
 #include "anvil_lab/Resize.hpp"
+#include "anvil_lab/Sources.hpp"
 
 namespace fs = std::filesystem;
 using anvil_lab::HttpRequest;
@@ -61,7 +62,10 @@ struct LabState {
     JsonValue scenes = JsonValue::makeArray();
     JsonValue metrics = JsonValue::makeObject();
     JsonValue baseline = JsonValue::makeObject();
-    bool evidencePresent = false; // scenes AND run outputs exist in this checkout
+    bool evidencePresent = false; // every catalog record's frames complete
+    size_t evidenceCompleteRecords = 0;
+    size_t evidenceTotalRecords = 0;
+    JsonValue evidenceInventory = JsonValue::makeArray(); // incomplete only
     std::mutex mutex; // serializes findings writes + derivative cache
     std::atomic<bool> shutdown{false};
 
@@ -268,6 +272,54 @@ std::string queryString(const HttpRequest& req, const char* name) {
 
 // ---------------------------------------------------------------- handlers
 
+// Evidence readiness derives from the expected artifact inventory: every
+// catalog record must have every expected frame file present and non-empty.
+// Zero-byte (truncated) frames count as missing; frame CONTENT integrity is
+// enforced separately by tracked digests at qualification/serve time, so
+// inventory reports availability, not pixel correctness.
+void computeEvidenceInventory(LabState& lab) {
+    lab.evidenceInventory = JsonValue::makeArray();
+    lab.evidenceCompleteRecords = 0;
+    lab.evidenceTotalRecords = lab.catalog.arr.size();
+    for (const JsonValue& rec : lab.catalog.arr) {
+        const JsonValue& fr = rec.at("frames");
+        std::vector<int> frameNos;
+        const JsonValue& idx = fr.at("index");
+        if (idx.isArray() && !idx.arr.empty()) {
+            for (const JsonValue& e : idx.arr) {
+                const int f = static_cast<int>(e.at("frame").asInt(-1));
+                if (f >= 0) frameNos.push_back(f);
+            }
+        } else {
+            const int start = static_cast<int>(fr.at("start").asInt());
+            const int count = static_cast<int>(fr.at("count").asInt());
+            for (int f = start; f < start + count; ++f) frameNos.push_back(f);
+        }
+        size_t present = 0;
+        for (int f : frameNos) {
+            const fs::path p = framePath(lab, &rec, f);
+            std::error_code ec;
+            if (!p.empty() && fs::file_size(p, ec) > 0 && !ec) ++present;
+        }
+        const bool complete = !frameNos.empty() && present == frameNos.size();
+        if (complete) {
+            ++lab.evidenceCompleteRecords;
+        } else {
+            JsonValue st = JsonValue::makeObject();
+            st.set("id", rec.at("id"));
+            st.set("expected_frames",
+                   JsonValue::makeInt(static_cast<int64_t>(frameNos.size())));
+            st.set("present_frames",
+                   JsonValue::makeInt(static_cast<int64_t>(present)));
+            st.set("complete", JsonValue::makeBool(false));
+            lab.evidenceInventory.arr.push_back(std::move(st));
+        }
+    }
+    lab.evidencePresent = lab.evidenceTotalRecords > 0
+        && lab.evidenceCompleteRecords == lab.evidenceTotalRecords
+        && !lab.scenes.arr.empty();
+}
+
 HttpResponse handleCatalog(LabState& lab) {
     JsonValue out = JsonValue::makeObject();
     out.set("catalog", lab.catalog);
@@ -277,13 +329,26 @@ HttpResponse handleCatalog(LabState& lab) {
     out.set("baseline", lab.baseline);
     out.set("csrf_token", JsonValue::makeString(lab.csrfToken));
     out.set("evidence_present", JsonValue::makeBool(lab.evidencePresent));
-    out.set("missing_evidence_note", JsonValue::makeString(
-        lab.evidencePresent ? "" :
-        "Evidence artifacts are not present in this checkout (artifacts/ is "
-        "gitignored by design). The catalog, manifests, and metrics below "
-        "are tracked provenance; images cannot be displayed until the "
-        "exhibition is regenerated — see OPERATOR_GUIDE.md and SOURCES.md. "
-        "No substitute or historical imagery is shown."));
+    out.set("evidence_complete_records",
+            JsonValue::makeInt(static_cast<int64_t>(lab.evidenceCompleteRecords)));
+    out.set("evidence_total_records",
+            JsonValue::makeInt(static_cast<int64_t>(lab.evidenceTotalRecords)));
+    out.set("evidence_inventory", lab.evidenceInventory);
+    std::string note;
+    if (lab.evidencePresent) {
+        note = "";
+    } else {
+        note = "Evidence artifacts are not present or incomplete in this "
+               "checkout (artifacts/ is gitignored by design; "
+            + std::to_string(lab.evidenceCompleteRecords) + " of "
+            + std::to_string(lab.evidenceTotalRecords)
+            + " catalog records have complete frame evidence). The catalog, "
+              "manifests, and metrics below are tracked provenance; images "
+              "cannot be displayed until the exhibition is regenerated — see "
+              "OPERATOR_GUIDE.md and SOURCES.md. No substitute or historical "
+              "imagery is shown.";
+    }
+    out.set("missing_evidence_note", JsonValue::makeString(note));
     return jsonResponse(out);
 }
 
@@ -356,6 +421,123 @@ HttpResponse handleMeta(LabState& lab, const HttpRequest& req) {
 // Execution qualification is independent of image pixel compatibility.
 // This conservative gate rejects old/pre-repair manifests with no observed
 // runner binary, dirty source identity, or missing/mismatched bytes.
+
+// Load a scene's generator provenance record (artifacts/scenes/<id>/scene.json).
+// Returns false when absent/unreadable (e.g. a clean checkout).
+bool sceneJsonFor(const LabState& lab, const std::string& sceneId, JsonValue& out) {
+    std::string err;
+    return jsonReadFile(
+        (lab.root / "artifacts" / "scenes" / sceneId / "scene.json").string(),
+        out, err);
+}
+
+// A real-material scene is canonical only when its recorded source digest is
+// the pinned upstream master. Synthetic scenes are canonical by construction
+// (no external source exists to substitute).
+bool sceneSourceCanonical(const JsonValue& sceneJson) {
+    if (sceneJson.at("synthetic").asBool(true)) return true;
+    if (!sceneJson.has("real_source")) return false;
+    return sceneJson.at("real_source").at("sha256").asString()
+        == anvil_lab::kCanonicalBbbMasterSha256;
+}
+
+// HR-master references are not reconstruction runs and can never carry a
+// runner attestation. Their qualification is reference-specific: every
+// master frame must match the tracked catalog digest inventory, every
+// catalog timestamp must map onto a verified frame with native timebase
+// identity, and provenance must trace to the seeded synthetic generator or
+// the pinned real master (with the scene's input clips still matching the
+// digests recorded at generation time).
+bool referenceQualified(const LabState& lab, const JsonValue* rec,
+                        std::string& reason) {
+    const std::string sceneId = rec->at("scene").at("id").asString();
+    JsonValue sceneJson;
+    if (!sceneJsonFor(lab, sceneId, sceneJson)) {
+        reason = "reference scene provenance (scene.json) absent or unreadable";
+        return false;
+    }
+    if (sceneJson.at("synthetic").asBool(false)) {
+        if (!sceneJson.has("seed")) {
+            reason = "synthetic reference lacks generator seed provenance";
+            return false;
+        }
+    } else {
+        if (!sceneSourceCanonical(sceneJson)) {
+            reason = "real reference source digest is not the pinned canonical "
+                     "master (exploratory dataset)";
+            return false;
+        }
+        for (const char* clipKey : {"input_clip_noisy", "input_clip_clean"}) {
+            if (!sceneJson.has(clipKey)) continue;
+            const fs::path clip = lab.root / "artifacts" / "scenes" / sceneId
+                / sceneJson.at(clipKey).at("path").asString();
+            std::string digest;
+            if (!anvil_lab::sha256FileHexLab(clip.string(), digest) ||
+                digest != sceneJson.at(clipKey).at("sha256").asString()) {
+                reason = std::string("scene input clip differs from recorded ")
+                       + "generation digest (" + clipKey + ")";
+                return false;
+            }
+        }
+    }
+    const JsonValue& inv = rec->at("artifacts");
+    if (!inv.isArray() || inv.arr.empty()) {
+        reason = "reference has no tracked frame-digest inventory";
+        return false;
+    }
+    const std::string dir = rec->at("frames").at("dir").asString();
+    if (dir.empty() || dir.find("..") != std::string::npos
+        || fs::path(dir).is_absolute()) {
+        reason = "reference frame directory missing or unsafe";
+        return false;
+    }
+    std::set<std::string> verified;
+    for (const JsonValue& f : inv.arr) {
+        const std::string name = f.at("path").asString();
+        if (name.empty() || name.find("..") != std::string::npos
+            || fs::path(name).is_absolute()) {
+            reason = "unsafe inventory path '" + name + "'";
+            return false;
+        }
+        std::string digest;
+        if (!anvil_lab::sha256FileHexLab((lab.root / dir / name).string(), digest)) {
+            reason = "reference master frame missing: " + name;
+            return false;
+        }
+        if (digest != f.at("sha256").asString()) {
+            reason = "reference master frame differs from tracked digest: " + name;
+            return false;
+        }
+        verified.insert(name);
+    }
+    const JsonValue& idx = rec->at("frames").at("index");
+    if (!idx.isArray() || idx.arr.empty()) {
+        reason = "reference has no verified timestamp mapping";
+        return false;
+    }
+    const bool zeroPad = rec->at("frames").at("zero_padded").asBool(false);
+    for (const JsonValue& e : idx.arr) {
+        const int frame = static_cast<int>(e.at("frame").asInt(-1));
+        if (frame < 0) {
+            reason = "reference timestamp index has an invalid frame number";
+            return false;
+        }
+        char name[32];
+        if (zeroPad) std::snprintf(name, sizeof name, "frame_%04d.ppm", frame);
+        else std::snprintf(name, sizeof name, "frame_%d.ppm", frame);
+        if (!verified.count(name)) {
+            reason = std::string("reference timestamp maps to unverified master ")
+                   + "frame " + name;
+            return false;
+        }
+        if (!e.has("pts_us") || !e.has("pts_ticks")) {
+            reason = "reference timestamp entry lacks native timebase identity";
+            return false;
+        }
+    }
+    return true;
+}
+
 bool evidenceQualified(const LabState& lab, const JsonValue* record,
                        std::string& reason) {
     if (!record) { reason = "missing catalog record"; return false; }
@@ -366,9 +548,22 @@ bool evidenceQualified(const LabState& lab, const JsonValue* record,
         rec = lab.findRecord(rec->at("parent").asString());
         if (!rec) { reason = "delivery parent missing"; return false; }
     }
+    // A scene regenerated from a non-pinned real source is an exploratory
+    // dataset: none of its records — runs, controls, or references — may
+    // inherit canonical evidence labels.
+    {
+        JsonValue sceneJson;
+        if (sceneJsonFor(lab, rec->at("scene").at("id").asString(), sceneJson)
+            && !sceneSourceCanonical(sceneJson)) {
+            reason = "scene source is not the pinned canonical master "
+                     "(exploratory dataset)";
+            return false;
+        }
+    }
     if (rec->at("id").asString().find("/hr_master") != std::string::npos) {
-        reason = "HR master source identity has no pinned upstream master hash";
-        return false;
+        // References qualify on their own terms (frame digests, timestamps,
+        // source provenance), never by reconstruction-run attestation.
+        return referenceQualified(lab, rec, reason);
     }
     const std::string rel = rec->at("identity").at("manifest_path").asString();
     if (rel.empty() || fs::path(rel).is_absolute() || rel.find("..") != std::string::npos) {
@@ -1235,11 +1430,9 @@ int main(int argc, char** argv) {
         std::cerr << "anvil_review_lab: experiment frames absent; "
                      "regenerate artifacts before image review\n";
     }
-    // Reviewable evidence needs both scene inputs and run outputs; the
-    // catalog below is tracked metadata either way. Surface the difference
-    // to the client instead of letting image requests fail unexplained.
-    lab.evidencePresent = !lab.scenes.arr.empty()
-        && fs::is_directory(lab.root / "artifacts" / "runs");
+    // Evidence readiness from the per-record artifact inventory, not merely
+    // directory existence: partial regenerations must stay visible.
+    computeEvidenceInventory(lab);
     if (fs::exists(lab.root / "METRICS.json")
         && !jsonReadFile((lab.root / "METRICS.json").string(), lab.metrics, err)) {
         std::cerr << "anvil_review_lab: metrics: " << err << "\n";

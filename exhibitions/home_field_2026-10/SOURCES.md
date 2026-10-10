@@ -28,6 +28,13 @@ are generated locally and need no external material.
   A download that does not reproduce this digest **must be declared a
   different source master**; downstream re-encodes can then differ even
   with identical commands (FFmpeg/tool-version differences).
+- **Enforcement:** the pin is executable, not advisory — it also lives in
+  `src/anvil_lab/Sources.hpp` and `anvil_exhibit prep-real` **fails closed**
+  on any other digest. `--allow-unpinned-source` exists only for separately
+  labeled exploratory datasets, which are recorded as such in `scene.json`,
+  stamped `source_canonical: false` in the catalog, and excluded from
+  canonical evidence qualification by the Review Lab (see
+  `OPERATOR_GUIDE.md` § *Source identity and reference qualification*).
 - **Excerpts cut from the master (recorded in each scene's `scene.json`
   when artifacts are regenerated):**
   - `bbb_detail_motion`: start 44 s, 46 frames, crop 1280:720:320:180
