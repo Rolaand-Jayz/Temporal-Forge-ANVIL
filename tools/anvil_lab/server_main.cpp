@@ -699,6 +699,9 @@ HttpResponse handleContactSheet(LabState& lab, const HttpRequest& req) {
         const fs::path pa = framePath(lab, ra, f);
         const fs::path pb = framePath(lab, rb, f);
         if (pa.empty() || pb.empty()) continue; // skip unpaired frames truthfully
+        if (!verifyCatalogFrame(lab, ra, f, err) ||
+            !verifyCatalogFrame(lab, rb, f, err))
+            return jsonError(409, "contact sheet source failed SHA-256 verification: " + err);
         if (!anvil_lab::readPnm(pa.string(), ia, err)) return jsonError(500, err);
         if (!anvil_lab::readPnm(pb.string(), ib, err)) return jsonError(500, err);
         const int th = thumbW * ia.height / ia.width;
