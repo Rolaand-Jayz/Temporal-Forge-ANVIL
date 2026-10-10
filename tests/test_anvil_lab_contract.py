@@ -266,7 +266,8 @@ def test_roster_change_never_touches_experiment_records(mini_exhibition):
                              "to": "starter", "reason": "r", "authority": "t",
                              "evidence_ref": "e"}), check=False)
     assert s.returncode == 1
-    assert "merge evidence" in s.stderr
+    assert "authenticated maintainer" in s.stderr
+    assert "starter promotion blocked" in s.stderr
 
 
 # ---------------------------------------------------------------- server
