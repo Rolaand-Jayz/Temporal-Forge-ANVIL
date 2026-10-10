@@ -373,13 +373,14 @@ void testRoster() {
     const fs::path tmp = makeTempDir();
     const fs::path rosterPath = tmp / "roster.json";
     std::string err;
-    const std::string base = "{\"candidate_id\":\"s/c\",\"to\":\"tryout\","
+    const std::string player = "cfg:" + std::string(64, 'a');
+    const std::string base = "{\"candidate_id\":\"" + player + "\",\"to\":\"tryout\","
         "\"reason\":\"invited\",\"authority\":\"maintainer\",\"evidence_ref\":\"exhibition\"}";
     JsonValue t;
     CHECK(anvil_lab::jsonParse(base, t, err));
     CHECK(anvil_lab::rosterSetStatus(rosterPath.string(), t, err));
     // (§11-5) starter without merge evidence is refused.
-    const std::string starter = "{\"candidate_id\":\"s/c\",\"to\":\"starter\","
+    const std::string starter = "{\"candidate_id\":\"" + player + "\",\"to\":\"starter\","
         "\"reason\":\"good metrics\",\"authority\":\"maintainer\",\"evidence_ref\":\"ci\"}";
     JsonValue st;
     CHECK(anvil_lab::jsonParse(starter, st, err));
@@ -393,7 +394,7 @@ void testRoster() {
     JsonValue roster;
     CHECK(anvil_lab::jsonReadFile(rosterPath.string(), roster, err));
     CHECK(roster.at("history").arr.size() == 2);
-    CHECK_STR(roster.at("entries").at("s/c").at("status").asString(), "starter");
+    CHECK_STR(roster.at("entries").at(player).at("status").asString(), "starter");
     // The canonical baseline can never carry a status.
     JsonValue bl;
     CHECK(anvil_lab::jsonParse("{\"candidate_id\":\"baseline\",\"to\":\"bench\","
@@ -401,7 +402,7 @@ void testRoster() {
     CHECK(!anvil_lab::rosterSetStatus(rosterPath.string(), bl, err));
     // Self-transition refused.
     JsonValue same;
-    CHECK(anvil_lab::jsonParse("{\"candidate_id\":\"s/c\",\"to\":\"starter\","
+    CHECK(anvil_lab::jsonParse("{\"candidate_id\":\"" + player + "\",\"to\":\"starter\","
           "\"reason\":\"x\",\"authority\":\"m\",\"evidence_ref\":\"e\"}", same, err));
     CHECK(!anvil_lab::rosterSetStatus(rosterPath.string(), same, err));
     // Audit: roster referencing an unknown candidate is a finding.
