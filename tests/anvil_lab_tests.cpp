@@ -7,6 +7,7 @@
 // wording, metrics oracles, difference analysis, and deterministic scene
 // synthesis.
 #include <cmath>
+#include <cstdlib>
 #include <cstdio>
 #include <unistd.h>
 #include <filesystem>
@@ -96,6 +97,22 @@ void testJson() {
     CHECK(!anvil_lab::jsonParse("{\"a\": \"\\q\"}", v, err));
     CHECK(!anvil_lab::jsonParse("[1, 2", v, err));
     CHECK(!anvil_lab::jsonParse("{\"a\":1,}", v, err));
+    // Duplicate provenance keys are ambiguous between C++ first-key and
+    // browser JavaScript last-key semantics: reject at EVERY nesting level.
+    CHECK(!anvil_lab::jsonParse("{\"pair_valid\":false,\"pair_valid\":true}", v, err));
+    CHECK(!anvil_lab::jsonParse("{\"context\":{\"roster\":\"rookie\",\"roster\":\"starter\"}}", v, err));
+    CHECK(!anvil_lab::jsonParse("[{\"a\":1,\"a\":2}]", v, err));
+    // Interrupted/failed temporary-file writes must preserve prior evidence.
+    const fs::path prior = makeTempDir() / "findings.json";
+    const JsonValue oldEvidence = JsonValue::makeString("original-evidence");
+    CHECK(anvil_lab::jsonWriteFile(prior.string(), oldEvidence, err));
+    ::setenv("ANVIL_LAB_TEST_FAIL_ATOMIC_WRITE", "1", 1);
+    CHECK(!anvil_lab::jsonWriteFile(prior.string(),
+            JsonValue::makeString("new-evidence"), err));
+    ::unsetenv("ANVIL_LAB_TEST_FAIL_ATOMIC_WRITE");
+    JsonValue restored;
+    CHECK(anvil_lab::jsonReadFile(prior.string(), restored, err));
+    CHECK_STR(restored.asString(), "original-evidence");
     // Deterministic integer formatting keeps regenerated files byte-stable.
     CHECK_STR(anvil_lab::jsonDump(anvil_lab::JsonValue::makeInt(42)), "42");
     CHECK_STR(anvil_lab::jsonDump(anvil_lab::JsonValue::makeNumber(0.5)), "0.5");
