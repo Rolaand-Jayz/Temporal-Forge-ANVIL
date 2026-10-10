@@ -130,3 +130,42 @@ catalog, roster, and reports are tracked.
 ## Metric panels and comparison direction
 
 **Difference statistics** are computed from the currently selected **IMAGE A versus IMAGE B** on matched original pixels. The **reference-fidelity metric panel**, by contrast, shows **IMAGE B versus its recorded clean-LR or HR reference**, not the current A/B pair. Changing A without changing B does not change that fixed reference score. The selection header shows changes from the **ANVIL baseline to the candidate**, even when the visible A/B arrangement is swapped. The pipeline temporal-window labels must contain numeric values, for example `past 2 / future 2`, never blank strings.
+
+## Review Lab write security and concurrency
+
+The Review Lab accepts **findings writes only from its same-origin web UI**.
+The server binds loopback, checks the exact loopback Host and Origin for every
+POST, requires `Content-Type: application/json`, and validates an unpredictable
+per-process token supplied to the UI by the catalog. Cross-origin browser
+requests and unauthenticated scripted writes fail closed; the loopback binding
+alone is not authentication. Restarting the lab rotates the token.
+Do **not** copy catalog session tokens into reports or version-control files.
+
+The first screenshot-free finding creates the findings directory automatically.
+Screenshots are optional; supplied screenshots must decode as complete,
+CRC-verified, bounded, non-interlaced 8-bit PNG images with valid scanline
+decompression, and are written with atomic replacement. Other bytes are
+rejected instead of being saved as apparently valid scientific evidence.
+
+The local HTTP listener maintains eight worker threads and a bounded queue of
+32 waiting connections. Excess connections may receive HTTP 503 instead of
+increasing the thread count indefinitely; existing client calls can retry.
+When the server is stopped, pending workers are joined.
+
+A/B/frame changes discard old displayed pixels and scientific verdicts
+immediately. Frame images, PTS/metadata, compatibility, difference and region
+results are committed to the UI only for the active selection revision.
+Missing frames are displayed as unavailable and are **never silently replaced**
+with the prior scene's pixels.
+
+The `--repo-root` option (default: current working directory) must point to the
+actual Git repository containing the permanent original baseline and pinned
+commit object. A selected baseline-labeled run is qualified only if both its
+manifest/config identity and the frozen source/commit verification pass.
+The ordinary catalog and the presence of a decoded frame alone do not prove
+baseline qualification.
+
+These controls are software requirements and CI contracts, not evidence that
+the historical Big Buck Bunny campaign has been regenerated or that the final
+UI has passed an independent browser walkthrough. Those qualification gates
+remain open pending new measurements and evaluator review.
