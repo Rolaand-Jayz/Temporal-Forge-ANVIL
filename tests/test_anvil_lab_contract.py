@@ -730,7 +730,7 @@ def test_canonical_baseline_run_rejects_forged_config_with_matching_catalog(
        "auto_scene_cut","auto_cut_threshold","excluded_neighbors","seed",
        "output_backend"]
     semantic={k:manifest["config"][k] for k in names if k in manifest["config"]}
-    altered_hash=hashlib.sha256(json.dumps(semantic,separators=(",",":")).encode()).hexdigest()
+    altered_hash=hashlib.sha256(json.dumps(semantic,indent=2).encode()).hexdigest()
     catalog=json.loads(catalog_path.read_text())
     target=next(x for x in catalog if x["id"]=="archive_grid_drift/baseline")
     target["identity"]["config_hash"]=altered_hash
