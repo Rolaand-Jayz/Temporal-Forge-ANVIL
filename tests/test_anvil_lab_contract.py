@@ -643,6 +643,40 @@ def test_duplicate_json_keys_cannot_forge_provenance(lab_server):
                for x in json.loads(raw)["findings"])
 
 
+def test_http_post_body_split_across_reads_preserves_headers(lab_server):
+    # Reproduce the old parser bug: a partial POST body caused parseRequest()
+    # to revisit wire headers and reject them as duplicates in req.headers.
+    base, _ = lab_server
+    port = int(base.rsplit(":", 1)[1])
+    token = post_headers(base)["X-Anvil-CSRF"]
+    finding = {"scene_id": "archive_grid_drift", "frame": 3,
+               "image_a": "archive_grid_drift/baseline",
+               "image_b": "archive_grid_drift/tryout_mini",
+               "category": "improvement",
+               "observation": "split-body-http-regression"}
+    body = json.dumps(finding).encode()
+    header = (
+        "POST /api/findings HTTP/1.1\r\n"
+        f"Host: 127.0.0.1:{port}\r\n"
+        f"Origin: {base}\r\n"
+        f"X-Anvil-CSRF: {token}\r\n"
+        "Content-Type: application/json\r\n"
+        f"Content-Length: {len(body)}\r\n"
+        "Connection: close\r\n\r\n"
+    ).encode()
+    with socket.create_connection(("127.0.0.1", port), timeout=5) as sock:
+        sock.settimeout(5)
+        sock.sendall(header + body[:5])
+        time.sleep(0.1)  # force the server to parse before the body finishes
+        sock.sendall(body[5:])
+        response = sock.recv(4096)
+    assert response.startswith(b"HTTP/1.1 200"), response[:200]
+    _, raw = get(base, "/api/findings")
+    saved = [x for x in json.loads(raw)["findings"]
+             if x.get("observation") == "split-body-http-regression"]
+    assert len(saved) == 1
+
+
 def test_http_content_length_malformed_requests_survive(lab_server):
     base, _ = lab_server
     port = int(base.rsplit(":", 1)[1])
