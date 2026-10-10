@@ -595,6 +595,124 @@ def test_contact_sheet(lab_server):
     assert png[:8] == b"\x89PNG\r\n\x1a\n"
 
 
+def test_duplicate_json_keys_cannot_forge_provenance(lab_server):
+    base, root = lab_server
+    # Raw body bypasses Python dict de-duplication; both top-level and
+    # nested collisions must be rejected before any findings are saved.
+    for trailing in [
+        '"pair_valid":true,"pair_valid":false',
+        '"roster_status_at_review":"rookie","roster_status_at_review":"starter"',
+        '"context":{"scene":"real","scene":"forged"}',
+    ]:
+        body = ('{"scene_id":"archive_grid_drift","frame":3,'
+                '"image_a":"archive_grid_drift/baseline",'
+                '"image_b":"archive_grid_drift/tryout_mini",'
+                '"category":"improvement","observation":"duplicate-attack",'
+                + trailing + '}').encode()
+        req = urllib.request.Request(base + "/api/findings", data=body,
+                                     headers={"Content-Type": "application/json"})
+        with pytest.raises(urllib.error.HTTPError) as exc:
+            urllib.request.urlopen(req, timeout=10)
+        assert exc.value.code == 400
+    _, raw = get(base, "/api/findings")
+    assert all(x.get("observation") != "duplicate-attack"
+               for x in json.loads(raw)["findings"])
+
+
+def test_http_content_length_malformed_requests_survive(lab_server):
+    base, _ = lab_server
+    port = int(base.rsplit(":", 1)[1])
+    requests = [
+        b"POST /api/findings HTTP/1.1\\r\\nHost: 127.0.0.1\\r\\n"
+        + b"Content-Length: " + b"9" * 200 + b"\\r\\n\\r\\n",
+        b"POST /api/findings HTTP/1.1\\r\\nHost: localhost\\r\\n"
+        b"Content-Length: 1\\r\\ncontent-length: 2\\r\\n\\r\\n",
+        b"POST /api/findings HTTP/1.1\\r\\nHost: localhost\\r\\n"
+        b"Content-Length: bananas\\r\\n\\r\\n",
+    ]
+    for request in requests:
+        with socket.create_connection(("127.0.0.1", port), timeout=5) as sock:
+            sock.settimeout(5)
+            sock.sendall(request)
+            response = sock.recv(8192)
+        assert b"400" in response or b"413" in response, response[:200]
+        _, raw = get(base, "/api/catalog")
+        assert json.loads(raw)["catalog"], "server must survive malformed requests"
+
+
+def test_no_browser_get_shutdown(lab_server):
+    base, _ = lab_server
+    try:
+        urllib.request.urlopen(base + "/api/shutdown", timeout=10)
+        assert False, "GET must never control the server lifecycle"
+    except urllib.error.HTTPError as exc:
+        assert exc.code == 404
+    _, raw = get(base, "/api/catalog")
+    assert json.loads(raw)["catalog"]
+
+
+def test_scientific_qualification_separated_from_pixel_pair(lab_server):
+    base, root = lab_server
+    uri = "/api/compat?id_a=archive_grid_drift/baseline" \\
+          "&id_b=archive_grid_drift/tryout_mini&frame=3"
+    _, raw = get(base, uri)
+    initial = json.loads(raw)
+    assert initial["pixel_pair_valid"] is True
+    assert initial["experiment_eligible"] is True
+    manifest = root / "artifacts" / "runs" / "archive_grid_drift" \\
+        / "baseline" / "native" / "manifest.json"
+    original = manifest.read_bytes()
+    try:
+        modified = json.loads(original)
+        modified.pop("exhibition_attestation", None)
+        manifest.write_text(json.dumps(modified))
+        _, raw = get(base, uri)
+        result = json.loads(raw)
+        assert result["pixel_pair_valid"] is True
+        assert result["experiment_eligible"] is True
+        assert result["qualified_experiment"] is False
+        assert result["evidence_problems"]
+    finally:
+        manifest.write_bytes(original)
+
+
+def test_reference_self_and_cross_scene_experiment_eligibility(lab_server):
+    base, _ = lab_server
+    for pair in [
+        ("archive_grid_drift/reference_clean", "archive_grid_drift/reference_clean"),
+        ("archive_grid_drift/baseline", "archive_grid_drift/baseline"),
+    ]:
+        _, raw = get(base, "/api/compat?id_a=" + pair[0]
+                     + "&id_b=" + pair[1] + "&frame=3")
+        d = json.loads(raw)
+        assert d["pixel_pair_valid"] is True
+        assert d["experiment_eligible"] is False
+        assert d["qualified_experiment"] is False
+        assert d["valid_pair"] is False
+    _, raw = get(base, "/api/compat?id_a=archive_grid_drift/baseline"
+                 "&id_b=archive_grid_drift/reference_clean&frame=3")
+    pair = json.loads(raw)
+    assert pair["experiment_eligible"] is True
+    # Cross-scene input can produce same-size PNG but must never become a
+    # scientific metric regardless of original-pixel diff availability.
+    res, _ = get(base, "/api/diff?id_a=archive_grid_drift/baseline"
+                 "&id_b=crossing_occluders/baseline&frame=3&mode=absdiff")
+    stats = json.loads(res.headers["X-Anvil-Stats"])
+    assert stats["qualified_experiment"] is False
+    assert "EXPLORATORY" in stats["source"]
+    assert stats["qualification_reason"]
+
+
+def test_nonbaseline_comparisons_report_direction(lab_server):
+    base, _ = lab_server
+    _, raw = get(base, "/api/compat?id_a=archive_grid_drift/tryout_mini"
+                 "&id_b=archive_grid_drift/control_decoded&frame=3")
+    comparison = json.loads(raw)
+    assert comparison["pipeline_diff_direction"] == "IMAGE B minus IMAGE A"
+    assert comparison["pipeline_diff"]["changed"]
+    assert comparison["pipeline_diff"]["unchanged"]
+
+
 def test_unknown_paths_404(lab_server):
     base, _ = lab_server
     for path in ["/api/nope", "/static/../../etc/passwd", "/static/secret.txt"]:
