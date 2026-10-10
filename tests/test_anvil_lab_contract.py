@@ -426,6 +426,38 @@ def test_invalid_pair_fails_closed(lab_server):
     assert any("scene" in p for p in d["problems"])
 
 
+def test_pipeline_diff_is_candidate_minus_baseline_in_both_select_orders(lab_server):
+    base, _ = lab_server
+    for left, right in [("baseline", "tryout_mini"),
+                        ("tryout_mini", "baseline")]:
+        _, body = get(base, "/api/compat?id_a=archive_grid_drift/" + left
+                      + "&id_b=archive_grid_drift/" + right + "&frame=3")
+        result = json.loads(body)
+        assert result["valid_pair"], result["problems"]
+        changed = result["pipeline_diff"]["changed"]
+        by_stage = {c["stage"]: c for c in changed}
+        refinement = by_stage["correspondence_refinement"]
+        assert "reference: none" in refinement["detail"], refinement
+        assert "this configuration: local" in refinement["detail"], refinement
+        confidence = by_stage["confidence"]
+        assert "reference: unit" in confidence["detail"], confidence
+        assert "this configuration: estimate" in confidence["detail"], confidence
+
+
+def test_actual_catalog_has_numeric_temporal_windows(mini_exhibition):
+    records = json.loads((mini_exhibition / "catalog" / "catalog.json").read_text())
+    by_id = {r["id"]: r for r in records}
+    def window(record):
+        return next(stage for stage in record["pipeline"]["stages"]
+                    if stage["name"] == "window_select")
+    baseline = window(by_id["archive_grid_drift/baseline"])
+    control = window(by_id["archive_grid_drift/control_decoded"])
+    assert baseline["mode"] == "past 1 / future 1"
+    assert control["mode"] == "past 0 / future 0"
+    assert baseline["active"] is True
+    assert control["active"] is False
+
+
 def test_clean_reference_pair_is_scientifically_valid(lab_server):
     base, _ = lab_server
     _, body = get(base, "/api/compat?id_a=archive_grid_drift/baseline"
