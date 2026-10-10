@@ -1079,6 +1079,7 @@ function initEvents() {
       state.splitPan = { zoom: state.zoom, x: state.panX, y: state.panY };
     } else {
       state.splitIndependent = false;
+      state.splitPan = { zoom: state.zoom, x: state.panX, y: state.panY };
     }
     render();
   };
@@ -1092,7 +1093,10 @@ function initEvents() {
   let drag = null;
   vp.addEventListener("pointerdown", (e) => {
     if (e.target.closest("#slider-handle") || e.target.closest("#region-list")) return;
-    drag = { x: e.clientX, y: e.clientY, panX: state.panX, panY: state.panY, splitX: state.splitPan.x, splitY: state.splitPan.y };
+    const side = state.mode === "split" && state.splitIndependent
+      && e.clientX >= vp.getBoundingClientRect().left + vp.clientWidth / 2 ? "b" : "a";
+    drag = { x: e.clientX, y: e.clientY, side, panX: state.panX, panY: state.panY,
+             splitX: state.splitPan.x, splitY: state.splitPan.y };
     vp.setPointerCapture(e.pointerId);
     vp.classList.add("dragging");
   });
@@ -1100,11 +1104,12 @@ function initEvents() {
     updateHud(e);
     if (!drag) return;
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-    state.panX = drag.panX + dx;
-    state.panY = drag.panY + dy;
-    if (state.splitIndependent) {
+    if (state.mode === "split" && state.splitIndependent && drag.side === "b") {
       state.splitPan.x = drag.splitX + dx;
       state.splitPan.y = drag.splitY + dy;
+    } else {
+      state.panX = drag.panX + dx;
+      state.panY = drag.panY + dy;
     }
     render();
   });
@@ -1212,13 +1217,18 @@ function zoomBy(factor, anchorEvent) {
   const r = vp.getBoundingClientRect();
   const ax = anchorEvent ? anchorEvent.clientX - r.left : r.width / 2;
   const ay = anchorEvent ? anchorEvent.clientY - r.top : r.height / 2;
-  const old = state.zoom;
-  state.zoom = Math.max(0.02, Math.min(64, old * factor));
-  // Keep the point under the cursor stationary.
-  state.panX = ax - (ax - state.panX) * (state.zoom / old);
-  state.panY = ay - (ay - state.panY) * (state.zoom / old);
-  if (state.splitIndependent) {
-    state.splitPan.zoom = Math.max(0.02, Math.min(64, state.splitPan.zoom * factor));
+  const zoomB = state.mode === "split" && state.splitIndependent
+    && anchorEvent && ax >= r.width / 2;
+  if (zoomB) {
+    const old = state.splitPan.zoom;
+    state.splitPan.zoom = Math.max(0.02, Math.min(64, old * factor));
+    state.splitPan.x = ax - (ax - state.splitPan.x) * (state.splitPan.zoom / old);
+    state.splitPan.y = ay - (ay - state.splitPan.y) * (state.splitPan.zoom / old);
+  } else {
+    const old = state.zoom;
+    state.zoom = Math.max(0.02, Math.min(64, old * factor));
+    state.panX = ax - (ax - state.panX) * (state.zoom / old);
+    state.panY = ay - (ay - state.panY) * (state.zoom / old);
   }
   render();
 }
