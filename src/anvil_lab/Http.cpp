@@ -13,6 +13,10 @@
 #include <csignal>
 #include <poll.h>
 #include <thread>
+#include <deque>
+#include <condition_variable>
+#include <mutex>
+#include <system_error>
 
 namespace anvil_lab {
 
@@ -54,6 +58,8 @@ const char* statusText(int code) {
         case 200: return "OK";
         case 204: return "No Content";
         case 400: return "Bad Request";
+        case 403: return "Forbidden";
+        case 503: return "Service Unavailable";
         case 404: return "Not Found";
         case 409: return "Conflict";
         case 413: return "Payload Too Large";
@@ -280,20 +286,70 @@ bool httpServe(const std::string& bindAddr, uint16_t port,
         ::close(fd);
         return false;
     }
+    // Fixed-size pool avoids accumulating one thread object per request
+    // over the life of the workstation. Bounded queue resists connection
+    // floods while keeping concurrent sample/image reads available.
+    constexpr size_t kWorkers = 8, kMaxQueued = 32;
+    std::deque<int> queue;
+    std::mutex mutex;
+    std::condition_variable readyQueue;
+    bool stopping = false;
     std::vector<std::thread> workers;
+    auto worker = [&] {
+        while (true) {
+            int client = -1;
+            {
+                std::unique_lock<std::mutex> lk(mutex);
+                readyQueue.wait(lk, [&] { return stopping || !queue.empty(); });
+                if (stopping && queue.empty()) return;
+                client = queue.front();
+                queue.pop_front();
+            }
+            try { handleConnection(client, handler); }
+            catch (...) { ::close(client); } // a bad client must not terminate the pool
+        }
+    };
+    try {
+        for (size_t i = 0; i < kWorkers; ++i)
+            workers.emplace_back(worker);
+    } catch (const std::system_error& e) {
+        { std::lock_guard<std::mutex> lk(mutex); stopping = true; }
+        readyQueue.notify_all();
+        for (auto& t : workers) if (t.joinable()) t.join();
+        ::close(fd);
+        err = std::string("cannot start bounded worker pool: ") + e.what();
+        return false;
+    }
     while (!gShutdown.load() && !gSignalStop) {
         pollfd pfd{fd, POLLIN, 0};
-        const int ready = ::poll(&pfd, 1, 200);
-        if (ready <= 0 || !(pfd.revents & POLLIN)) continue;
+        const int available = ::poll(&pfd, 1, 200);
+        if (available <= 0 || !(pfd.revents & POLLIN)) continue;
         const int conn = ::accept(fd, nullptr, nullptr);
         if (conn < 0) continue;
         timeval timeout{1, 0};
         ::setsockopt(conn, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout);
         ::setsockopt(conn, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof timeout);
-        workers.emplace_back(handleConnection, conn, handler);
+        bool queued = false;
+        {
+            std::lock_guard<std::mutex> lk(mutex);
+            if (queue.size() < kMaxQueued) {
+                queue.push_back(conn);
+                queued = true;
+            }
+        }
+        if (queued) readyQueue.notify_one();
+        else {
+            static const std::string busy =
+                "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n"
+                "Connection: close\r\n\r\n";
+            sendAll(conn, reinterpret_cast<const uint8_t*>(busy.data()), busy.size());
+            ::close(conn);
+        }
     }
     ::close(fd);
-    for (auto& worker : workers) if (worker.joinable()) worker.join();
+    { std::lock_guard<std::mutex> lk(mutex); stopping = true; }
+    readyQueue.notify_all();
+    for (auto& t : workers) if (t.joinable()) t.join();
     return true;
 }
 
