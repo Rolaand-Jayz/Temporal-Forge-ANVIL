@@ -189,6 +189,9 @@ def test_catalog_naming_contracts(mini_exhibition):
     assert base["display_name"] == "ANVIL baseline"
     assert base["roster_status"] == ""
     cand = by_id["archive_grid_drift/tryout_mini"]
+    sibling = by_id["crossing_occluders/tryout_mini"]
+    assert cand["candidate_key"] == sibling["candidate_key"], \
+        "same technical method across scenes must share one roster identity"
     assert cand["display_name"] == (
         "ANVIL baseline + local refinement + estimated confidence — tryout")
     assert cand["description"].find("upscaled") == -1, \
@@ -322,6 +325,39 @@ def test_invalid_pair_fails_closed(lab_server):
     d = json.loads(body)
     assert d["valid_pair"] is False
     assert any("scene" in p for p in d["problems"])
+
+
+def test_clean_reference_pair_is_scientifically_valid(lab_server):
+    base, _ = lab_server
+    _, body = get(base, "/api/compat?id_a=archive_grid_drift/baseline"
+                   "&id_b=archive_grid_drift/reference_clean&frame=3")
+    pair = json.loads(body)
+    assert pair["valid_pair"] is True, pair["problems"]
+    assert pair["warnings"], "clean/noisy reference lineage should be disclosed"
+
+
+def test_selected_frame_hash_mismatch_is_rejected(lab_server):
+    base, root = lab_server
+    catalog = json.loads((root / "catalog" / "catalog.json").read_text())
+    candidate = next(x for x in catalog
+                     if x["id"] == "archive_grid_drift/baseline")
+    filename = "frame_3.ppm"
+    img = root / candidate["frames"]["dir"] / filename
+    original = img.read_bytes()
+    try:
+        img.write_bytes(original + b"tampered")
+        _, body = get(base, "/api/compat?id_a=archive_grid_drift/baseline"
+                       "&id_b=archive_grid_drift/control_decoded&frame=3")
+        pair = json.loads(body)
+        assert pair["valid_pair"] is False
+        assert any("SHA-256" in x for x in pair["problems"])
+        try:
+            urllib.request.urlopen(base + "/api/image?id=archive_grid_drift/baseline&frame=3")
+            assert False, "tampered source must not receive a validated derivative"
+        except urllib.error.HTTPError as e:
+            assert e.code in (404, 409)
+    finally:
+        img.write_bytes(original)
 
 
 def test_findings_roundtrip_identifies_exact_configs(lab_server):
