@@ -212,12 +212,18 @@ bool rosterSetStatus(const std::string& rosterPath, const JsonValue& transition,
             return false;
         }
     if (to == "starter") {
-        if (transition.at("integration_commit").asString().empty()
-            || !transition.at("merge_evidence").asBool(false)) {
-            err = "starter requires both an integration commit and actual merge "
-                  "evidence; code existing on a branch is insufficient";
-            return false;
-        }
+        // A caller-controlled boolean, commit string, and authority name are
+        // NOT independently authenticated merge/maintainer evidence. This
+        // local roster API does not possess a trusted GitHub authorization
+        // channel. Fail closed rather than falsely announcing a starter.
+        // A future authenticated promotion path must verify BOTH an actual
+        // merged commit on main and the authorized maintainer decision.
+        err = "starter promotion blocked: this local roster writer cannot "
+              "verify GitHub main merge ancestry and authenticated maintainer "
+              "authorization; self-declared integration_commit, merge_evidence "
+              "or authority fields are NOT proof. Keep rookie pending "
+              "independent authenticated integration.";
+        return false;
     }
     std::string from;
     {
@@ -287,6 +293,9 @@ bool rosterAudit(const JsonValue& roster, const JsonValue& catalog,
         const std::string st = kv.second.at("status").asString();
         if (kRosterStatuses.count(st) == 0)
             errors.push_back("roster status '" + st + "' not in the vocabulary");
+        if (st == "starter")
+            errors.push_back("starter roster entry requires external authenticated "
+                "verification; this local writer/auditor cannot certify it");
     }
     std::set<std::string> seenFrom;
     for (const JsonValue& h : roster.at("history").arr) {
@@ -295,9 +304,10 @@ bool rosterAudit(const JsonValue& roster, const JsonValue& catalog,
         if (!known.count(h.at("candidate_id").asString()))
             errors.push_back("history references unknown candidate '"
                              + h.at("candidate_id").asString() + "'");
-        if (h.at("to").asString() == "starter"
-            && (h.at("integration_commit").asString().empty()))
-            errors.push_back("starter history entry lacks an integration commit");
+        if (h.at("to").asString() == "starter")
+            errors.push_back("starter history cannot be certified by local "
+                "self-asserted evidence; independently verify merge on main "
+                "and authenticated maintainer approval before qualification");
     }
     return errors.empty();
 }
