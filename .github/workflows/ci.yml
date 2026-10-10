@@ -47,7 +47,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           lfs: false
-          fetch-depth: 1
+          # Baseline immutability tests require the fixed original commit object,
+          # which is older than this PR head. A shallow head-only checkout
+          # incorrectly fails the pinned-commit presence check.
+          fetch-depth: 0
           # pull_request defaults to refs/pull/<n>/merge. Build-Ready
           # provenance must validate the literal PR branch head instead.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
