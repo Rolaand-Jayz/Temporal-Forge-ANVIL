@@ -733,6 +733,12 @@ int cmdRun(const std::vector<std::string>& args) {
     }
     if (runner.empty() || !fs::exists(runner))
         return usageError("run requires --runner (or $ANVIL_RUNNER)");
+    // The orchestrator observes and pins the exact executable BYTES it
+    // actually invokes. This is not proof of a reproducible source build,
+    // but prevents a silent binary swap during one exhibition run.
+    runner = fs::weakly_canonical(fs::path(runner)).string();
+    const std::string runnerSha = sha256File(runner);
+    if (runnerSha.size() != 64) return fail("cannot attest runner executable");
     std::string err;
     JsonValue ex;
     if (!jsonReadFile((root / "EXPERIMENTS.json").string(), ex, err))
@@ -830,6 +836,19 @@ int cmdRun(const std::vector<std::string>& args) {
             JsonValue m;
             if (!jsonReadFile((outDir / "manifest.json").string(), m, err))
                 return fail(sceneId + "/" + rs.armId + " manifest: " + err);
+            const std::string afterSha = sha256File(runner);
+            if (afterSha != runnerSha)
+                return fail("runner binary changed during the exhibition run");
+            JsonValue attestation = JsonValue::makeObject();
+            attestation.set("runner_path", JsonValue::makeString(runner));
+            attestation.set("runner_sha256", JsonValue::makeString(runnerSha));
+            attestation.set("runner_sha256_after", JsonValue::makeString(afterSha));
+            attestation.set("source", JsonValue::makeString("anvil_exhibit orchestration"));
+            attestation.set("scope", JsonValue::makeString(
+                "observed executable byte identity; not proof of reproducible compilation"));
+            m.set("exhibition_attestation", std::move(attestation));
+            if (!jsonWriteFile((outDir / "manifest.json").string(), m, err))
+                return fail("cannot preserve exhibition runner attestation: " + err);
             if (!copyToTracked(outDir / "manifest.json",
                                root / "manifests" / sceneId / (rs.armId + ".json"), err))
                 return fail(err);
