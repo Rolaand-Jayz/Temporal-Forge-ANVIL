@@ -1001,6 +1001,11 @@ int cmdCatalog(const std::vector<std::string>& args) {
                 (void)kind;
                 JsonValue r = JsonValue::makeObject();
                 const std::string rid = sceneId + "/" + armId;
+                // A configuration is one player across all scenes, not one
+                // independent roster member per experiment or recording.
+                const std::string candidateKey = "cfg:" +
+                    anvil_lab::sha256StringHex(
+                        anvil_lab::canonicalConfigString(m.at("config")));
                 r.set("id", JsonValue::makeString(rid));
 
                 JsonValue armDef;
@@ -1027,13 +1032,15 @@ int cmdCatalog(const std::vector<std::string>& args) {
                         JsonValue roster;
                         if (jsonReadFile((root / "roster" / "roster.json").string(),
                                          roster, err))
-                            status = roster.at("entries").at(rid).at("status").asString(status);
+                            status = roster.at("entries").at(candidateKey).at("status").asString(status);
                         displayName = anvil_lab::buildCandidateName(mods, status);
                     }
                 } else {
                     return fail("run " + rid + " has no matching arm definition");
                 }
                 r.set("kind", JsonValue::makeString(recKind));
+                if (recKind == "anvil_candidate")
+                    r.set("candidate_key", JsonValue::makeString(candidateKey));
                 r.set("display_name", JsonValue::makeString(displayName));
                 r.set("scene", [&] {
                     JsonValue s = JsonValue::makeObject();
@@ -1068,7 +1075,7 @@ int cmdCatalog(const std::vector<std::string>& args) {
                     JsonValue roster;
                     if (jsonReadFile((root / "roster" / "roster.json").string(), roster, err))
                         return JsonValue::makeString(
-                            roster.at("entries").at(rid).at("status").asString("tryout"));
+                            roster.at("entries").at(candidateKey).at("status").asString("tryout"));
                     return JsonValue::makeString("tryout");
                 }());
                 r.set("input", [&] {
@@ -1196,6 +1203,8 @@ int cmdCatalog(const std::vector<std::string>& args) {
                     const std::string did = rid + "/" + filterId;
                     d.set("id", JsonValue::makeString(did));
                     d.set("parent", JsonValue::makeString(rid));
+                    if (armDef.at("kind").asString() == "anvil_candidate")
+                        d.set("candidate_key", JsonValue::makeString(candidateKey));
                     d.set("kind", JsonValue::makeString("delivery_variant"));
                     const double factor =
                         ex.at("delivery").at("factor").asNumber(2.0);
