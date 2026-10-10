@@ -526,7 +526,13 @@ def test_findings_reject_forged_source_and_override_pair_claim(lab_server):
     assert saved["pair_valid"] is True, saved["pair_validation"]["problems"]
     assert len(saved["image_a_sha256"]) == 64
     assert saved["image_a_sha256"] != "not-a-real-hash"
-    assert saved["roster_status_at_review"] == "tryout"
+    roster = json.loads((lab_server[1] / "roster" / "roster.json").read_text())
+    catalog = json.loads((lab_server[1] / "catalog" / "catalog.json").read_text())
+    actual_key = next(r["candidate_key"] for r in catalog
+                      if r["id"] == "archive_grid_drift/tryout_mini")
+    assert saved["roster_status_at_review"] == roster["entries"][actual_key]["status"]
+    assert saved["roster_status_at_review"] != "starter", (
+        "forged client status must not override live roster disposition")
 
     for variant in [
         dict(valid, image_a="invalid/id"),
