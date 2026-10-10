@@ -163,7 +163,7 @@ async function refreshRegions() {
 async function refreshCompat() {
   if (!state.a || !state.b) { $("pair-banner").classList.add("hidden"); state.compat = null; return; }
   try {
-    state.compat = await apiJson(`/api/compat?id_a=${encodeURIComponent(state.a.id)}&id_b=${encodeURIComponent(state.b.id)}`);
+    state.compat = await apiJson(`/api/compat?id_a=${encodeURIComponent(state.a.id)}&id_b=${encodeURIComponent(state.b.id)}&frame=${state.frame}`);
   } catch (e) {
     state.compat = { valid_pair: false, problems: [e.message], warnings: [] };
   }
