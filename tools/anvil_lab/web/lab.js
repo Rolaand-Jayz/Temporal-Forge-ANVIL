@@ -664,7 +664,8 @@ async function updateMetaPanels() {
 function updateMetricsPanel() {
   const grid = $("metrics-grid");
   const valid = state.compat?.valid_pair;
-  const rowsKey = state.b?.metrics_ref || state.a?.metrics_ref;
+  // These are per-arm reference scores, NOT a numeric score for A-vs-B.
+  // A-vs-B pixel differences are reported separately in the Difference panel.
   if (!valid) {
     grid.innerHTML = `<div class="k">status</div><div class="v">hidden — pair is not a valid experiment</div>`;
     return;
@@ -678,14 +679,26 @@ function updateMetricsPanel() {
     return;
   }
   const m = filter ? row[`delivery_${filter}`] : row.native;
-  const html = filter
-    ? [["delivery", `${m.filter} ${"2"}× vs HR master`], ["psnr", fmt(m.psnr_db_mean, " dB")], ["ssim", m.ssim_mean.toFixed(4)],
-       ["validity", m.reference_validity]]
-    : [["native vs", row.native.reference], ["psnr", fmt(row.native.psnr_db_mean, " dB")], ["ssim", row.native.ssim_mean.toFixed(4)],
-       ["edge Δ", row.native.edge_diff_mean.toFixed(3)],
-       ["temporal Δ", row.native.temporal_delta_mean.toFixed(3)],
-       ["validity", row.native.reference_validity]];
-  grid.innerHTML = html.map(([k, v]) => `<div class="k">${esc(k)}</div><div class="v">${esc(String(v))}</div>`).join("");
+  if (!m) {
+    grid.innerHTML = `<div class="k">status</div><div class="v">no recorded reference metrics for IMAGE B</div>`;
+    return;
+  }
+  const reference = filter ? "HR master" : (row.native?.reference || "recorded clean LR reference");
+  const rows = [
+    ["score type", "IMAGE B vs recorded reference — NOT IMAGE A vs IMAGE B"],
+    ["IMAGE B", state.b.display_name],
+    ["reference", reference],
+    ["A/B pixel difference", "See separate Difference statistics panel"],
+    ...(filter ? [["delivery scaling", `${m.filter} ${state.b.scale?.factor || "?"}×`]] : []),
+    ["B vs reference PSNR", fmt(m.psnr_db_mean, " dB")],
+    ["B vs reference SSIM", m.ssim_mean == null ? "—" : m.ssim_mean.toFixed(4)],
+    ...(!filter ? [
+      ["B vs reference edge Δ", m.edge_diff_mean == null ? "—" : m.edge_diff_mean.toFixed(3)],
+      ["B temporal Δ", m.temporal_delta_mean == null ? "—" : m.temporal_delta_mean.toFixed(3)],
+    ] : []),
+    ["validity", m.reference_validity || "reference conditions unspecified"],
+  ];
+  grid.innerHTML = rows.map(([k, v]) => `<div class="k">${esc(k)}</div><div class="v">${esc(String(v))}</div>`).join("");
 }
 
 function fmt(v, suffix) {
