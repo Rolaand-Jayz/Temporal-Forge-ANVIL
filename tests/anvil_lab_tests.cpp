@@ -385,16 +385,20 @@ void testRoster() {
     JsonValue st;
     CHECK(anvil_lab::jsonParse(starter, st, err));
     CHECK(!anvil_lab::rosterSetStatus(rosterPath.string(), st, err));
-    // starter WITH integration commit + merge evidence is accepted.
+    // A fabricated commit, merge boolean, and claimed authority are never
+    // adequate proof of main ancestry or a GitHub-authenticated approval.
     st.set("integration_commit", JsonValue::makeString("0123456789abcdef0123456789abcdef01234567"));
     st.set("merge_evidence", JsonValue::makeBool(true));
-    CHECK(anvil_lab::rosterSetStatus(rosterPath.string(), st, err));
-    // (§11-4) Status changes must not touch experiment records: history
-    // appends; the experiment/candidate identity files are untouched.
+    CHECK(!anvil_lab::rosterSetStatus(rosterPath.string(), st, err));
+    CHECK(err.find("authenticated maintainer") != std::string::npos);
+    st.set("integration_commit", JsonValue::makeString("ffffffffffffffffffffffffffffffffffffffff"));
+    st.set("authority", JsonValue::makeString("REPOSITORY_OWNER_APPROVED"));
+    CHECK(!anvil_lab::rosterSetStatus(rosterPath.string(), st, err));
+    // (§11-4) Failed promotions must not mutate accepted roster history.
     JsonValue roster;
     CHECK(anvil_lab::jsonReadFile(rosterPath.string(), roster, err));
-    CHECK(roster.at("history").arr.size() == 2);
-    CHECK_STR(roster.at("entries").at(player).at("status").asString(), "starter");
+    CHECK(roster.at("history").arr.size() == 1);
+    CHECK_STR(roster.at("entries").at(player).at("status").asString(), "tryout");
     // The canonical baseline can never carry a status.
     JsonValue bl;
     CHECK(anvil_lab::jsonParse("{\"candidate_id\":\"baseline\",\"to\":\"bench\","
