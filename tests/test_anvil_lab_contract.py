@@ -15,6 +15,10 @@ observed end-to-end:
   - exported findings identify the exact compared configurations;
   - roster changes never modify experiment records.
 """
+import base64
+import binascii
+import struct
+import zlib
 import json
 import os
 import pathlib
@@ -647,6 +651,84 @@ def test_http_content_length_malformed_requests_survive(lab_server):
         assert b"400" in response or b"413" in response, response[:200]
         _, raw = get(base, "/api/catalog")
         assert json.loads(raw)["catalog"], "server must survive malformed requests"
+
+
+def test_cross_origin_findings_writes_rejected(lab_server):
+    base, root = lab_server
+    finding = {"scene_id": "archive_grid_drift", "frame": 3,
+               "image_a": "archive_grid_drift/baseline",
+               "image_b": "archive_grid_drift/tryout_mini",
+               "category": "improvement", "observation": "cross-site-injection"}
+    valid = post_headers(base)
+    for headers in [
+        {"Content-Type": "text/plain", "Origin": "https://attacker.example"},
+        {"Content-Type": "application/json", "Origin": "https://attacker.example",
+         "X-Anvil-CSRF": valid["X-Anvil-CSRF"]},
+        {"Content-Type": "application/json", "X-Anvil-CSRF": valid["X-Anvil-CSRF"]},
+        {"Content-Type": "application/json", "Origin": base, "X-Anvil-CSRF": "forged"},
+        {"Content-Type": "application/json", "Origin": "http://evil.example:8787",
+         "Host": "evil.example:8787", "X-Anvil-CSRF": valid["X-Anvil-CSRF"]},
+    ]:
+        req = urllib.request.Request(base + "/api/findings",
+                data=json.dumps(finding).encode(), headers=headers)
+        try:
+            urllib.request.urlopen(req, timeout=10)
+            assert False, "cross-origin or untrusted POST must not be accepted"
+        except urllib.error.HTTPError as err:
+            assert err.code == 403
+    _, body = get(base, "/api/findings")
+    assert not any(x.get("observation") == "cross-site-injection"
+                   for x in json.loads(body)["findings"])
+
+
+def png_bytes(w=1, h=1, pixels=None):
+    if pixels is None: pixels = b"\\x00" + b"\\xff\\x00\\x00\\xff" * w
+    image = pixels * h
+    def chunk(tag, data):
+        return (struct.pack(">I", len(data)) + tag + data
+                + struct.pack(">I", binascii.crc32(tag + data) & 0xffffffff))
+    return (b"\\x89PNG\\r\\n\\x1a\\n"
+            + chunk(b"IHDR", struct.pack(">IIBBBBB", w,h,8,6,0,0,0))
+            + chunk(b"IDAT", zlib.compress(image))
+            + chunk(b"IEND", b""))
+
+
+def test_findings_validate_screenshot_png_and_padding(lab_server):
+    base, root = lab_server
+    valid = post_headers(base)
+    sample = {"scene_id": "archive_grid_drift", "frame": 3,
+              "image_a": "archive_grid_drift/baseline",
+              "image_b": "archive_grid_drift/tryout_mini",
+              "category": "improvement", "observation": "screenshot-png-contract"}
+    bad_pngs = [
+       base64.b64encode(b"arbitrary bytes not a real PNG").decode(),
+       base64.b64encode(png_bytes()[:-8]).decode(),  # missing IEND
+       base64.b64encode(png_bytes(w=9000)).decode(), # geometry too big
+       base64.b64encode(png_bytes()[:-1] + b"x").decode(), # CRC mismatch
+       base64.b64encode(png_bytes()).decode()[:-4] + "====", # extra padding
+       base64.b64encode(png_bytes()).decode()[:12] + "="
+          + base64.b64encode(png_bytes()).decode()[13:], # inner padding
+    ]
+    for bad in bad_pngs:
+        payload=dict(sample,screenshot_png_base64=bad)
+        req=urllib.request.Request(base+"/api/findings",
+                data=json.dumps(payload).encode(),headers=valid)
+        try:
+            urllib.request.urlopen(req,timeout=10)
+            assert False, "invalid PNG content/padding must be rejected"
+        except urllib.error.HTTPError as err:
+            assert err.code == 400, err.code
+    good=base64.b64encode(png_bytes()).decode()
+    req=urllib.request.Request(base+"/api/findings",
+          data=json.dumps(dict(sample,screenshot_png_base64=good)).encode(),
+          headers=valid)
+    with urllib.request.urlopen(req,timeout=10) as result:
+        assert result.status == 200
+    _,raw=get(base,"/api/findings")
+    saved=next(x for x in json.loads(raw)["findings"]
+               if x["observation"] == "screenshot-png-contract")
+    shot=root/saved["screenshot_file"]
+    assert shot.read_bytes()==png_bytes()
 
 
 def test_no_browser_get_shutdown(lab_server):
