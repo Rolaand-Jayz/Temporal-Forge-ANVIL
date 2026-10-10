@@ -526,8 +526,12 @@ def test_findings_roundtrip_identifies_exact_configs(lab_server):
     req = urllib.request.Request(base + "/api/findings",
                                  data=json.dumps(finding).encode(),
                                  headers=post_headers(base))
-    with urllib.request.urlopen(req, timeout=10) as r:
-        assert r.status == 200
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            assert r.status == 200
+    except urllib.error.HTTPError as exc:
+        pytest.fail("valid roundtrip finding unexpectedly rejected: HTTP "
+                    + str(exc.code) + " " + exc.read().decode(errors="replace"))
     _, body = get(base, "/api/findings")
     findings = json.loads(body)["findings"]
     match = [f for f in findings if f["observation"] == "contract-test observation"]
