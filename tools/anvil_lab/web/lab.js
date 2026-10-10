@@ -924,9 +924,13 @@ function setFrame(f, { fromScrub = false } = {}) {
   if (!fromScrub) $("seq-scrub").value = state.frame;
   $("seq-frame").value = state.frame;
   updateSeqBar();
-  loadImages();
-  refreshRegions();
-  updateMetaPanels();
+  // Pair validity and artifact SHA checks are frame-specific. Never carry a
+  // green validity banner across frames without revalidation.
+  refreshCompat().then(() => {
+    loadImages();
+    refreshRegions();
+    updateMetaPanels();
+  });
 }
 
 function togglePlay() {
