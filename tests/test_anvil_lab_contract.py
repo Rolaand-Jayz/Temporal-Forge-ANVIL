@@ -623,12 +623,12 @@ def test_http_content_length_malformed_requests_survive(lab_server):
     base, _ = lab_server
     port = int(base.rsplit(":", 1)[1])
     requests = [
-        b"POST /api/findings HTTP/1.1\\r\\nHost: 127.0.0.1\\r\\n"
-        + b"Content-Length: " + b"9" * 200 + b"\\r\\n\\r\\n",
-        b"POST /api/findings HTTP/1.1\\r\\nHost: localhost\\r\\n"
-        b"Content-Length: 1\\r\\ncontent-length: 2\\r\\n\\r\\n",
-        b"POST /api/findings HTTP/1.1\\r\\nHost: localhost\\r\\n"
-        b"Content-Length: bananas\\r\\n\\r\\n",
+        b"POST /api/findings HTTP/1.1\r\nHost: 127.0.0.1\r\n"
+        + b"Content-Length: " + b"9" * 200 + b"\r\n\r\n",
+        b"POST /api/findings HTTP/1.1\r\nHost: localhost\r\n"
+        b"Content-Length: 1\r\ncontent-length: 2\r\n\r\n",
+        b"POST /api/findings HTTP/1.1\r\nHost: localhost\r\n"
+        b"Content-Length: bananas\r\n\r\n",
     ]
     for request in requests:
         with socket.create_connection(("127.0.0.1", port), timeout=5) as sock:
