@@ -312,7 +312,8 @@ target_include_directories(anvil_lab PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${CMAKE_CURRENT_SOURCE_DIR}/external/stb")
 target_compile_features(anvil_lab PUBLIC cxx_std_23)
-target_link_libraries(anvil_lab PUBLIC Threads::Threads)
+find_package(ZLIB REQUIRED)
+target_link_libraries(anvil_lab PUBLIC Threads::Threads ZLIB::ZLIB)
 
 add_executable(anvil_exhibit tools/anvil_lab/exhibit_main.cpp)
 target_compile_features(anvil_exhibit PRIVATE cxx_std_23)
