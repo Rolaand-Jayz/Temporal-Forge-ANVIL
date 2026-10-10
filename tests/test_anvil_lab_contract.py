@@ -193,6 +193,9 @@ def test_catalog_naming_contracts(mini_exhibition):
         "ANVIL baseline + local refinement + estimated confidence — tryout")
     assert cand["description"].find("upscaled") == -1, \
         "same-resolution output must not be called upscaled"
+    control = by_id["archive_grid_drift/control_decoded"]
+    assert "temporal reconstruction" not in control["description"]
+    assert "decoded-frame control" in control["description"]
     spatial = [r for r in catalog if r["display_name"].startswith("Spatial control")]
     assert spatial, "control-arm delivery must appear as an external spatial control"
     for r in spatial:
@@ -201,20 +204,23 @@ def test_catalog_naming_contracts(mini_exhibition):
 
 def test_roster_change_never_touches_experiment_records(mini_exhibition):
     catalog_path = mini_exhibition / "catalog" / "catalog.json"
+    catalog = json.loads(catalog_path.read_text())
+    candidate_key = next(r["candidate_key"] for r in catalog
+                         if r["id"] == "archive_grid_drift/tryout_mini")
     before = catalog_path.read_bytes()
     manifests_before = {
         p: p.read_bytes()
         for p in (mini_exhibition / "manifests").rglob("*.json")
     }
     t = run_tool("roster", "set", "--root", mini_exhibition,
-                 json.dumps({"candidate_id": "archive_grid_drift/tryout_mini",
+                 json.dumps({"candidate_id": candidate_key,
                              "to": "bench",
                              "reason": "contract-test transition",
                              "authority": "pytest",
                              "evidence_ref": "tests/test_anvil_lab_contract.py"}))
     assert t.returncode == 0
     roster = json.loads((mini_exhibition / "roster" / "roster.json").read_text())
-    assert roster["entries"]["archive_grid_drift/tryout_mini"]["status"] == "bench"
+    assert roster["entries"][candidate_key]["status"] == "bench"
     assert len(roster["history"]) == 1
     # Immutable evidence untouched.
     assert catalog_path.read_bytes() == before
@@ -222,7 +228,7 @@ def test_roster_change_never_touches_experiment_records(mini_exhibition):
         assert p.read_bytes() == b
     # starter without merge evidence is refused.
     s = run_tool("roster", "set", "--root", mini_exhibition,
-                 json.dumps({"candidate_id": "archive_grid_drift/tryout_mini",
+                 json.dumps({"candidate_id": candidate_key,
                              "to": "starter", "reason": "r", "authority": "t",
                              "evidence_ref": "e"}), check=False)
     assert s.returncode == 1
