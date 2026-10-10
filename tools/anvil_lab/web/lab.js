@@ -643,7 +643,7 @@ function metaRows(rec, side) {
     + rows.map(([k, v]) => `<div class="k">${esc(k)}</div><div class="v">${esc(String(v))}</div>`).join("");
 }
 
-async async function updateMetaPanels() {
+async function updateMetaPanels() {
   $("meta-grid-a").innerHTML = metaRows(state.a, "a");
   $("meta-grid-b").innerHTML = metaRows(state.b, "b");
   // Frame-level detail (size + artifact hash) for the active frame.
