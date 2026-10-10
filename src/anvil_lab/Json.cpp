@@ -4,6 +4,12 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <cerrno>
+#include <cstring>
+#include <filesystem>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 namespace anvil_lab {
 
@@ -254,6 +260,7 @@ struct Parser {
             if (p >= s.size() || s[p] != ':') return fail("expected ':'");
             ++p;
             JsonValue v;
+            if (out.has(key)) return fail("duplicate object key '" + key + "'");
             if (!parseValue(v)) return false;
             out.obj.emplace_back(std::move(key), std::move(v));
             ws();
@@ -390,16 +397,50 @@ bool jsonReadFile(const std::string& path, JsonValue& out, std::string& err) {
 }
 
 bool jsonWriteFile(const std::string& path, const JsonValue& v, std::string& err) {
-    FILE* f = std::fopen(path.c_str(), "wb");
-    if (!f) {
-        err = "cannot open '" + path + "' for writing";
+    // Write a complete new version before replacing the last good version.
+    // A failed write or process crash must never truncate existing findings.
+    namespace fs = std::filesystem;
+    const fs::path destination(path);
+    std::string tmpName = path + ".tmp.XXXXXX";
+    std::vector<char> scratch(tmpName.begin(), tmpName.end());
+    scratch.push_back('\0');
+    const int fd = ::mkstemp(scratch.data());
+    if (fd < 0) { err = "cannot create temporary file for '" + path + "'"; return false; }
+    const std::string tmp(scratch.data());
+    const std::string data = jsonDump(v) + "\n";
+    size_t written = 0;
+    bool ok = true;
+    while (written < data.size()) {
+        const ssize_t n = ::write(fd, data.data() + written, data.size() - written);
+        if (n < 0 && errno == EINTR) continue;
+        if (n <= 0) { ok = false; break; }
+        written += static_cast<size_t>(n);
+    }
+    // Exercised by a regression to prove failures leave the previous file intact.
+    if (std::getenv("ANVIL_LAB_TEST_FAIL_ATOMIC_WRITE") != nullptr) ok = false;
+    if (ok && ::fsync(fd) != 0) ok = false;
+    if (::close(fd) != 0) ok = false;
+    if (ok) {
+        std::error_code ec;
+        // Optional backup is made only after a successful temporary write.
+        // Atomic rename is the primary crash-recovery mechanism: on a failed
+        // replacement the prior file remains present and readable.
+        if (::rename(tmp.c_str(), path.c_str()) != 0) ok = false;
+        if (ok) {
+            const fs::path parent = destination.has_parent_path()
+                ? destination.parent_path() : fs::path(".");
+            const int dirfd = ::open(parent.c_str(), O_RDONLY | O_DIRECTORY);
+            if (dirfd >= 0) { if (::fsync(dirfd) != 0) {
+                err = "directory sync failed after rename (durability uncertain)";
+            } ::close(dirfd); }
+        }
+    }
+    if (!ok) {
+        ::unlink(tmp.c_str());
+        err = "atomic write failed for '" + path + "' (previous version preserved)";
         return false;
     }
-    const std::string text = jsonDump(v) + "\n";
-    const bool ok = std::fwrite(text.data(), 1, text.size(), f) == text.size();
-    std::fclose(f);
-    if (!ok) err = "short write on '" + path + "'";
-    return ok;
+    return true;
 }
 
 } // namespace anvil_lab
