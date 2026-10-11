@@ -33,7 +33,9 @@ def verified_pair(folder):
         data = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
         if not isinstance(data, dict):
             return None
-        if data.get("schema") != MANIFEST_SCHEMA or data.get("verified_same_frame") is not True:
+        if (data.get("schema") != MANIFEST_SCHEMA or
+                data.get("anvil_live_profile") != "causal_cpu_previous_frame_v1" or
+                data.get("verified_same_frame") is not True):
             return None
         index = data.get("frame_index")
         w, h = data.get("output_width"), data.get("output_height")
@@ -61,7 +63,8 @@ def verified_pair(folder):
                 return None
             if png_dimensions(image) != (w, h):
                 return None
-            digest = hashlib.file_digest(image.open("rb"), "sha256").hexdigest()
+            with image.open("rb") as stream:
+                digest = hashlib.file_digest(stream, "sha256").hexdigest()
             if digest != claimed:
                 return None
         return data

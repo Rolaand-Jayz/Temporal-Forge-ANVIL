@@ -15,6 +15,12 @@ the abandoned PR #4 implementation.
   decoded frame, followed by a successful FSR 4.1 INT8 GPU dispatch and
   the actual FSR presentation output.
 
+The current player baseline profile is explicitly labeled
+'causal_cpu_previous_frame_v1'. It is the committed causal **live subset**
+of ANVIL, not a claim that the complete offline runner's research stages
+are now executing on the GPU or live playback path. The evidence manifests
+preserve that identity rather than silently redefining the offline baseline.
+
 The baseline never silently incorporates add-ons, and 'tryout' means initial
 evaluation, not proven quality or performance. The current CPU ANVIL stage is
 one-frame causal, not the future GPU/live engine. FSR 4.1 is still a temporal
