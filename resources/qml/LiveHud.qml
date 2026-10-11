@@ -11,20 +11,20 @@ Rectangle {
     property bool hudVisible: true
 
     anchors.bottom: parent.bottom
-    anchors.bottomMargin: 104
+    anchors.bottomMargin: 120
     anchors.right: parent.right
     anchors.rightMargin: 12
-    width: hudText.implicitWidth + 24
-    height: 22
-    color: "#000000"
-    opacity: 0.72
-    radius: 11
+    width: hudText.implicitWidth + 34
+    height: 28
+    color: "#101b22"
+    opacity: 0.92
+    radius: 9
     z: 50
 
     Row {
         id: hudRow
         anchors.centerIn: parent
-        spacing: 5
+        spacing: 8
 
         // Status dot.
         Rectangle {
@@ -32,8 +32,8 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             color: {
                 if (!playback.hasMedia) return "#555560"
-                if (playback.fsr4Active && playback.fsr4ProofPassed) return "#39d353"
-                if (playback.fsr4Active) return "#d29922"
+                if (playback.fsr4Active && playback.fsr4ProofPassed) return "#41d995"
+                if (playback.fsr4Active) return "#e8b35b"
                 return "#6a6a75"
             }
         }
@@ -49,8 +49,8 @@ Rectangle {
                     res += "  " + playback.lastFsr4DispatchMs.toFixed(1) + "ms"
                 return res
             }
-            color: "#c8c8d0"
-            font.pixelSize: 10
+            color: "#b5c5cd"
+            font.pixelSize: 11
             font.family: "monospace"
         }
     }

@@ -30,13 +30,13 @@ Item {
             spacing: 0
             Text {
                 text: root.text
-                color: "#e8e8ee"
+                color: "#f1f6f5"
                 font.pixelSize: 12
             }
             Text {
                 text: root.description
                 visible: root.description.length > 0
-                color: "#6a6a75"
+                color: "#81949e"
                 font.pixelSize: 9
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap

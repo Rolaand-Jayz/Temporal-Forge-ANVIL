@@ -202,6 +202,8 @@ qt_add_qml_module(temporal_forge_player
     QML_FILES
         resources/qml/Main.qml
         resources/qml/IconButton.qml
+        resources/qml/VectorIcon.qml
+        resources/qml/PlayerTheme.qml
         resources/qml/LiveHud.qml
         resources/qml/SettingsDialog.qml
         resources/qml/SettingsPane.qml
