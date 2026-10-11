@@ -509,3 +509,9 @@ add_test(NAME anvil_live_frame_negative_control
 set_tests_properties(anvil_live_frame_negative_control PROPERTIES WILL_FAIL TRUE)
 
 target_link_libraries(anvil_live_frame_tests PRIVATE anvil_lib)
+
+# Matched, immutable visual-review pair capture (Qt + libswscale only).
+tforge_add_test(anvil_review_pair_tests SOURCES anvil_review_pair_tests.cpp)
+target_link_libraries(anvil_review_pair_tests PRIVATE Qt6::Core Qt6::Gui ${FFMPEG_LIBRARIES})
+target_link_directories(anvil_review_pair_tests PRIVATE ${FFMPEG_LIBRARY_DIRS})
+target_include_directories(anvil_review_pair_tests PRIVATE ${FFMPEG_INCLUDE_DIRS})

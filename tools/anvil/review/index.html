@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANVIL • Visual Review</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="brand-mark">A</span><span><strong>ANVIL</strong><small>VISUAL REVIEW</small></span></div>
+  <div class="top-status"><span class="light"></span><span id="verification">Checking capture evidence</span></div>
+  <a class="subtle-link" href="#evidence">Evidence</a>
+</header>
+<main class="workspace">
+  <section class="intro">
+    <div><span class="eyebrow">HOME FIELD / IMAGE INSPECTION</span><h1>Same frame. <em>Two pipelines.</em></h1></div>
+    <div class="intro-side">ANVIL baseline <span class="arrow">→</span> ANVIL + FSR 4.1<br><span class="muted">Matched presentation resolution. No unverified samples.</span></div>
+  </section>
+  <section class="card viewer">
+    <div class="viewer-top">
+      <div class="field"><label for="frameSelect">CAPTURED FRAME</label><select id="frameSelect" aria-label="Select a verified capture"></select></div>
+      <div class="capture-identity" id="frameIdentity">No verified pairs yet</div>
+      <button id="swap" type="button" class="outline">Swap A/B</button>
+      <button id="reset" type="button" class="outline">Reset view</button>
+    </div>
+    <div class="toolbar">
+      <div class="mode-buttons" id="modes" role="group" aria-label="Comparison mode">
+        <button type="button" data-mode="wipe" aria-pressed="true">Wipe</button>
+        <button type="button" data-mode="split" aria-pressed="false">Split</button>
+        <button type="button" data-mode="fade" aria-pressed="false">Fade</button>
+        <button type="button" data-mode="flicker" aria-pressed="false">Flicker</button>
+        <button type="button" data-mode="difference" aria-pressed="false">Difference</button>
+      </div>
+      <div class="field zoom-field"><label for="zoom">ZOOM</label><input type="range" min="100" max="800" step="25" value="100" id="zoom"><output id="zoomValue">100%</output></div>
+    </div>
+    <div class="range-toolbar">
+      <label for="mix" id="mixLabel">COMPARISON DIVIDER</label>
+      <input id="mix" type="range" min="0" max="100" step="1" value="50">
+      <output id="mixValue">50%</output>
+    </div>
+    <div id="viewport" class="viewport" tabindex="0" aria-label="Pixel-aligned comparison; drag to pan, scroll to zoom" data-mode="wipe">
+      <div id="stage" class="stage">
+        <div id="layerA" class="image-layer"><img id="imageA" alt="Pipeline A reconstructed frame" draggable="false"></div>
+        <div id="layerB" class="image-layer"><img id="imageB" alt="Pipeline B reconstructed frame" draggable="false"></div>
+        <canvas id="difference" aria-label="Computed pixel difference image"></canvas>
+        <div class="divider" id="divider"><span class="divider-handle" aria-hidden="true">⇆</span></div>
+      </div>
+      <span class="corner-label a" id="badgeA">A / ANVIL baseline</span>
+      <span class="corner-label b" id="badgeB">B / ANVIL + FSR 4.1</span>
+      <div id="empty" class="empty"><h2>No verified capture pairs</h2><p>Start the player in capture mode, then select a frame here. Invalid or incomplete pairs never appear as results.</p><code>python3 tools/anvil/review/server.py --capture-dir ./anvil-review-captures</code></div>
+    </div>
+    <div class="viewer-footer"><span>Drag to pan • mouse wheel to zoom • 1–5 switch modes • arrows change frame</span><strong id="resolution">—</strong></div>
+  </section>
+  <section class="below">
+    <div class="card samples"><div class="section-heading"><div><span class="eyebrow">FRAME SELECTOR</span><h2>Verified samples</h2></div><span id="sampleCount" class="quiet">0 frames</span></div><div id="filmstrip" class="filmstrip"></div></div>
+    <aside class="card inspect" id="evidence">
+      <span class="eyebrow">PIPELINE ROSTER</span><h2>What you're comparing</h2>
+      <div class="arm" id="armA"><span class="tag">A / BASELINE</span><h3>ANVIL baseline</h3><p>ANVIL reconstructed frame with Lanczos presentation scaling only.</p></div>
+      <div class="arm" id="armB"><span class="tag accent">B / TRYOUT</span><h3>ANVIL baseline + FSR 4.1</h3><p>Same ANVIL frame followed by experimental FSR 4.1.</p></div>
+      <div class="rule"></div>
+      <dl class="facts" id="facts"><div><dt>Frame</dt><dd>—</dd></div></dl>
+      <div class="evidence-line" id="evidenceLine">Evidence verification pending</div>
+      <p class="footnote">The immutable ANVIL baseline is never silently redefined. “Tryout” means initial evaluation; it does not imply proven quality or real-time performance.</p>
+    </aside>
+  </section>
+</main>
+<footer>ANVIL / REAL-TIME RECONSTRUCTION <span>Visual judgments are separate from qualification.</span></footer>
+<script src="/app.js"></script>
+</body>
+</html>
