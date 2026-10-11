@@ -27,7 +27,7 @@ const state = {
   alignX: 0, alignY: 0,
   fade: 50,
   flickerTimer: null, flickerShowB: true, flickerPlaying: false,
-  playing: false, playRaf: null, playbackReadyAt: null,
+  playing: false, playRaf: null, playbackAnchorWall: 0, playbackAnchorPts: 0,
   syncPan: true,
   splitPan: { zoom: 1, x: 0, y: 0 },   // independent nav for split side B
   splitIndependent: false,
@@ -108,14 +108,28 @@ function revisionCurrent(revision, a, b, frame, mode = null) {
     (mode === null || mode === state.mode);
 }
 
+// Display derivatives are immutable per (id, frame) — hash-linked on the
+// server — so decoded images can be memoized in memory. This is what lets
+// clock-locked playback display instantly: prefetch populates the cache,
+// and a frame's window is never consumed by a fetch.
+const derivativeCache = new Map(); // id@frame -> HTMLImageElement
+function cacheKey(id, frame) { return id + "@" + frame; }
+function rememberDerivative(id, frame, im) {
+  derivativeCache.set(cacheKey(id, frame), im);
+  if (derivativeCache.size > 96) // bounded; ~0.9–3.7 MB per decoded image
+    derivativeCache.delete(derivativeCache.keys().next().value);
+}
+
 async function loadImages() {
   const revision = state.revision;
   const a = state.a?.id, b = state.b?.id, frame = state.frame;
   state.imgA = null; state.imgB = null;
   const mk = (id) => new Promise((resolve, reject) => {
     if (!id) { resolve(null); return; }
+    const hit = derivativeCache.get(cacheKey(id, frame));
+    if (hit) { resolve(hit); return; }
     const im = new Image();
-    im.onload = () => resolve(im);
+    im.onload = () => { rememberDerivative(id, frame, im); resolve(im); };
     im.onerror = () => reject(new Error(`asset unavailable for '${id}' frame ${frame}`));
     im.src = imageUrl(id, frame);
   });
@@ -996,34 +1010,50 @@ function stopFlicker() {
   state.flickerTimer = null;
 }
 
-function setFrame(f, { fromScrub = false } = {}) {
+function setFrame(f, { fromScrub = false, fromPlayback = false } = {}) {
   state.frame = clampFrame(f);
   if (!fromScrub) $("seq-scrub").value = state.frame;
   $("seq-frame").value = state.frame;
   updateSeqBar();
   invalidateSelection();
   refreshCompat(); loadImages(); refreshRegions(); updateMetaPanels();
+  // A user-driven frame change while playing re-anchors the playback clock
+  // to the new position; clock-driven jumps must not.
+  if (state.playing && !fromPlayback) playbackAnchorNow();
 }
 
-// Sequence playback is clock-locked to the content's own timeline, the way
-// a media player locks video to its audio clock (the review content has no
-// audio track, so the frames' native PTS is the timebase). Each frame is
-// held for its PTS delta, and advancement is gated on the display being
-// ready: while the current frame's images are still loading, playback
-// STALLS on that frame instead of letting the frame counter run ahead of
-// what is on screen. There is no free-running interval.
-function frameDurationMs(rec, frame) {
-  const fallback = 1000 / 24; // CFR fallback when a record lacks timestamps
+// Sequence playback is locked to a single master clock, the way a media
+// player locks video to its audio clock (the review content has no audio
+// track, so the frames' native PTS is the timebase). One anchor is taken
+// at play start; the displayed frame is always the frame whose PTS window
+// contains the wall clock. Load latency can never accumulate into the
+// timeline: while a frame's images are still loading the display holds,
+// and once settled it jumps straight to the clock's frame — playback
+// duration equals the content duration by construction.
+function playbackPtsAt(rec, frame) {
   const idx = (rec && rec.frames && rec.frames.index) || [];
-  const ptsAt = (f) => {
-    for (const e of idx) if (e.frame === f && Number.isFinite(e.pts_us)) return e.pts_us;
-    return null;
-  };
-  const hi = rec.frames.start + rec.frames.count - 1;
-  const next = frame >= hi ? rec.frames.start : frame + 1;
-  const a = ptsAt(frame), b = ptsAt(next);
-  if (a != null && b != null && b > a) return (b - a) / 1000;
-  return fallback;
+  for (const e of idx) if (e.frame === frame && Number.isFinite(e.pts_us)) return e.pts_us;
+  return null;
+}
+
+function playbackFrameAtPts(rec, ptsUs) {
+  const idx = (rec.frames && rec.frames.index) || [];
+  if (idx.length) {
+    for (let i = idx.length - 1; i >= 0; i--) {
+      const e = idx[i];
+      if (Number.isFinite(e.pts_us) && e.pts_us <= ptsUs) return e.frame;
+    }
+    return idx[0].frame;
+  }
+  const dur = 1e6 / 24; // CFR fallback for records without timestamps
+  return rec.frames.start + Math.min(Math.max(0, Math.floor(ptsUs / dur)), rec.frames.count - 1);
+}
+
+function playbackAnchorNow() {
+  const rec = state.a;
+  if (!rec) return;
+  state.playbackAnchorWall = performance.now();
+  state.playbackAnchorPts = playbackPtsAt(rec, state.frame) ?? 0;
 }
 
 function stopPlayback() {
@@ -1031,48 +1061,75 @@ function stopPlayback() {
   $("seq-play").textContent = "▶";
   if (state.playRaf) cancelAnimationFrame(state.playRaf);
   state.playRaf = null;
-  state.playbackReadyAt = null;
 }
 
-// While a frame is held, warm the display-derivative cache for the next
-// frames so playback does not stall on first-visit derivative generation.
-// Responses are intentionally no-store; the durable cache is server-side.
-const prefetchInFlight = new Set();
+// While a frame is held, prefetch upcoming display derivatives into the
+// in-memory cache so playback never spends a frame window on a fetch.
+// The pipeline is deliberately SERIAL and shallow (max two in flight,
+// nearest frame first): derivative generation is CPU-bound server-side,
+// and a wide parallel burst only contends with itself and with the
+// display's own urgent loads.
+const prefetchQueued = new Set();
+const prefetchQueue = [];
+let prefetchActive = 0;
+function pumpPrefetch() {
+  while (prefetchActive < 2 && prefetchQueue.length) {
+    const { id, frame } = prefetchQueue.shift();
+    const key = cacheKey(id, frame);
+    prefetchQueued.delete(key);
+    if (derivativeCache.has(key)) continue;
+    prefetchActive++;
+    const im = new Image();
+    const done = (remember) => {
+      prefetchActive--;
+      if (remember) rememberDerivative(id, frame, im);
+      pumpPrefetch();
+    };
+    im.onload = () => done(true);
+    im.onerror = () => done(false);
+    im.src = imageUrl(id, frame);
+  }
+}
 function prefetchPlaybackFrames() {
   const rec = state.a;
   if (!rec) return;
   const hi = rec.frames.start + rec.frames.count - 1;
-  for (let k = 1; k <= 2; k++) {
+  for (let k = 3; k >= 1; k--) { // nearest-first ordering in the queue
     const f = state.frame + k;
     if (f > hi) break;
     for (const id of [state.a && state.a.id, state.b && state.b.id]) {
       if (!id) continue;
-      const key = id + "@" + f;
-      if (prefetchInFlight.has(key)) continue;
-      prefetchInFlight.add(key);
-      const im = new Image();
-      const done = () => prefetchInFlight.delete(key);
-      im.onload = done;
-      im.onerror = done;
-      im.src = imageUrl(id, f);
+      const key = cacheKey(id, f);
+      if (derivativeCache.has(key) || prefetchQueued.has(key)) continue;
+      prefetchQueued.add(key);
+      prefetchQueue.push({ id, frame: f });
     }
   }
+  pumpPrefetch();
 }
 
 function playbackTick() {
   if (!state.playing) return;
   const rec = state.a;
   if (!rec) { stopPlayback(); return; }
+  // Prefetch unconditionally: during a load-hold the pipeline must keep
+  // filling, or derivative generation can never catch up with the clock.
+  prefetchPlaybackFrames();
   if (state.loading > 0) {
-    // Keep pace with the display: a slow load holds the current frame.
-    state.playbackReadyAt = null;
+    // Display holds while images load; the clock keeps running, so the
+    // next advance jumps directly to the clock's frame once settled.
   } else {
-    prefetchPlaybackFrames();
-    if (state.playbackReadyAt == null) state.playbackReadyAt = performance.now();
-    if (performance.now() - state.playbackReadyAt >= frameDurationMs(rec, state.frame)) {
-      const hi = rec.frames.start + rec.frames.count - 1;
-      setFrame(state.frame >= hi ? rec.frames.start : state.frame + 1);
-      state.playbackReadyAt = null; // re-arm when the new frame settles
+    const elapsedUs = (performance.now() - state.playbackAnchorWall) * 1000;
+    const targetPts = state.playbackAnchorPts + elapsedUs;
+    const hi = rec.frames.start + rec.frames.count - 1;
+    const lastPts = playbackPtsAt(rec, hi);
+    const endPts = (lastPts != null ? lastPts : hi * (1e6 / 24)) + 1e6 / 24;
+    if (targetPts >= endPts) {
+      setFrame(rec.frames.start, { fromPlayback: true }); // loop
+      playbackAnchorNow();
+    } else {
+      const target = playbackFrameAtPts(rec, targetPts);
+      if (target !== state.frame) setFrame(target, { fromPlayback: true });
     }
   }
   if (state.playing) state.playRaf = requestAnimationFrame(playbackTick);
@@ -1084,7 +1141,7 @@ function togglePlay() {
   } else {
     state.playing = true;
     $("seq-play").textContent = "❚❚";
-    state.playbackReadyAt = null;
+    playbackAnchorNow();
     state.playRaf = requestAnimationFrame(playbackTick);
   }
 }

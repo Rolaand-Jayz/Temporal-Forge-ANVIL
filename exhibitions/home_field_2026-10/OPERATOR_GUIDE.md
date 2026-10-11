@@ -59,12 +59,16 @@ pixels for display only; an amber disclosure appears whenever it is active
 
 ◀◀ / ▶▶| step frames; the scrubber and exact frame box address frames by
 index; the readout shows the frame's µs + native-tick timestamp; ▶ plays
-A and B in lockstep. Playback is clock-locked to the content's own
-timestamps — each frame is held for its PTS delta (≈41.7 ms at 24 fps),
-advancement waits until the current frame is actually displayed (a slow
-load holds the frame rather than letting the counter run ahead), and the
-next frames' display derivatives are prefetched so playback keeps pace
-instead of free-running. Zoom and crop persist across frames.
+A and B in lockstep. Playback is locked to a single master clock — the
+content's own timestamps (≈41.7 ms/frame at 24 fps), the video-side
+equivalent of an audio clock. One anchor is taken at play start; the
+displayed frame is always the frame whose PTS window contains the wall
+clock, so load latency can never accumulate into the timeline (a slow
+display derivatives load holds the current frame and then jumps straight
+to the clock's frame). Upcoming derivatives are prefetched through a
+small serial pipeline into a bounded in-memory cache (derivatives are
+immutable per id+frame), keeping steady-state display instant. Zoom and
+crop persist across frames.
 
 ## Saving and exporting findings
 
