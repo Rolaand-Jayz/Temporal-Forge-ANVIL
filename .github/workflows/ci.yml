@@ -141,7 +141,8 @@ jobs:
             tests/test_temporal_matrix.py \
             tests/test_quality_runner_contract.py \
             tests/test_event_trace_assembly.py \
-            tests/test_anvil_contract.py
+            tests/test_anvil_contract.py \
+            tests/test_player_ui_contract.py
         env:
           ANVIL_RUNNER: ${{ github.workspace }}/build-py/anvil_runner
           ANVIL_MAKE_TICK_FIXTURE: ${{ github.workspace }}/build-py/make_tick_fixture
