@@ -1,5 +1,6 @@
 // PlaybackEngine.cpp
 #include "core/PlaybackEngine.hpp"
+#include "anvil/LiveFrameProcessor.hpp"
 #include "backend/GpuCapabilityProbe.hpp"
 #include "backend/WeightBlob.hpp"
 #include "core/PlaylistAdvancement.hpp"
@@ -2444,6 +2445,28 @@ void PlaybackEngine::videoDecodeLoop() {
   TemporalFrameContinuity temporalFrameContinuity;
   DecodedVideoFrame pendingDecodedFrame;
   bool hasPendingDecodedFrame = false;
+  // Testing the actual placement: decode -> ANVIL -> existing FSR dispatch.
+  // Explicit opt-in; ordinary real-time playback has zero ANVIL processing.
+  const bool anvilLiveEnabled = [] {
+    const char* value = std::getenv("ANVIL_LIVE_PRE_FSR");
+    return value && std::strcmp(value, "1") == 0;
+  }();
+  const double anvilBudgetMs = [] {
+    const char* value = std::getenv("ANVIL_LIVE_BUDGET_MS");
+    if (!value || !*value) return 6.0;
+    char* end = nullptr;
+    const double ms = std::strtod(value, &end);
+    if (end == value || (end && *end) || !std::isfinite(ms) ||
+        ms < 0.1 || ms > 1000.0)
+      return 6.0;
+    return ms;
+  }();
+  anvil::LiveFrameProcessor anvilLive(anvilBudgetMs);
+  bool anvilBudgetWarningEmitted = false;
+  uint64_t anvilReconstructedFrames = 0;
+  if (anvilLiveEnabled)
+    logInfo("ANVIL live causal CPU stage enabled before FSR: budget={}ms "
+            "(experimental; not performance qualified)", anvilBudgetMs);
   static const bool forceResetEnv =
       std::getenv("TFORGE_FSR4_FORCE_RESET") != nullptr;
   static const bool motionConfidenceReactiveEnv =
@@ -2737,6 +2760,7 @@ void PlaybackEngine::videoDecodeLoop() {
       // FSR history. Otherwise the next source frame could compare against a
       // luma frame from the previous seek/file sequence.
       sideBufferSynth_.resetAnalysisHistory();
+      anvilLive.reset();
       pendingDecodedFrame = {};
       hasPendingDecodedFrame = false;
       firstAfterSeek = true;
@@ -2766,6 +2790,7 @@ void PlaybackEngine::videoDecodeLoop() {
       }
       if (currentSeekGeneration != handledSeekGeneration) {
         sideBufferSynth_.resetAnalysisHistory();
+        anvilLive.reset();
         pendingDecodedFrame = {};
         hasPendingDecodedFrame = false;
         firstAfterSeek = true;
@@ -2885,6 +2910,23 @@ void PlaybackEngine::videoDecodeLoop() {
           ? static_cast<float>(df.ptsUs - lastAnalysisPtsUs_) / 1000.0f
           : 0.0f;
       lastAnalysisPtsUs_ = df.ptsUs;
+      // Source pixels pass through unchanged on unsupported formats, seek,
+      // no correspondence or a missed stage deadline. Timestamp, color,
+      // codec motion side data, and frame identity remain decoder-owned.
+      if (anvilLiveEnabled) {
+        const auto liveResult = anvilLive.process(df, reset);
+        if (liveResult.status == anvil::LiveFrameStatus::Reconstructed) {
+          ++anvilReconstructedFrames;
+          if (anvilReconstructedFrames == 1 || anvilReconstructedFrames % 300 == 0)
+            logInfo("ANVIL causal live stage: frames={} last_ms={} valid_samples={}",
+                    anvilReconstructedFrames, liveResult.elapsedMs, liveResult.usableSamples);
+        } else if (liveResult.status == anvil::LiveFrameStatus::OverBudget &&
+                   !anvilBudgetWarningEmitted) {
+          anvilBudgetWarningEmitted = true;
+          logWarn("ANVIL live stage exceeded its CPU budget ({} ms); "
+                  "bypassing for the rest of playback", liveResult.elapsedMs);
+        }
+      }
       promoteStableFsrViewport();
       // JitterOffset is expressed in render/source-pixel units by the FSR
       // contract. The YUV/DRM upload owns the single color sampling offset;
