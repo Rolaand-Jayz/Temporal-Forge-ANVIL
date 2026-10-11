@@ -24,31 +24,32 @@ ApplicationWindow {
     title: "Settings"
     width: 900; height: 680
     minimumWidth: 760; minimumHeight: 560
-    color: "#0a0a0c"
+    color: "#0b1015"
     modality: Qt.ApplicationModal
 
     property int currentTab: 0
+    PlayerTheme { id: theme }
 
     // Reusable styling tokens — keep the whole dialog visually consistent.
-    readonly property color cBg: "#0a0a0c"
-    readonly property color cSurface: "#15151a"
-    readonly property color cSurface2: "#1e1e24"
-    readonly property color cAccent: "#e44d3a"
-    readonly property color cAccentDim: "#3a1f1c"
-    readonly property color cText: "#f4f7f2"
-    readonly property color cTextDim: "#c5cec8"
-    readonly property color cTextMuted: "#93a39b"
-    readonly property color cWarn: "#d29922"
+    readonly property color cBg: "#0b1015"
+    readonly property color cSurface: "#151d25"
+    readonly property color cSurface2: "#1b2630"
+    readonly property color cAccent: "#41d995"
+    readonly property color cAccentDim: "#193d34"
+    readonly property color cText: "#f1f6f5"
+    readonly property color cTextDim: "#b5c5cd"
+    readonly property color cTextMuted: "#81949e"
+    readonly property color cWarn: "#e8b35b"
 
     // Tab definitions.
     ListModel {
         id: tabModel
-        ListElement { name: "Filters";     icon: "✨" }
-        ListElement { name: "Color";       icon: "🎨" }
-        ListElement { name: "Upscaler";    icon: "⚡" }
-        ListElement { name: "Audio";       icon: "🔊" }
-        ListElement { name: "Interface";   icon: "🖥" }
-        ListElement { name: "Hotkeys";     icon: "⌨" }
+        ListElement { name: "Filters";     iconName: "sliders" }
+        ListElement { name: "Color";       iconName: "color" }
+        ListElement { name: "Upscaler";    iconName: "cpu" }
+        ListElement { name: "Audio";       iconName: "headphones" }
+        ListElement { name: "Interface";   iconName: "monitor" }
+        ListElement { name: "Hotkeys";     iconName: "keyboard" }
     }
 
     RowLayout {
@@ -71,12 +72,11 @@ ApplicationWindow {
                 Item {
                     width: parent.width
                     height: 56
-                    Text {
+                    VectorIcon {
                         anchors.left: parent.left; anchors.leftMargin: 12
-                        anchors.top: parent.top; anchors.topMargin: 10
-                        text: "⚙"
-                        color: cAccent
-                        font.pixelSize: 22
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 22; height: 22
+                        name: "settings"; color: cAccent
                     }
                     Text {
                         anchors.left: parent.left; anchors.leftMargin: 44
@@ -97,12 +97,12 @@ ApplicationWindow {
                         color: settingsWindow.currentTab === index ? cSurface2 : "transparent"
                         Behavior on color { ColorAnimation { duration: 100 } }
 
-                        Text {
+                        VectorIcon {
                             anchors.left: parent.left
                             anchors.leftMargin: 14
                             anchors.verticalCenter: parent.verticalCenter
-                            text: model.icon
-                            font.pixelSize: 16
+                            width: 19; height: 19
+                            name: model.iconName
                             color: settingsWindow.currentTab === index ? cAccent : cTextDim
                         }
                         Text {
@@ -129,6 +129,7 @@ ApplicationWindow {
                     width: parent.width
                     flat: true
                     text: "Reset tab to defaults"
+                    enabled: settingsWindow.currentTab === 0 || settingsWindow.currentTab === 1 || settingsWindow.currentTab === 3
                     onClicked: {
                         switch (settingsWindow.currentTab) {
                             case 0: postProcess.resetAll(); break
@@ -166,11 +167,17 @@ ApplicationWindow {
                 border.color: cSurface2
                 border.width: 0
 
-                Text {
+                VectorIcon {
                     anchors.left: parent.left; anchors.leftMargin: 24
                     anchors.verticalCenter: parent.verticalCenter
-                    text: tabModel.get(settingsWindow.currentTab).icon + "  " +
-                          tabModel.get(settingsWindow.currentTab).name
+                    width: 20; height: 20
+                    name: tabModel.get(settingsWindow.currentTab).iconName
+                    color: cAccent
+                }
+                Text {
+                    anchors.left: parent.left; anchors.leftMargin: 54
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: tabModel.get(settingsWindow.currentTab).name
                     color: cText
                     font.pixelSize: 18
                     font.bold: true
@@ -186,11 +193,11 @@ ApplicationWindow {
                         radius: 6
                         color: closeMa.containsMouse ? cSurface2 : "transparent"
                     }
-                    Text {
+                    VectorIcon {
                         anchors.centerIn: parent
-                        text: "✕"
+                        width: 18; height: 18
+                        name: "close"
                         color: closeMa.containsMouse ? cText : cTextMuted
-                        font.pixelSize: 14
                     }
                     MouseArea {
                         id: closeMa
@@ -387,7 +394,7 @@ ApplicationWindow {
                                     spacing: 2
                                     Text {
                                         anchors.horizontalCenter: parent.horizontalCenter
-                                        text: "⚠ FSR 4.1 INT8 — Experimental"
+                                        text: "FSR 4.1 INT8 — Experimental"
                                         color: settingsWindow.cWarn
                                         font.pixelSize: 12; font.bold: true
                                     }
@@ -527,7 +534,7 @@ ApplicationWindow {
                         }
                         SettingsSection {
                             title: "Track"
-                            description: "Audio track selection is wired to the engine — use the hotkey (Alt+A) to cycle tracks in the player."
+                            description: "Audio track switching is not exposed by the current player. This panel controls the active output volume."
                         }
                     }
 
@@ -547,8 +554,8 @@ ApplicationWindow {
                         SettingsSection {
                             title: "Window"
                             LabeledToggle {
-                                text: "Start in fullscreen"
-                                checked: false
+                                text: "Fullscreen now"
+                                checked: window.visibility === Window.FullScreen
                                 onToggled: {
                                     // The flag is persisted by main.cpp on quit; here we
                                     // just toggle the current window as a preview.
@@ -558,7 +565,7 @@ ApplicationWindow {
                             }
                             LabeledToggle {
                                 text: "Always on top (this session)"
-                                checked: false
+                                checked: (window.flags & Qt.WindowStaysOnTopHint) !== 0
                                 onToggled: {
                                     // Real — uses the platform window flag.
                                     if (newChecked) window.flags = window.flags | Qt.WindowStaysOnTopHint
@@ -571,7 +578,7 @@ ApplicationWindow {
                     // ============ Hotkeys ============
                     SettingsPane {
                         title: "Keyboard Shortcuts"
-                        subtitle: "Read-only reference. Custom rebinding is planned."
+                        subtitle: "Current implemented shortcuts. This panel does not change bindings."
 
                         // Read-only shortcut reference table, populated in two
                         // columns so it doesn't run too long.
@@ -590,12 +597,11 @@ ApplicationWindow {
                                     { key: "M",          action: "Mute" },
                                     { key: "↑ / ↓",      action: "Volume up / down" },
                                     { key: "← / →",      action: "Seek −10s / +10s" },
-                                    { key: ", / .",      action: "Frame step back / forward" },
-                                    { key: "[ / ]",      action: "Playback speed − / +" },
+                                    { key: ", / .",      action: "Approximate frame step" },
                                     { key: "C",          action: "Toggle A/B compare" },
                                     { key: "H",          action: "Toggle enhancement HUD" },
                                     { key: "Ctrl+S",     action: "Save screenshot" },
-                                    { key: "Ctrl+C",     action: "Copy frame to clipboard" },
+                                    { key: "Ctrl+Shift+C", action: "Copy frame to clipboard" },
                                     { key: "Ctrl+F",     action: "Debug overlay" },
                                     { key: "Ctrl+I",     action: "Media info" },
                                     { key: "Ctrl+,",     action: "Settings" },

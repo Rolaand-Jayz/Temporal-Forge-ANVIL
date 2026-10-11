@@ -9,9 +9,7 @@
 //     enters the region it lives in (or anywhere, in fullscreen). This is
 //     the standard player behavior the user asked for.
 //
-// Keyboard shortcuts (spec 05 + new): Space, F, Esc, O, P, M, C, H, Ctrl+,,
-// Ctrl+F, Ctrl+I, Left/Right (seek 10s), Up/Down (volume), , and . (frame
-// step), [ and ] (playback speed).
+// Keyboard shortcuts are limited to controls implemented by PlaybackEngine.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -22,8 +20,11 @@ ApplicationWindow {
     id: window
     visible: false
     width: 1280; height: 720
-    color: "#0a0a0c"
-    title: "Temporal Forge Player" + (playback.mediaTitle ? " — " + playback.mediaTitle : "")
+    minimumWidth: 760; minimumHeight: 480
+    color: "#0b1015"
+    title: "ANVIL Player" + (playback.mediaTitle ? " — " + playback.mediaTitle : "")
+
+    PlayerTheme { id: theme }
 
     // --- auto-hide state ---
     // True while the chrome (controls + overlays) is visible. Drops to false
@@ -73,9 +74,9 @@ ApplicationWindow {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         background: Rectangle {
-            color: "#15151a"
+            color: "#151d25"
             radius: 8
-            border.color: "#3a3a44"
+            border.color: "#30414b"
             border.width: 1
         }
 
@@ -86,7 +87,7 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Label {
                     text: "Playlist (" + playback.playlistCount + ")"
-                    color: "#f2f2f4"
+                    color: "#f1f6f5"
                     font.bold: true
                     Layout.fillWidth: true
                 }
@@ -107,7 +108,7 @@ ApplicationWindow {
             Label {
                 visible: playback.playlistCount === 0
                 text: "No videos in the playlist"
-                color: "#898994"
+                color: "#81949e"
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
             }
@@ -272,7 +273,7 @@ ApplicationWindow {
             y: 0
             width: 2
             height: parent.height
-            color: "#f2f2f4"
+            color: "#f1f6f5"
             opacity: 0.9
             z: 11
         }
@@ -284,19 +285,61 @@ ApplicationWindow {
             width: 28
             height: 28
             radius: 14
-            color: "#15151a"
-            border.color: "#f2f2f4"
+            color: "#151d25"
+            border.color: "#f1f6f5"
             border.width: 2
             z: 12
         }
 
-        // Startup hint when no media is loaded.
-        Label {
+        // Actionable empty state.
+        Column {
             anchors.centerIn: parent
             visible: !playback.hasMedia
-            text: "Press O to open videos, or P to show the playlist"
-            color: "#6a6a75"
-            font.pixelSize: 18
+            z: 8
+            spacing: 14
+            width: Math.min(420, Math.max(280, surfaceArea.width - 48))
+            Item {
+                width: parent.width; height: 68
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: 66; height: 66; radius: 18
+                    color: theme.surface
+                    border.color: theme.border
+                    VectorIcon {
+                        anchors.centerIn: parent
+                        width: 30; height: 30
+                        name: "folder-open"; color: theme.accent
+                    }
+                }
+            }
+            Text {
+                width: parent.width
+                text: "ANVIL PLAYER"
+                font.pixelSize: 22
+                font.weight: Font.DemiBold
+                horizontalAlignment: Text.AlignHCenter
+                color: theme.foreground
+            }
+            Text {
+                width: parent.width
+                text: "Open a video to start playback. The active processing backend is shown in the controls."
+                color: theme.secondary
+                font.pixelSize: 13
+                wrapMode: Text.WordWrap
+                horizontalAlignment: Text.AlignHCenter
+            }
+            Item {
+                width: parent.width; height: 46
+                IconButton {
+                    anchors.centerIn: parent
+                    width: 150; height: 42
+                    iconName: "folder-open"
+                    textLabel: "Open video"
+                    tooltip: "Open videos (O)"
+                    primary: true
+                    onClicked: openDialog.open()
+                }
+            }
         }
 
         // Whole-window mouse tracker: drives auto-hide. This MouseArea sits
@@ -373,7 +416,7 @@ ApplicationWindow {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        height: 92
+        height: 106
         z: 20
         opacity: chromeVisible ? 1.0 : 0.0
         visible: opacity > 0.01
@@ -387,8 +430,8 @@ ApplicationWindow {
             gradient: Gradient {
                 orientation: Gradient.Vertical
                 GradientStop { position: 0.0; color: "#00000000" }
-                GradientStop { position: 0.55; color: "#aa0a0a0c" }
-                GradientStop { position: 1.0; color: "#f0000000" }
+                GradientStop { position: 0.55; color: "#b00b1015" }
+                GradientStop { position: 1.0; color: "#f70b1015" }
             }
         }
 
@@ -417,11 +460,11 @@ ApplicationWindow {
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.leftMargin: 12
-            anchors.rightMargin: 12
-            anchors.topMargin: 4
-            anchors.bottomMargin: 8
-            spacing: 4
+            anchors.leftMargin: 18
+            anchors.rightMargin: 18
+            anchors.topMargin: 8
+            anchors.bottomMargin: 12
+            spacing: 9
             z: 1
 
             // --- top row: seek bar ---
@@ -430,8 +473,8 @@ ApplicationWindow {
                 spacing: 8
 
                 Label {
-                    text: formatTime(playback.positionUs)
-                    color: "#e8e8ee"
+                    text: seekBar.pressed ? formatTime(seekBar.value) : formatTime(playback.positionUs)
+                    color: "#f1f6f5"
                     font.pixelSize: 12
                     Layout.preferredWidth: 56
                     horizontalAlignment: Qt.AlignHCenter
@@ -445,15 +488,20 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     from: 0
                     to: Math.max(1, playback.durationUs)
-                    value: playback.positionUs
+                    value: 0
                     enabled: playback.hasMedia
 
                     onPressedChanged: {
-                        if (!pressed)
-                            playback.seekUs(Math.round(value))
+                        if (!pressed) playback.seekUs(Math.round(value))
                     }
-                    // Click-to-seek anywhere on the trough.
-                    onMoved: playback.seekUs(Math.round(value))
+                    // Preview the scrub position; request the seek only on release.
+                    Binding {
+                        target: seekBar
+                        property: "value"
+                        value: playback.positionUs
+                        when: !seekBar.pressed
+                        restoreMode: Binding.RestoreNone
+                    }
 
                     background: Rectangle {
                         x: seekBar.leftPadding
@@ -463,12 +511,12 @@ ApplicationWindow {
                         width: seekBar.availableWidth
                         height: implicitHeight
                         radius: 2
-                        color: "#2a2a32"
+                        color: "#293640"
 
                         Rectangle {
                             width: seekBar.visualPosition * parent.width
                             height: parent.height
-                            color: "#e44d3a"
+                            color: "#41d995"
                             radius: 2
                         }
                     }
@@ -480,15 +528,15 @@ ApplicationWindow {
                         implicitWidth: 14
                         implicitHeight: 14
                         radius: 7
-                        color: seekBar.pressed ? "#ffffff" : "#e8e8ee"
-                        border.color: "#e44d3a"
+                        color: seekBar.pressed ? "#ffffff" : "#f1f6f5"
+                        border.color: "#41d995"
                         border.width: 2
                     }
                 }
 
                 Label {
                     text: formatTime(playback.durationUs)
-                    color: "#b0b0bc"
+                    color: "#b5c5cd"
                     font.pixelSize: 12
                     Layout.preferredWidth: 56
                     horizontalAlignment: Qt.AlignHCenter
@@ -499,11 +547,11 @@ ApplicationWindow {
             // --- bottom row: buttons ---
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 6
+                spacing: 5
 
                 // Open file.
                 IconButton {
-                    glyph: "📁"
+                    iconName: "folder-open"
                     tooltip: "Open videos (O)"
                     onClicked: openDialog.open()
                     Layout.preferredWidth: 36
@@ -512,7 +560,7 @@ ApplicationWindow {
                 // Previous playlist item, or restart the current item when
                 // playback is more than three seconds in.
                 IconButton {
-                    glyph: "⏮"
+                    iconName: "skip-back"
                     tooltip: "Previous item (or restart)"
                     enabled: playback.hasMedia
                     onClicked: playback.previous()
@@ -521,44 +569,46 @@ ApplicationWindow {
 
                 // Skip back 10s.
                 IconButton {
-                    glyph: "⏪"
+                    iconName: "rewind"
                     tooltip: "Back 10s (Left)"
                     enabled: playback.hasMedia
                     onClicked: seekBy(-10000000)
                     Layout.preferredWidth: 36
                 }
 
-                // Frame step backward (pause first).
+                // Approximate source-frame step backward (pause first).
                 IconButton {
-                    glyph: "◁"
-                    tooltip: "Frame back (,)"
+                    iconName: "step-back"
+                    tooltip: "Previous frame (approximate, comma)"
                     enabled: playback.hasMedia
-                    onClicked: seekBy(-400000)  // ~1 frame at 25fps
-                    Layout.preferredWidth: 28
+                    onClicked: seekFrame(-1)
+                    Layout.preferredWidth: 32
+                    visible: window.width >= 1040
                 }
 
                 // Play/pause (wide, primary).
                 IconButton {
-                    glyph: playback.playing ? "❚❚" : "▶"
+                    iconName: playback.playing ? "pause" : "play"
                     tooltip: playback.playing ? "Pause (Space)" : "Play (Space)"
                     enabled: playback.hasMedia
                     primary: true
                     onClicked: playback.togglePlay()
-                    Layout.preferredWidth: 48
+                    Layout.preferredWidth: 52
                 }
 
-                // Frame step forward (pause first).
+                // Approximate source-frame step forward (pause first).
                 IconButton {
-                    glyph: "▷"
-                    tooltip: "Frame forward (.)"
+                    iconName: "step-forward"
+                    tooltip: "Next frame (approximate, period)"
                     enabled: playback.hasMedia
-                    onClicked: seekBy(400000)
-                    Layout.preferredWidth: 28
+                    onClicked: seekFrame(1)
+                    Layout.preferredWidth: 32
+                    visible: window.width >= 1040
                 }
 
                 // Skip forward 10s.
                 IconButton {
-                    glyph: "⏩"
+                    iconName: "fast-forward"
                     tooltip: "Forward 10s (Right)"
                     enabled: playback.hasMedia
                     onClicked: seekBy(10000000)
@@ -567,7 +617,7 @@ ApplicationWindow {
 
                 // Advance to the next playlist item without waiting for EOF.
                 IconButton {
-                    glyph: "⏭"
+                    iconName: "skip-forward"
                     tooltip: "Next item"
                     enabled: playback.hasNext
                     onClicked: playback.next()
@@ -576,52 +626,45 @@ ApplicationWindow {
 
                 // Volume mute toggle.
                 IconButton {
-                    glyph: playback.muted || playback.volume === 0 ? "🔇"
-                          : playback.volume < 50 ? "🔉" : "🔊"
+                    iconName: playback.muted || playback.volume === 0 ? "volume-x"
+                          : playback.volume < 50 ? "volume-low" : "volume-high"
                     tooltip: playback.muted ? "Unmute (M)" : "Mute (M)"
                     onClicked: playback.muted = !playback.muted
                     Layout.preferredWidth: 32
                 }
                 Slider {
+                    id: volumeBar
                     from: 0; to: 100
                     value: playback.volume
                     onMoved: playback.volume = value
-                    Layout.preferredWidth: 90
+                    Layout.preferredWidth: 94
+                    visible: window.width >= 920
                     enabled: true
                     background: Rectangle {
                         implicitHeight: 4
                         height: 4
                         radius: 2
-                        color: "#2a2a32"
+                        color: "#293640"
                         Rectangle {
-                            width: parent.visualPosition * parent.width
+                            width: volumeBar.visualPosition * parent.width
                             height: parent.height
-                            color: "#e8e8ee"
+                            color: "#f1f6f5"
                             radius: 2
                         }
                     }
                 }
 
                 IconButton {
-                    glyph: "☷ " + playback.playlistCount
+                    iconName: "playlist"
+                    textLabel: String(playback.playlistCount)
                     tooltip: "Playlist (P)"
-                    showLabel: true
                     onClicked: playlistPopup.open()
-                    Layout.preferredWidth: 68
+                    Layout.preferredWidth: 70
                 }
 
                 Item { Layout.fillWidth: true }
 
-                // Playback speed cycle.
-                IconButton {
-                    glyph: speedLabel(playbackRateIndex)
-                    tooltip: "Playback speed: " + playbackSpeeds[playbackRateIndex].toFixed(2) + "x ([])"
-                    onClicked: cyclePlaybackSpeed()
-                    Layout.preferredWidth: 64
-                    showLabel: true
-                }
-
-                // FSR preset quick selector (spec 05).
+                // Legacy FSR preset selector, not an ANVIL roster selector.
                 ComboBox {
                     id: presetCombo
                     model: fsr.presetOptions
@@ -636,22 +679,23 @@ ApplicationWindow {
                     onActivated: function(index) {
                         fsr.preset = currentValue
                     }
-                    Layout.preferredWidth: 220
+                    Layout.preferredWidth: Math.max(150, Math.min(205, window.width * 0.18))
+                    visible: window.width >= 1120
                 }
 
                 // Compare toggle.
                 IconButton {
-                    glyph: "⇄"
+                    iconName: "compare"
                     tooltip: "A/B compare (C)"
                     checked: compare.active
                     enabled: playback.hasMedia
                     onClicked: compare.active = !compare.active
-                    Layout.preferredWidth: 32
+                    Layout.preferredWidth: 38
                 }
 
                 // Fullscreen toggle.
                 IconButton {
-                    glyph: "⛶"
+                    iconName: window.visibility === Window.FullScreen ? "minimize" : "maximize"
                     tooltip: window.visibility === Window.FullScreen
                              ? "Exit fullscreen (F/Esc)" : "Fullscreen (F)"
                     checked: window.visibility === Window.FullScreen
@@ -662,7 +706,7 @@ ApplicationWindow {
 
                 // Settings gear button.
                 IconButton {
-                    glyph: "⚙"
+                    iconName: "settings"
                     tooltip: "Settings (Ctrl+,)"
                     onClicked: settingsDialog.show()
                     Layout.preferredWidth: 36
@@ -694,8 +738,8 @@ ApplicationWindow {
     Shortcut { sequence: "Left";  onActivated: seekBy(-10000000) }
     Shortcut { sequence: "Right"; onActivated: seekBy(10000000) }
     // Frame step (~1 frame @ 25fps). Always pauses first, like VLC.
-    Shortcut { sequence: ","; onActivated: { if (playback.playing) playback.togglePlay(); seekBy(-400000) } }
-    Shortcut { sequence: "."; onActivated: { if (playback.playing) playback.togglePlay(); seekBy(400000) } }
+    Shortcut { sequence: ","; onActivated: seekFrame(-1) }
+    Shortcut { sequence: "."; onActivated: seekFrame(1) }
     // Volume via arrow keys.
     Shortcut { sequence: "Up";   onActivated: playback.volume = Math.min(100, playback.volume + 5) }
     Shortcut { sequence: "Down"; onActivated: playback.volume = Math.max(0, playback.volume - 5) }
@@ -705,9 +749,6 @@ ApplicationWindow {
     Shortcut { sequence: "Ctrl+3"; onActivated: fsr.preset = 4 } // Balanced
     Shortcut { sequence: "Ctrl+4"; onActivated: fsr.preset = 5 } // Performance
     Shortcut { sequence: "Ctrl+5"; onActivated: fsr.preset = 6 } // Ultra Performance
-    // Playback speed cycle.
-    Shortcut { sequence: "["; onActivated: stepPlaybackSpeed(-1) }
-    Shortcut { sequence: "]"; onActivated: stepPlaybackSpeed(1) }
 
     // --- debug overlay (spec 05) ---
     Rectangle {
@@ -736,18 +777,18 @@ ApplicationWindow {
             anchors.margins: 12
             anchors.fill: parent
             spacing: 2
-            Label { text: "DEBUG (Ctrl+F)"; color: "#e44d3a"; font.pixelSize: 11; font.bold: true }
-            Label { text: "Source: " + debug.stats.sourceResolution; color: "#c8c8d0"; font.pixelSize: 11; font.family: "monospace" }
-            Label { text: "FSR target: " + debug.stats.fsrTargetResolution; color: "#c8c8d0"; font.pixelSize: 11; font.family: "monospace" }
-            Label { text: "Window: " + debug.stats.windowResolution; color: "#c8c8d0"; font.pixelSize: 11; font.family: "monospace" }
-            Label { text: "Backend: " + debug.stats.backend; color: "#c8c8d0"; font.pixelSize: 11; font.family: "monospace" }
-            Label { text: "Preset: " + debug.stats.preset; color: "#c8c8d0"; font.pixelSize: 11; font.family: "monospace" }
-            Label { text: "Video FPS: " + debug.stats.videoFps + " (preserved)"; color: "#c8c8d0"; font.pixelSize: 11; font.family: "monospace" }
-            Label { text: "Frame PTS: " + debug.stats.framePts; color: "#c8c8d0"; font.pixelSize: 11; font.family: "monospace" }
-            Label { text: "History resets: " + debug.stats.historyResets; color: "#c8c8d0"; font.pixelSize: 11; font.family: "monospace" }
-            Label { text: "Scene cuts: " + debug.stats.sceneCutsDetected; color: "#c8c8d0"; font.pixelSize: 11; font.family: "monospace" }
-            Label { text: "Motion confidence: " + debug.stats.motionConfidence.toFixed(3); color: "#c8c8d0"; font.pixelSize: 11; font.family: "monospace" }
-            Label { text: "Reactive avg: " + debug.stats.reactiveAverage.toFixed(3); color: "#c8c8d0"; font.pixelSize: 11; font.family: "monospace" }
+            Label { text: "DEBUG (Ctrl+F)"; color: "#41d995"; font.pixelSize: 11; font.bold: true }
+            Label { text: "Source: " + debug.stats.sourceResolution; color: "#b5c5cd"; font.pixelSize: 11; font.family: "monospace" }
+            Label { text: "FSR target: " + debug.stats.fsrTargetResolution; color: "#b5c5cd"; font.pixelSize: 11; font.family: "monospace" }
+            Label { text: "Window: " + debug.stats.windowResolution; color: "#b5c5cd"; font.pixelSize: 11; font.family: "monospace" }
+            Label { text: "Backend: " + debug.stats.backend; color: "#b5c5cd"; font.pixelSize: 11; font.family: "monospace" }
+            Label { text: "Preset: " + debug.stats.preset; color: "#b5c5cd"; font.pixelSize: 11; font.family: "monospace" }
+            Label { text: "Video FPS: " + debug.stats.videoFps + " (preserved)"; color: "#b5c5cd"; font.pixelSize: 11; font.family: "monospace" }
+            Label { text: "Frame PTS: " + debug.stats.framePts; color: "#b5c5cd"; font.pixelSize: 11; font.family: "monospace" }
+            Label { text: "History resets: " + debug.stats.historyResets; color: "#b5c5cd"; font.pixelSize: 11; font.family: "monospace" }
+            Label { text: "Scene cuts: " + debug.stats.sceneCutsDetected; color: "#b5c5cd"; font.pixelSize: 11; font.family: "monospace" }
+            Label { text: "Motion confidence: " + debug.stats.motionConfidence.toFixed(3); color: "#b5c5cd"; font.pixelSize: 11; font.family: "monospace" }
+            Label { text: "Reactive avg: " + debug.stats.reactiveAverage.toFixed(3); color: "#b5c5cd"; font.pixelSize: 11; font.family: "monospace" }
         }
     }
 
@@ -778,15 +819,15 @@ ApplicationWindow {
             anchors.margins: 12
             anchors.fill: parent
             spacing: 4
-            Label { text: "MEDIA INFO (Ctrl+I)"; color: "#e44d3a"; font.pixelSize: 11; font.bold: true }
-            Label { text: "File: " + playback.mediaTitle; color: "#c8c8d0"; font.pixelSize: 11 }
+            Label { text: "MEDIA INFO (Ctrl+I)"; color: "#41d995"; font.pixelSize: 11; font.bold: true }
+            Label { text: "File: " + playback.mediaTitle; color: "#b5c5cd"; font.pixelSize: 11 }
             Label { text: "Container: " + playback.mediaInfo.container; color: "#9a9aa5"; font.pixelSize: 10 }
             Label { text: "Video: " + playback.mediaInfo.videoCodec + " " + playback.mediaInfo.width + "x" + playback.mediaInfo.height; color: "#9a9aa5"; font.pixelSize: 10 }
             Label { text: "FPS: " + playback.mediaInfo.fps + " (preserved)"; color: "#9a9aa5"; font.pixelSize: 10 }
             Label { text: "Audio: " + playback.mediaInfo.audioCodec + " " + playback.mediaInfo.sampleRate + "Hz"; color: "#9a9aa5"; font.pixelSize: 10 }
             Label { text: " "; color: "#9a9aa5"; font.pixelSize: 6 }
-            Label { text: "FSR CHAIN"; color: "#e44d3a"; font.pixelSize: 11; font.bold: true }
-            Label { text: fsr.chainLabel; color: "#c8c8d0"; font.pixelSize: 10; wrapMode: Text.Wrap; width: parent.width - 24 }
+            Label { text: "FSR CHAIN"; color: "#41d995"; font.pixelSize: 11; font.bold: true }
+            Label { text: fsr.chainLabel; color: "#b5c5cd"; font.pixelSize: 10; wrapMode: Text.Wrap; width: parent.width - 24 }
             Label { text: "Backend: " + fsr.backendLabel; color: "#9a9aa5"; font.pixelSize: 10 }
         }
     }
@@ -812,28 +853,15 @@ ApplicationWindow {
         }
     }
 
-    // --- playback speed state ---
-    // Standard player speeds: 0.25x through 2x in fine steps. Index 3 = 1x.
-    // NOTE: the engine's PTS pacing still honors wall-clock between frames;
-    // surfacing the chosen speed in the UI today and the actual rate control
-    // is a tracked follow-up. The control is intentionally kept honest — it
-    // shows what speed you have selected rather than implying the engine is
-    // already honoring it.
-    property var playbackSpeeds: [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
-    property int playbackRateIndex: 3
-
-    function speedLabel(idx) {
-        const v = playbackSpeeds[idx]
-        if (v === 1.0) return "1.00x"
-        return v.toFixed(2) + "x"
-    }
-    function cyclePlaybackSpeed() { stepPlaybackSpeed(1) }
-    function stepPlaybackSpeed(delta) {
-        playbackRateIndex = Math.max(0,
-            Math.min(playbackSpeeds.length - 1, playbackRateIndex + delta))
-    }
-
     // --- helpers ---
+    // Approximate source-frame stepping; seekUs is not an exact-frame stepping API.
+    function seekFrame(direction) {
+        if (!playback.hasMedia) return
+        if (playback.playing) playback.togglePlay()
+        const fps = Number(playback.mediaInfo.fps)
+        seekBy(direction * Math.round(1000000 / (fps > 0 ? fps : 25)))
+    }
+
     function seekBy(deltaUs) {
         if (!playback.hasMedia) return
         const target = Math.max(0,
