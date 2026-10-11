@@ -473,7 +473,7 @@ ApplicationWindow {
                 spacing: 8
 
                 Label {
-                    text: seekBar.pressed ? formatTime(seekBar.value) : formatTime(playback.positionUs)
+                    text: seekBar.pressed ? formatTime(seekBar.scrubTarget) : formatTime(playback.positionUs)
                     color: "#f1f6f5"
                     font.pixelSize: 12
                     Layout.preferredWidth: 56
@@ -485,6 +485,7 @@ ApplicationWindow {
                 // on the trough and drag the handle to scrub.
                 Slider {
                     id: seekBar
+                    property real scrubTarget: 0
                     Layout.fillWidth: true
                     from: 0
                     to: Math.max(1, playback.durationUs)
@@ -492,8 +493,10 @@ ApplicationWindow {
                     enabled: playback.hasMedia
 
                     onPressedChanged: {
-                        if (!pressed) playback.seekUs(Math.round(value))
+                        if (pressed) scrubTarget = value
+                        else playback.seekUs(Math.round(scrubTarget))
                     }
+                    onMoved: scrubTarget = value
                     // Preview the scrub position; request the seek only on release.
                     Binding {
                         target: seekBar
