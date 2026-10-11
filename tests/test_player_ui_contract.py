@@ -48,7 +48,8 @@ def test_all_static_vector_icon_names_are_drawn():
     icons = source("VectorIcon.qml")
     names = set(re.findall(r'n === "([^"]+)"', icons))
     candidates = set(re.findall(r'iconName: "([^"]+)"', source("Main.qml")))
-    candidates |= set(re.findall(r'name: "([^"]+)"', source("SettingsDialog.qml")))
+    candidates |= set(re.findall(r'(?m)^\s*name: "([^"]+)"', source("SettingsDialog.qml")))
+    candidates |= set(re.findall(r'iconName: "([^"]+)"', source("SettingsDialog.qml")))
     candidates |= {"play", "pause", "volume-x", "volume-low", "volume-high",
                    "maximize", "minimize", "folder-open"}
     assert candidates <= names, sorted(candidates - names)
