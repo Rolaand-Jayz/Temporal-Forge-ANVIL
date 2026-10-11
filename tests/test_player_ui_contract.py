@@ -38,9 +38,12 @@ def test_transport_ui_does_not_pretend_to_control_playback_speed():
     assert "playbackSpeeds" not in ui
     assert "stepPlaybackSpeed(" not in ui
     assert "onMoved: playback.seekUs" not in ui
-    assert "function seekFrame(direction)" in ui
-    assert "onClicked: seekFrame(-1)" in ui
-    assert "onClicked: seekFrame(1)" in ui
+    # A seek did not display a new frame while paused. Do not label it
+    # as frame stepping until the playback engine has true single-step support.
+    assert "function seekFrame(direction)" not in ui
+    assert "onClicked: seekFrame(" not in ui
+    assert 'sequence: ","' not in ui
+    assert 'sequence: "."' not in ui
 
 
 def test_all_static_vector_icon_names_are_drawn():
@@ -53,3 +56,25 @@ def test_all_static_vector_icon_names_are_drawn():
     candidates |= {"play", "pause", "volume-x", "volume-low", "volume-high",
                    "maximize", "minimize", "folder-open"}
     assert candidates <= names, sorted(candidates - names)
+
+
+def test_comparison_swap_and_divider_are_wired_to_rendering():
+    ui = source("Main.qml")
+    assert "x: compare.rawOnLeft ? 0" in ui
+    assert "width: compare.rawOnLeft ? surfaceArea.width" in ui
+    assert "x: -compareRawPane.x" in ui
+    assert "id: compareDividerDrag" in ui
+    assert "anchors.fill: parent\n            enabled: compare.active" not in ui
+    assert "PLAYER OUTPUT" in ui and "SOURCE" in ui
+
+
+def test_canvas_redraw_clears_previous_icon():
+    icons = source("VectorIcon.qml")
+    assert "ctx.reset()" in icons
+    assert "ctx.clearRect(0, 0, width, height)" in icons
+
+
+def test_hud_does_not_reuse_stale_fsr_timing_when_disabled():
+    hud = source("LiveHud.qml")
+    assert 'if (!playback.fsr4Active) return source + "  ·  FSR INACTIVE"' in hud
+    assert "FSR 4.1 RE" in hud
