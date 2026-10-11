@@ -20,6 +20,7 @@ Item {
         onPaint: {
             const ctx = getContext("2d")
             ctx.reset()
+            ctx.clearRect(0, 0, width, height) // Remove the prior glyph on state change.
             ctx.scale(width / 24, height / 24)
             ctx.strokeStyle = root.color
             ctx.fillStyle = root.color

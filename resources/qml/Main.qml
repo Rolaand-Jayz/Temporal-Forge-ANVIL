@@ -208,28 +208,31 @@ ApplicationWindow {
             compareRawOnLeft: false
         }
 
+        // Render raw at full viewport geometry and clip at the divider.
+        // The controller's swapSides() must actually change which side is raw.
         Item {
             id: compareRawPane
-            anchors.left: parent.left
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            width: parent.width * compare.splitPosition
+            x: compare.rawOnLeft ? 0 : surfaceArea.width * compare.splitPosition
+            y: 0
+            width: compare.rawOnLeft ? surfaceArea.width * compare.splitPosition
+                                     : surfaceArea.width * (1.0 - compare.splitPosition)
+            height: surfaceArea.height
             visible: playback.hasMedia && compare.active
             clip: true
             z: 1
 
             VideoSurface {
                 id: compareRawSurface
-                width: compareRawPane.parent.width
-                height: compareRawPane.parent.height
+                x: -compareRawPane.x
+                width: surfaceArea.width
+                height: surfaceArea.height
                 brightness: videoSettings.brightness
                 contrast: videoSettings.contrast
                 saturation: videoSettings.saturation
                 hue: videoSettings.hue
                 gamma: videoSettings.gamma
                 presentationScaler: videoSettings.presentationScaler
-                compareActive: true
-                compareRawOnLeft: true
+                compareActive: false
                 rawOnly: true
             }
         }
@@ -251,20 +254,27 @@ ApplicationWindow {
             }
         }
 
-        // Compare divider drag handle (visible only in compare mode).
+        // Only the divider is draggable; the rest of the video still receives
+        // the normal click-to-pause and right-click context-menu interactions.
         MouseArea {
-            anchors.fill: parent
-            enabled: compare.active
-            z: 10
-            cursorShape: compare.active ? Qt.SplitHCursor : Qt.ArrowCursor
-            onPressed: function(mouse) {
-                // Clicking anywhere moves the divider there.
-                compare.splitPosition = mouse.x / parent.width
+            id: compareDividerDrag
+            visible: playback.hasMedia && compare.active
+            enabled: visible
+            x: surfaceArea.width * compare.splitPosition - width / 2
+            y: 0
+            width: 34
+            height: surfaceArea.height
+            z: 13
+            hoverEnabled: true
+            cursorShape: Qt.SplitHCursor
+            function updateSplit(mouse) {
+                const point = mapToItem(surfaceArea, mouse.x, mouse.y)
+                compare.splitPosition = Math.max(0, Math.min(1, point.x / surfaceArea.width))
             }
-            onPositionChanged: function(mouse) {
-                if (pressed)
-                    compare.splitPosition = Math.max(0, Math.min(1, mouse.x / parent.width))
-            }
+            onPressed: function(mouse) { updateSplit(mouse) }
+            onPositionChanged: function(mouse) { if (pressed) updateSplit(mouse) }
+            onEntered: { chromeVisible = true; hideTimer.stop() }
+            onExited: hideTimer.restart()
         }
 
         Rectangle {
@@ -273,8 +283,8 @@ ApplicationWindow {
             y: 0
             width: 2
             height: parent.height
-            color: "#f1f6f5"
-            opacity: 0.9
+            color: theme.accent
+            opacity: 0.95
             z: 11
         }
 
@@ -286,9 +296,50 @@ ApplicationWindow {
             height: 28
             radius: 14
             color: "#151d25"
-            border.color: "#f1f6f5"
+            border.color: theme.accent
             border.width: 2
             z: 12
+            VectorIcon {
+                anchors.centerIn: parent
+                width: 17; height: 17
+                name: "compare"
+                color: theme.foreground
+            }
+        }
+
+        // A/B annotations describe what the player actually displays. ANVIL
+        // processing is not currently connected to the real-time player.
+        Rectangle {
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.margins: 16
+            visible: playback.hasMedia && compare.active
+            width: 116; height: 28; radius: 7
+            color: theme.surface
+            opacity: 0.93
+            z: 9
+            Text {
+                anchors.centerIn: parent
+                color: theme.foreground
+                text: compare.rawOnLeft ? "SOURCE" : "PLAYER OUTPUT"
+                font.pixelSize: 10; font.weight: Font.DemiBold
+            }
+        }
+        Rectangle {
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 16
+            visible: playback.hasMedia && compare.active
+            width: 116; height: 28; radius: 7
+            color: theme.surface
+            opacity: 0.93
+            z: 9
+            Text {
+                anchors.centerIn: parent
+                color: theme.foreground
+                text: compare.rawOnLeft ? "PLAYER OUTPUT" : "SOURCE"
+                font.pixelSize: 10; font.weight: Font.DemiBold
+            }
         }
 
         // Actionable empty state.
@@ -579,16 +630,6 @@ ApplicationWindow {
                     Layout.preferredWidth: 36
                 }
 
-                // Approximate source-frame step backward (pause first).
-                IconButton {
-                    iconName: "step-back"
-                    tooltip: "Previous frame (approximate, comma)"
-                    enabled: playback.hasMedia
-                    onClicked: seekFrame(-1)
-                    Layout.preferredWidth: 32
-                    visible: window.width >= 1040
-                }
-
                 // Play/pause (wide, primary).
                 IconButton {
                     iconName: playback.playing ? "pause" : "play"
@@ -597,16 +638,6 @@ ApplicationWindow {
                     primary: true
                     onClicked: playback.togglePlay()
                     Layout.preferredWidth: 52
-                }
-
-                // Approximate source-frame step forward (pause first).
-                IconButton {
-                    iconName: "step-forward"
-                    tooltip: "Next frame (approximate, period)"
-                    enabled: playback.hasMedia
-                    onClicked: seekFrame(1)
-                    Layout.preferredWidth: 32
-                    visible: window.width >= 1040
                 }
 
                 // Skip forward 10s.
@@ -735,15 +766,12 @@ ApplicationWindow {
     // Screenshot + clipboard capture (real, via ScreenCaptureController).
     Shortcut { sequence: "Ctrl+S"; onActivated: capture.captureToFile(playback, playback.mediaTitle) }
     Shortcut { sequence: "Ctrl+Shift+C"; onActivated: capture.captureToClipboard(playback) }
-    Shortcut { sequence: "C"; onActivated: compare.active = !compare.active }
+    Shortcut { sequence: "C"; onActivated: if (playback.hasMedia) compare.active = !compare.active }
     Shortcut { sequence: "H"; onActivated: liveHud.hudVisible = !liveHud.hudVisible }
     // Seek by 10s.
     Shortcut { sequence: "Left";  onActivated: seekBy(-10000000) }
     Shortcut { sequence: "Right"; onActivated: seekBy(10000000) }
-    // Frame step (~1 frame @ 25fps). Always pauses first, like VLC.
-    Shortcut { sequence: ","; onActivated: seekFrame(-1) }
-    Shortcut { sequence: "."; onActivated: seekFrame(1) }
-    // Volume via arrow keys.
+    // Frame stepping is not exposed until the engine can advance a paused frame.    // Volume via arrow keys.
     Shortcut { sequence: "Up";   onActivated: playback.volume = Math.min(100, playback.volume + 5) }
     Shortcut { sequence: "Down"; onActivated: playback.volume = Math.max(0, playback.volume - 5) }
     // spec 05 FSR preset shortcuts
@@ -829,7 +857,7 @@ ApplicationWindow {
             Label { text: "FPS: " + playback.mediaInfo.fps + " (preserved)"; color: "#9a9aa5"; font.pixelSize: 10 }
             Label { text: "Audio: " + playback.mediaInfo.audioCodec + " " + playback.mediaInfo.sampleRate + "Hz"; color: "#9a9aa5"; font.pixelSize: 10 }
             Label { text: " "; color: "#9a9aa5"; font.pixelSize: 6 }
-            Label { text: "FSR CHAIN"; color: "#41d995"; font.pixelSize: 11; font.bold: true }
+            Label { text: "LEGACY PLAYER PIPELINE"; color: "#41d995"; font.pixelSize: 11; font.bold: true }
             Label { text: fsr.chainLabel; color: "#b5c5cd"; font.pixelSize: 10; wrapMode: Text.Wrap; width: parent.width - 24 }
             Label { text: "Backend: " + fsr.backendLabel; color: "#9a9aa5"; font.pixelSize: 10 }
         }
@@ -857,14 +885,6 @@ ApplicationWindow {
     }
 
     // --- helpers ---
-    // Approximate source-frame stepping; seekUs is not an exact-frame stepping API.
-    function seekFrame(direction) {
-        if (!playback.hasMedia) return
-        if (playback.playing) playback.togglePlay()
-        const fps = Number(playback.mediaInfo.fps)
-        seekBy(direction * Math.round(1000000 / (fps > 0 ? fps : 25)))
-    }
-
     function seekBy(deltaUs) {
         if (!playback.hasMedia) return
         const target = Math.max(0,
