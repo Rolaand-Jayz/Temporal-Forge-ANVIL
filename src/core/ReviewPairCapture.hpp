@@ -164,12 +164,13 @@ public:
             {"anvil_stage_ms", meta.anvilStageMs},
             {"fsr_dispatch_ms", meta.fsrDispatchMs},
             {"verified_same_frame", true},
+            {"anvil_live_profile", "causal_cpu_previous_frame_v1"},
             {"baseline_presentation", "GPU YUV-to-RGBA then Lanczos display-grid alignment"},
             {"a", arm("baseline", "anvil_baseline.png", shaA,
-                "ANVIL baseline", "ANVIL reconstructed frame + Lanczos presentation", "baseline")},
+                "ANVIL baseline", "ANVIL causal live reconstruction v1 + Lanczos presentation", "baseline")},
             {"b", arm("fsr41", "anvil_plus_fsr41.png", shaB,
                 "ANVIL baseline + FSR 4.1 — tryout",
-                "ANVIL reconstructed frame → FSR4.1 RE → presentation", "tryout")}};
+                "ANVIL causal live reconstruction v1 → FSR4.1 RE → presentation", "tryout")}};
         QSaveFile out(QDir(target).filePath("manifest.json"));
         if (!out.open(QIODevice::WriteOnly)) {
             QFile::remove(pathA); QFile::remove(pathB);

@@ -31,6 +31,7 @@ def pair(root, frame=48):
     manifest = {
         "schema": "anvil-visual-pair-v1",
         "verified_same_frame": True,
+        "anvil_live_profile": "causal_cpu_previous_frame_v1",
         "frame_index": frame, "pts_us": frame * 33333, "pts_ticks": frame,
         "tb_num": 1, "tb_den": 30, "source_width": 1, "source_height": 1,
         "output_width": 2, "output_height": 2,
