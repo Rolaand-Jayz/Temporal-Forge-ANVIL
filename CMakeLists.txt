@@ -284,6 +284,10 @@ target_link_directories(anvil_lib PUBLIC ${FFMPEG_LIBRARY_DIRS})
 target_include_directories(anvil_lib PUBLIC ${FFMPEG_INCLUDE_DIRS})
 target_link_libraries(anvil_lib PUBLIC Threads::Threads)
 
+# The existing player can opt into ANVIL's causal live stage before FSR.
+# The ANVIL runner remains Qt- and Vulkan-independent.
+target_link_libraries(temporal_forge_lib PUBLIC anvil_lib)
+
 add_executable(anvil_runner tools/anvil/main.cpp)
 target_include_directories(anvil_runner PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_compile_features(anvil_runner PRIVATE cxx_std_23)
