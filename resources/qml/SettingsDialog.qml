@@ -31,15 +31,15 @@ ApplicationWindow {
     PlayerTheme { id: theme }
 
     // Reusable styling tokens — keep the whole dialog visually consistent.
-    readonly property color cBg: "#0b1015"
-    readonly property color cSurface: "#151d25"
-    readonly property color cSurface2: "#1b2630"
-    readonly property color cAccent: "#41d995"
-    readonly property color cAccentDim: "#193d34"
-    readonly property color cText: "#f1f6f5"
-    readonly property color cTextDim: "#b5c5cd"
-    readonly property color cTextMuted: "#81949e"
-    readonly property color cWarn: "#e8b35b"
+    readonly property color cBg: theme.background
+    readonly property color cSurface: theme.surface
+    readonly property color cSurface2: theme.surfaceRaised
+    readonly property color cAccent: theme.accent
+    readonly property color cAccentDim: theme.accentTint
+    readonly property color cText: theme.foreground
+    readonly property color cTextDim: theme.secondary
+    readonly property color cTextMuted: theme.muted
+    readonly property color cWarn: theme.warning
 
     // Tab definitions.
     ListModel {
