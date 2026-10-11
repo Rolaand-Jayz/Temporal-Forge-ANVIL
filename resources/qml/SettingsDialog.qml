@@ -378,8 +378,8 @@ ApplicationWindow {
 
                     // ============ Upscaler ============
                     SettingsPane {
-                        title: "Upscaler"
-                        subtitle: "FSR4 RE-derived INT8 backend. Pick the quality preset; the live status is shown below."
+                        title: "Playback Backend"
+                        subtitle: "Legacy FSR controls for the existing player. Only experimental FSR 4.1 is connected to the live Vulkan dispatch; other selections disable it. ANVIL reconstruction and rosters are not yet connected."
 
                         SettingsSection {
                             title: "Backend"
@@ -497,11 +497,11 @@ ApplicationWindow {
                                     anchors.left: parent.left; anchors.leftMargin: 12
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: {
-                                        if (fsr.backend !== 3) return "FSR4: not selected (passthrough)"
+                                        if (fsr.backend !== 3) return "FSR4: inactive (decoded playback)"
                                         if (playback.fsr4Active && playback.lastFsr4DispatchMs > 0)
                                             return "FSR4: active • dispatch " + playback.lastFsr4DispatchMs.toFixed(1) + " ms"
                                         if (playback.fsr4Active) return "FSR4: active • waiting for dispatch"
-                                        if (playback.fsr4Enabled) return "FSR4: enabled • initializing"
+                                        if (playback.fsr4Enabled) return "FSR4: enabled • not yet dispatching"
                                         return "FSR4: selected • enabling on playback"
                                     }
                                     color: fsr.backend === 3 ? "#39d353" : settingsWindow.cTextMuted
@@ -597,7 +597,6 @@ ApplicationWindow {
                                     { key: "M",          action: "Mute" },
                                     { key: "↑ / ↓",      action: "Volume up / down" },
                                     { key: "← / →",      action: "Seek −10s / +10s" },
-                                    { key: ", / .",      action: "Approximate frame step" },
                                     { key: "C",          action: "Toggle A/B compare" },
                                     { key: "H",          action: "Toggle enhancement HUD" },
                                     { key: "Ctrl+S",     action: "Save screenshot" },

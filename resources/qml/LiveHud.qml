@@ -14,7 +14,7 @@ Rectangle {
     anchors.bottomMargin: 120
     anchors.right: parent.right
     anchors.rightMargin: 12
-    width: hudText.implicitWidth + 34
+    width: Math.min(hudText.implicitWidth + 34, Math.max(180, parent.width - 32))
     height: 28
     color: "#101b22"
     opacity: 0.92
@@ -31,10 +31,10 @@ Rectangle {
             width: 7; height: 7; radius: 4
             anchors.verticalCenter: parent.verticalCenter
             color: {
-                if (!playback.hasMedia) return "#555560"
+                if (!playback.hasMedia) return "#81949e"
                 if (playback.fsr4Active && playback.fsr4ProofPassed) return "#41d995"
                 if (playback.fsr4Active) return "#e8b35b"
-                return "#6a6a75"
+                return "#81949e"
             }
         }
 
@@ -42,16 +42,18 @@ Rectangle {
             id: hudText
             text: {
                 if (!playback.hasMedia) return ""
-                var res = fsr.sourceWidth + "x" + fsr.sourceHeight
-                if (playback.fsr4Active && playback.fsr4OutputWidth > 0)
-                    res += " → " + playback.fsr4OutputWidth + "x" + playback.fsr4OutputHeight
+                const source = fsr.sourceWidth + "x" + fsr.sourceHeight
+                if (!playback.fsr4Active) return source + "  ·  FSR INACTIVE"
+                let res = source + "  →  " + playback.fsr4OutputWidth + "x" + playback.fsr4OutputHeight
                 if (playback.lastFsr4DispatchMs > 0)
-                    res += "  " + playback.lastFsr4DispatchMs.toFixed(1) + "ms"
-                return res
+                    res += "  ·  " + playback.lastFsr4DispatchMs.toFixed(1) + " ms"
+                return "FSR 4.1 RE  ·  " + res
             }
             color: "#b5c5cd"
             font.pixelSize: 11
             font.family: "monospace"
+            width: Math.max(0, hud.width - 34)
+            elide: Text.ElideRight
         }
     }
 }
