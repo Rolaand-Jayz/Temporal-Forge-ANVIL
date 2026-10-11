@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - feature/anvil-home-field-rebuild
   push:
     branches:
       - main
