@@ -501,3 +501,7 @@ if(ANVIL_PYTHON3 AND FFMPEG_ANVIL_FOUND AND FFMPEG_BIN)
 elseif(NOT ANVIL_PYTHON3)
     message(STATUS "ANVIL: python3 not found; anvil_provenance_rebuild_regression disabled")
 endif()
+
+# ANVIL causal live-stage contract: genuine decoded-frame input, no disk I/O.
+tforge_add_test(anvil_live_frame_tests SOURCES anvil_live_frame_tests.cpp)
+target_link_libraries(anvil_live_frame_tests PRIVATE anvil_lib)
