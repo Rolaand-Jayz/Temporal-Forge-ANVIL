@@ -1,6 +1,8 @@
 // PlaybackEngine.cpp
 #include "core/PlaybackEngine.hpp"
 #include "anvil/LiveFrameProcessor.hpp"
+#include "anvil/BuildProvenance.hpp"
+#include "core/ReviewPairCapture.hpp"
 #include "backend/GpuCapabilityProbe.hpp"
 #include "backend/WeightBlob.hpp"
 #include "core/PlaylistAdvancement.hpp"
@@ -2111,6 +2113,12 @@ bool PlaybackEngine::openUrlInternal(const QUrl &url) {
          qualityLabConfig_.motion.mode != MotionEstimatorMode::Off) ||
          userNeedsCodecMotion))
       vdec_->setMotionMetadataRequested(true);
+    // The current ANVIL causal CPU algorithm requires software YUV planes.
+    // VAAPI would bypass every requested review frame rather than produce
+    // legitimate ANVIL evidence. Force software decode only in opt-in mode.
+    if (const char* stage = std::getenv("ANVIL_LIVE_PRE_FSR");
+        stage && std::strcmp(stage, "1") == 0)
+      vdec_->setMotionMetadataRequested(true);
     if (!vdec_->open(demux_->ctx(), info.videoIndex))
       vdec_.reset();
   }
@@ -2462,6 +2470,10 @@ void PlaybackEngine::videoDecodeLoop() {
     return ms;
   }();
   anvil::LiveFrameProcessor anvilLive(anvilBudgetMs);
+  anvil::ReviewPairCapture reviewPair = anvil::ReviewPairCapture::fromEnvironment();
+  const bool reviewCaptureEnabled = anvilLiveEnabled && reviewPair.enabled();
+  if (reviewPair.enabled() && !anvilLiveEnabled)
+    logWarn("ANVIL review capture requires ANVIL_LIVE_PRE_FSR=1; no pair will be published");
   bool anvilBudgetWarningEmitted = false;
   uint64_t anvilReconstructedFrames = 0;
   if (anvilLiveEnabled)
@@ -2913,9 +2925,14 @@ void PlaybackEngine::videoDecodeLoop() {
       // Source pixels pass through unchanged on unsupported formats, seek,
       // no correspondence or a missed stage deadline. Timestamp, color,
       // codec motion side data, and frame identity remain decoder-owned.
+      bool anvilReconstructedThisFrame = false;
+      double anvilStageElapsedMs = 0.0;
       if (anvilLiveEnabled) {
         const auto liveResult = anvilLive.process(df, reset);
-        if (liveResult.status == anvil::LiveFrameStatus::Reconstructed) {
+        anvilStageElapsedMs = liveResult.elapsedMs;
+        anvilReconstructedThisFrame =
+            liveResult.status == anvil::LiveFrameStatus::Reconstructed;
+        if (anvilReconstructedThisFrame) {
           ++anvilReconstructedFrames;
           if (anvilReconstructedFrames == 1 || anvilReconstructedFrames % 300 == 0)
             logInfo("ANVIL causal live stage: frames={} last_ms={} valid_samples={}",
@@ -4097,7 +4114,8 @@ void PlaybackEngine::videoDecodeLoop() {
                                     ? 2u
                                     : 0u;
 
-            const bool runAsync = asyncSlots && !dumpOutputEnv &&
+            const bool runAsync = asyncSlots && !reviewCaptureEnabled &&
+                                  !dumpOutputEnv &&
                                   !dumpPresentationEnv &&
                                   !dumpSequenceLimit && !dumpDecoderEnv &&
                                   !dumpRawEnv && !dumpModelInputEnv;
@@ -4326,6 +4344,53 @@ void PlaybackEngine::videoDecodeLoop() {
               // every temporal state chain.
               for (size_t pass = 0; pass < passCount; ++pass)
                 uploaderAt(pass)->advanceHistory();
+
+              // Pair from ONE verified ANVIL-processed source frame; raw
+              // uploader and completed FSR presentation share its identity.
+              // Fail closed on interpolated inputs, bypasses, or readback
+              // failure. Capturing deliberately stalls this experimental
+              // frame; never enable it during normal throughput tests.
+              if (reviewCaptureEnabled && reviewPair.wants(fsrFrame->frameIndex)) {
+                if (fsrFrame != &df || !anvilReconstructedThisFrame ||
+                    nativePassthrough) {
+                  logWarn("ANVIL review frame={} skipped: not a matched "
+                          "reconstructed+FSR source frame", fsrFrame->frameIndex);
+                } else {
+                  std::vector<uint8_t> baseRgba, fsrRgba;
+                  uint32_t baseW=0, baseH=0, finalW=0, finalH=0;
+                  const bool baseOk = firstUploader->readbackRaw(
+                      baseRgba, baseW, baseH);
+                  const bool fsrOk = presentationUploader->readbackPresentation(
+                      fsrRgba, finalW, finalH);
+                  if (!baseOk || !fsrOk) {
+                    logWarn("ANVIL review frame={} GPU readback failed "
+                            "(raw={} FSR={})", df.frameIndex, baseOk, fsrOk);
+                  } else {
+                    const QVariantMap media = mediaInfoQml();
+                    anvil::ReviewFrameMeta meta;
+                    meta.frameIndex = df.frameIndex;
+                    meta.ptsUs = df.ptsUs;
+                    meta.ptsTicks = df.ptsTicks;
+                    meta.tbNum = df.tbNum;
+                    meta.tbDen = df.tbDen;
+                    meta.sourceW = df.width;
+                    meta.sourceH = df.height;
+                    meta.anvilStageMs = anvilStageElapsedMs;
+                    meta.fsrDispatchMs = chainDispatchMs;
+                    meta.sourceId = media.value("path").toString().toStdString();
+                    meta.gitSha = anvil::buildprov::gitSha
+                                    ? anvil::buildprov::gitSha : "";
+                    QString error;
+                    if (reviewPair.save(meta, baseRgba, baseW, baseH,
+                                        fsrRgba, finalW, finalH, &error))
+                      logInfo("ANVIL review frame={} pair saved at {}x{}",
+                              df.frameIndex, finalW, finalH);
+                    else
+                      logWarn("ANVIL review frame={} pair rejected: {}",
+                              df.frameIndex, error.toStdString());
+                  }
+                }
+              }
             }
 
             static uint32_t fsrFrameCounter = 0;
