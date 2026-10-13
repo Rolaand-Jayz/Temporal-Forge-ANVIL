@@ -15,12 +15,12 @@
 <main class="workspace">
   <section class="intro">
     <div><span class="eyebrow">HOME FIELD / IMAGE INSPECTION</span><h1>Same frame. <em>Two pipelines.</em></h1></div>
-    <div class="intro-side">ANVIL baseline <span class="arrow">→</span> ANVIL + FSR 4.1<br><span class="muted">Matched presentation resolution. No unverified samples.</span></div>
+    <div class="intro-side">ANVIL causal live subset v1 <span class="arrow">→</span> causal live subset + FSR 4.1<br><span class="muted">Matched display resolution. Authenticated capture required; GPU origin awaits independent acceptance.</span></div>
   </section>
   <section class="card viewer">
     <div class="viewer-top">
-      <div class="field"><label for="frameSelect">CAPTURED FRAME</label><select id="frameSelect" aria-label="Select a verified capture"></select></div>
-      <div class="capture-identity" id="frameIdentity">No verified pairs yet</div>
+      <div class="field"><label for="frameSelect">CAPTURED FRAME</label><select id="frameSelect" aria-label="Select an authenticated capture"></select></div>
+      <div class="capture-identity" id="frameIdentity">No authenticated capture pairs yet</div>
       <button id="swap" type="button" class="outline">Swap A/B</button>
       <button id="reset" type="button" class="outline">Reset view</button>
     </div>
@@ -46,9 +46,9 @@
         <canvas id="difference" aria-label="Computed pixel difference image"></canvas>
         <div class="divider" id="divider"><span class="divider-handle" aria-hidden="true">⇆</span></div>
       </div>
-      <span class="corner-label a" id="badgeA">A / ANVIL baseline</span>
-      <span class="corner-label b" id="badgeB">B / ANVIL + FSR 4.1</span>
-      <div id="empty" class="empty"><h2>No verified capture pairs</h2><p>Start the player in capture mode, then select a frame here. Invalid or incomplete pairs never appear as results.</p><code>python3 tools/anvil/review/server.py --capture-dir ./anvil-review-captures</code></div>
+      <span class="corner-label a" id="badgeA">A / ANVIL causal live subset v1 — control</span>
+      <span class="corner-label b" id="badgeB">B / causal live subset v1 + FSR 4.1 — tryout</span>
+      <div id="empty" class="empty"><h2>No authenticated capture pairs</h2><p>Start the player in capture mode, then select a frame here. Unauthenticated or invalid pairs are excluded.</p><code>python3 tools/anvil/review/server.py --capture-dir ./anvil-review-captures</code></div>
     </div>
     <div class="viewer-footer"><span>Drag to pan • mouse wheel to zoom • 1–5 switch modes • arrows change frame</span><strong id="resolution">—</strong></div>
   </section>
@@ -56,12 +56,12 @@
     <div class="card samples"><div class="section-heading"><div><span class="eyebrow">FRAME SELECTOR</span><h2>Verified samples</h2></div><span id="sampleCount" class="quiet">0 frames</span></div><div id="filmstrip" class="filmstrip"></div></div>
     <aside class="card inspect" id="evidence">
       <span class="eyebrow">PIPELINE ROSTER</span><h2>What you're comparing</h2>
-      <div class="arm" id="armA"><span class="tag">A / BASELINE</span><h3>ANVIL baseline</h3><p>ANVIL reconstructed frame with Lanczos presentation scaling only.</p></div>
-      <div class="arm" id="armB"><span class="tag accent">B / TRYOUT</span><h3>ANVIL baseline + FSR 4.1</h3><p>Same ANVIL frame followed by experimental FSR 4.1.</p></div>
+      <div class="arm" id="armA"><span class="tag">A / BASELINE</span><h3>ANVIL causal live subset v1</h3><p>Causal previous-frame live subset, with Lanczos display-grid alignment.</p></div>
+      <div class="arm" id="armB"><span class="tag accent">B / TRYOUT</span><h3>ANVIL causal live subset v1 + FSR 4.1</h3><p>Same causal live frame followed by experimental FSR 4.1.</p></div>
       <div class="rule"></div>
       <dl class="facts" id="facts"><div><dt>Frame</dt><dd>—</dd></div></dl>
       <div class="evidence-line" id="evidenceLine">Evidence verification pending</div>
-      <p class="footnote">The immutable ANVIL baseline is never silently redefined. “Tryout” means initial evaluation; it does not imply proven quality or real-time performance.</p>
+      <p class="footnote">This causal live subset is NOT the immutable full ANVIL reconstruction baseline. “Tryout” means initial evaluation; it does not imply proven quality or real-time performance.</p>
     </aside>
   </section>
 </main>

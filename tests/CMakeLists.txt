@@ -504,6 +504,10 @@ endif()
 
 # ANVIL causal live-stage contract: genuine decoded-frame input, no disk I/O.
 tforge_add_test(anvil_live_frame_tests SOURCES anvil_live_frame_tests.cpp)
+add_test(NAME anvil_live_frame_negative_control
+         COMMAND anvil_live_frame_tests --negative-control)
+set_tests_properties(anvil_live_frame_negative_control PROPERTIES WILL_FAIL TRUE)
+
 target_link_libraries(anvil_live_frame_tests PRIVATE anvil_lib)
 
 # Matched, immutable visual-review pair capture (Qt + libswscale only).
