@@ -95,7 +95,7 @@ function showFrame(index, reset = true) {
   const b = state.swapped ? pair.a : pair.b;
   state.imageLoaded = 0;
   $("viewport").classList.add("no-data");
-  text($("empty").querySelector("h2"), "Loading verified image pair");
+  text($("empty").querySelector("h2"), "Loading authenticated image pair");
   $("frameSelect").value = pair.key;
   const onLoad = () => {
     state.imageLoaded++;
