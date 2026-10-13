@@ -2472,6 +2472,8 @@ void PlaybackEngine::videoDecodeLoop() {
   anvil::LiveFrameProcessor anvilLive(anvilBudgetMs);
   anvil::ReviewPairCapture reviewPair = anvil::ReviewPairCapture::fromEnvironment();
   const bool reviewCaptureEnabled = anvilLiveEnabled && reviewPair.enabled();
+  if (anvilLiveEnabled && std::getenv("ANVIL_REVIEW_CAPTURE_DIR") && !reviewPair.enabled())
+    logWarn("ANVIL capture disabled: no valid external attestation key (see ANVIL_REVIEW_ATTEST_KEY_FILE)");
   if (reviewPair.enabled() && !anvilLiveEnabled)
     logWarn("ANVIL review capture requires ANVIL_LIVE_PRE_FSR=1; no pair will be published");
   bool anvilBudgetWarningEmitted = false;
