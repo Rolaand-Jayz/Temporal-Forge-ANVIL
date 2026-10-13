@@ -2,7 +2,11 @@
 #include "anvil/LiveFrameProcessor.hpp"
 #include <libavutil/pixfmt.h>
 #include <algorithm>
-#include <cassert>
+#include <cstdlib>
+#include <cstring>
+#define REQUIRE(cond) do { if (!(cond)) { \
+    std::cerr << "CHECK FAILED: " << #cond << " at " << __LINE__ << "\n"; \
+    return EXIT_FAILURE; } } while (false)
 #include <cmath>
 #include <cstdint>
 #include <iostream>
@@ -35,14 +39,18 @@ static DecodedVideoFrame frame(uint64_t index, int width=32, int height=32) {
     }
     return d;
 }
-int main() {
+int main(int argc, char** argv) {
+    // The controlled falsifier must exit nonzero even with NDEBUG enabled.
+    if (argc > 1 && std::strcmp(argv[1], "--negative-control") == 0)
+        REQUIRE(false);
+
     // No source mutation on initial frame or unsupported formats.
     LiveFrameProcessor cpu(20'000.0);
     auto a=frame(0);
     const auto aRaw=a.plane[0];
     const auto aResult=cpu.process(a, false);
-    assert(aResult.status == LiveFrameStatus::Primed);
-    assert(a.plane[0] == aRaw);
+    REQUIRE(aResult.status == LiveFrameStatus::Primed);
+    REQUIRE(a.plane[0] == aRaw);
 
     auto b=frame(1);
     const auto bPts=b.ptsUs;
@@ -50,35 +58,35 @@ int main() {
     const auto bIndex=b.frameIndex;
     const auto bRaw=b.plane[0];
     auto bResult=cpu.process(b, false);
-    assert(bResult.status == LiveFrameStatus::Reconstructed);
-    assert(bResult.usableSamples>0);
-    assert(b.ptsUs==bPts && b.ptsTicks==bTicks && b.frameIndex==bIndex);
-    assert(b.width==32 && b.height==32 && b.planes==3);
-    assert(b.plane[0]==bRaw); // identical source observations remain identical.
+    REQUIRE(bResult.status == LiveFrameStatus::Reconstructed);
+    REQUIRE(bResult.usableSamples>0);
+    REQUIRE(b.ptsUs==bPts && b.ptsTicks==bTicks && b.frameIndex==bIndex);
+    REQUIRE(b.width==32 && b.height==32 && b.planes==3);
+    REQUIRE(b.plane[0]==bRaw); // identical source observations remain identical.
 
     // A PTS discontinuity cannot reuse stale history.
     auto c=frame(2);
     c.ptsUs=b.ptsUs;
-    assert(cpu.process(c,false).status==LiveFrameStatus::Discontinuity);
+    REQUIRE(cpu.process(c,false).status==LiveFrameStatus::Discontinuity);
     auto d=frame(3);
-    assert(cpu.process(d,true).status==LiveFrameStatus::Primed);
+    REQUIRE(cpu.process(d,true).status==LiveFrameStatus::Primed);
 
     // Decoder-provided GPU frames are never copied or rewritten by CPU stage.
     auto hw=frame(4);
     hw.hwFrame=true;
     auto original=hw.plane[0];
-    assert(cpu.process(hw,false).status==LiveFrameStatus::Unsupported);
-    assert(hw.plane[0]==original);
+    REQUIRE(cpu.process(hw,false).status==LiveFrameStatus::Unsupported);
+    REQUIRE(hw.plane[0]==original);
 
     // Malformed layout is rejected, not overread.
     auto invalid=frame(5);
     invalid.plane[0].resize(20);
-    assert(cpu.process(invalid,false).status==LiveFrameStatus::Unsupported);
-    assert(invalid.plane[0].size()==20);
+    REQUIRE(cpu.process(invalid,false).status==LiveFrameStatus::Unsupported);
+    REQUIRE(invalid.plane[0].size()==20);
 
     // Unsupported changes clear raw history; next valid sample primes anew.
     auto after=frame(6);
-    assert(cpu.process(after,false).status==LiveFrameStatus::Primed);
+    REQUIRE(cpu.process(after,false).status==LiveFrameStatus::Primed);
 
     // Stage missed deadline: preserve unmodified decoder pixels and disable
     // further ANVIL work for this session, even across seek/reset.
@@ -86,12 +94,12 @@ int main() {
     auto slowFrame=frame(0);
     auto slowPixels=slowFrame.plane[0];
     const auto slowResult=slow.process(slowFrame,false);
-    assert(slowResult.status==LiveFrameStatus::OverBudget);
-    assert(slowFrame.plane[0]==slowPixels);
-    assert(slow.disabledForBudget());
+    REQUIRE(slowResult.status==LiveFrameStatus::OverBudget);
+    REQUIRE(slowFrame.plane[0]==slowPixels);
+    REQUIRE(slow.disabledForBudget());
     slow.reset();
-    assert(slow.disabledForBudget());
-    assert(slow.process(slowFrame,false).status==LiveFrameStatus::OverBudget);
+    REQUIRE(slow.disabledForBudget());
+    REQUIRE(slow.process(slowFrame,false).status==LiveFrameStatus::OverBudget);
 
     std::cout << "ANVIL live pre-FSR frame contract passed\n";
 }
