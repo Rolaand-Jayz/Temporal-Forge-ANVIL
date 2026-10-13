@@ -1,105 +1,94 @@
-# ANVIL matched visual review — experimental test workflow
+# ANVIL causal live subset: paired visual experiment
 
-Purpose: compare ANVIL baseline against ANVIL baseline + FSR 4.1 using two
-real images captured from the SAME decoded video frame. This is the image-first
-viewer discussed for the Home Field visual-review workflow, without any of
-the abandoned PR #4 implementation.
+## Scientific identity
 
-## The immutable pipeline names
+This paired viewer does **not** execute or redefine the canonical frozen
+**ANVIL baseline**. Current native playback uses the explicitly identified
+`causal_cpu_previous_frame_v1` subset. Do not equate its quality with the full
+research baseline or presume that its experimental FSR4.1 attachment is useful.
 
-- A / ANVIL baseline: post-ANVIL causal reconstruction, GPU YUV-to-RGBA
-  presentation, then a Lanczos spatial resize to the FSR presentation grid.
-  Lanczos is for matched viewing dimensions; it is not counted as a
-  temporal-reconstruction feature.
-- B / ANVIL baseline + FSR 4.1 — tryout: the same ANVIL-reconstructed
-  decoded frame, followed by a successful FSR 4.1 INT8 GPU dispatch and
-  the actual FSR presentation output.
+- **Arm A — ANVIL causal live subset v1 (control).** Post-reconstruction
+  YUV→RGBA presentation, with Lanczos resize to match the comparison grid.
+- **Arm B — ANVIL causal live subset v1 + FSR 4.1 RE (tryout).** The same
+  decoded/reconstructed frame entering experimental FSR and presentation.
 
-The current player baseline profile is explicitly labeled
-'causal_cpu_previous_frame_v1'. It is the committed causal **live subset**
-of ANVIL, not a claim that the complete offline runner's research stages
-are now executing on the GPU or live playback path. The evidence manifests
-preserve that identity rather than silently redefining the offline baseline.
+The control's Lanczos grid-alignment and the experimental arm's presentation
+scaling are different operations. Any visual difference cannot automatically
+be attributed to FSR neural reconstruction. These are static image captures;
+real-time 30/60 FPS is not demonstrated by this workflow.
 
-The baseline never silently incorporates add-ons, and 'tryout' means initial
-evaluation, not proven quality or performance. The current CPU ANVIL stage is
-one-frame causal, not the future GPU/live engine. FSR 4.1 is still a temporal
-upscaler with its own requirements, not literally a generic image filter.
+## Authenticated capture setup
 
-## Build and capture on Linux
+The old unsigned `anvil-visual-pair-v1` directory is never accepted as
+scientific evidence. The `v2` producer writes two PNGs, SHA-256 hashes,
+frame and timestamp identifiers, a manifest, and `capture.hmac` calculated
+with a randomly generated 32-byte secret kept outside capture storage.
 
-Use a Vulkan-capable AMD host with the local RE-derived FSR assets already
-installed. Do not assume software-only CI proves a GPU path works.
+On the trusted capture machine, create a fresh secret:
 
-    cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-    cmake --build build --parallel 2
-    ctest --test-dir build --output-on-failure
+```sh
+umask 077
+head -c 32 /dev/urandom > "$HOME/.anvil-review-key"
+chmod 600 "$HOME/.anvil-review-key"
+```
 
-Start a new capture directory for each source/experiment. This example uses
-a deliberately generous CPU stage budget for acquiring still images; it is
-NOT a real-time throughput benchmark:
+Never place the secret in the capture directory, repository, artifacts,
+review comments, logs, or exports. Possession of the key can forge captures.
+HMAC proves possession of the protected producer key and that signed manifest
+bytes were not altered. An independently observed AMD GPU execution is still
+required to establish genuine frame provenance.
 
-    mkdir -p ./anvil-review-captures
-    ANVIL_LIVE_PRE_FSR=1 \
-    ANVIL_LIVE_BUDGET_MS=300 \
-    ANVIL_REVIEW_CAPTURE_DIR="$PWD/anvil-review-captures" \
-    ANVIL_REVIEW_FRAMES=48,96,144 \
-    ./build/temporal_forge_player /absolute/path/to/video.mp4
+Build on the experimental PR #7 branch, with the PR #6 causal live
+reconstruction changes present:
 
-During a paired capture session the player forces experimental FSR4.1 Quality,
-with software decoding enabled for ANVIL. That temporary override is NOT
-saved as the user's persistent player preference. Requested frames are
-decoder frame indices (zero-based). For ordinary playback or throughput tests
-omit the ANVIL_REVIEW_* variables; keep a realistic time budget (e.g. 6 ms).
+```sh
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel 2
+ctest --test-dir build --output-on-failure
+```
 
-Successful capture creates, for example:
+Capture a short SDR clip first. The generous CPU budget is only for still
+capture and is NOT a valid throughput measurement:
 
-    anvil-review-captures/frame_000048/
-      anvil_baseline.png
-      anvil_plus_fsr41.png
-      manifest.json
+```sh
+mkdir -p anvil-review-captures
+ANVIL_LIVE_PRE_FSR=1 \
+ANVIL_LIVE_BUDGET_MS=300 \
+ANVIL_REVIEW_ATTEST_KEY_FILE="$HOME/.anvil-review-key" \
+ANVIL_REVIEW_CAPTURE_DIR="$PWD/anvil-review-captures" \
+ANVIL_REVIEW_FRAMES=48,96,144 \
+./build/temporal_forge_player /absolute/path/to/short-sdr-video.mp4
+```
 
-PNG readbacks come from one processed frame under the existing GPU dispatch
-lock. If ANVIL bypassed, the decoder frame identity changed, a valid FSR
-dispatch did not occur, or GPU readback failed, no pair is claimed. The JSON
-manifest is atomically committed last and includes source filename, frame
-index, source PTS in microseconds and native ticks/timebase, resolution,
-build SHA, stage timings, pipeline names, and image SHA256 hashes. Completed
-pairs cannot be silently overwritten.
+If ANVIL bypasses, exceeds budget or FSR fails, no valid pair is generated.
+Capture readbacks stall playback; this is a visual experiment only.
 
-## Visual review
+## Review session
 
-    python3 tools/anvil/review/server.py \
-      --capture-dir "$PWD/anvil-review-captures" --port 8765
+```sh
+python3 tools/anvil/review/server.py \
+  --capture-dir "$PWD/anvil-review-captures" \
+  --attest-key-file "$HOME/.anvil-review-key" \
+  --port 8765
+```
 
-Open http://127.0.0.1:8765 locally.
+Open http://127.0.0.1:8765. The local server only publishes pairs passing
+producer-key authentication, expected schema/profile/roles, SHA-256 hashes,
+full PNG CRC/chunk/inflate/scanline decode and declared dimensions.
+The HTTP image endpoint performs the same verification.
 
-The viewer provides selectable named frame thumbnails, matched display size,
-wipe/split/fade/flicker/pixel-difference modes, A/B swap, synchronized pan and
-zoom, frame navigation and a visible metadata inspector. Shortcuts 1–5
-select modes and left/right arrows select frames. All five comparison modes
-use only captured pixels. No fake placeholder can be mistaken for evidence.
+Wipe, split, fade, flicker, pixel difference, A/B swap and synchronized
+pan/zoom support the visual review. The browser reports **producer-key
+authenticated — NOT independently GPU-verified**. The canonical frozen
+baseline remains unchanged.
 
-The stdlib-only server validates SHA256 and PNG dimensions, source frame
-identity, capture schema and allowed file names before exposing any images.
-Malformed or missing pairs are excluded from the viewer. It serves only the
-explicitly selected evidence directory on 127.0.0.1.
+## Remaining acceptance gates
 
-## Honest limitations
-
-- The CPU ANVIL estimator may miss even the 300-ms stage budget on larger
-  inputs. Its budget limiter disables it after a miss; skipped captures are
-  valid failures, not permission to substitute an unprocessed image.
-- Capture performs synchronous GPU readback and CPU Lanczos scaling,
-  impacting playback latency. Capture timings do NOT prove 30/60 FPS.
-- A uses Lanczos for matched presentation size; B includes the FSR4
-  presentation scaler. Therefore differences cannot all be attributed
-  solely to FSR's neural reconstruction until this is controlled separately.
-- HDR color handling, dynamic scene boundaries, independent quality metrics,
-  motion stability and performance qualification still require GPU-host tests.
-- FSR remains a replaceable tryout, not a hard-coded ANVIL foundation.
-- The historical canonical review harness and abandoned PR #4 are untouched.
-
-This is an experimental, reproducible STILL-FRAME review workflow. Results
-cannot be promoted to rookie/starter without actual visual evaluation,
-matched performance measurements, verified provenance and user approval.
+- Negative tests for forged/unkeyed evidence, modified manifest and image,
+  header-only/truncated/corrupt PNG, wrong frame IDs and HTTP bypass.
+- Native C++ capture contract and active Release negative-control CTest.
+- New exact-head CI on both repaired branches.
+- Genuine GPU capture witnessed on the target Radeon hardware, binary/source
+  provenance, browser interaction review and 30/60 FPS throughput separately.
+- Independent evaluator re-review and owner approval before any merge or
+  candidate promotion. No result is a quality win by default.
