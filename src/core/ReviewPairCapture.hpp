@@ -9,6 +9,8 @@
 #include <QImage>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMessageAuthenticationCode>
+#include <QFileDevice>
 #include <QString>
 #include <QSaveFile>
 
@@ -48,8 +50,10 @@ struct ReviewFrameMeta {
 // Both are copied under the dispatch lock, not a UI screenshot.
 class ReviewPairCapture {
 public:
-    ReviewPairCapture(std::filesystem::path dir, std::set<uint64_t> frames)
-        : dir_(std::move(dir)), requested_(std::move(frames)) {}
+    ReviewPairCapture(std::filesystem::path dir, std::set<uint64_t> frames,
+                      QByteArray attestKey = {})
+        : dir_(std::move(dir)), requested_(std::move(frames)),
+          attestKey_(std::move(attestKey)) {}
 
     static ReviewPairCapture fromEnvironment() {
         const char* dir = std::getenv("ANVIL_REVIEW_CAPTURE_DIR");
@@ -71,10 +75,23 @@ public:
             start = end + 1;
         }
         if (frames.empty() || frames.size() > 64) return {{}, {}};
-        return {dir, std::move(frames)};
+        const char* keyFile = std::getenv("ANVIL_REVIEW_ATTEST_KEY_FILE");
+        if (!keyFile || !*keyFile) return {{}, {}};
+        QFileInfo keyInfo(QString::fromLocal8Bit(keyFile));
+        QFileInfo dirInfo(QString::fromLocal8Bit(dir));
+        if (!keyInfo.isFile() || keyInfo.isSymLink() ||
+            keyInfo.absoluteFilePath().startsWith(dirInfo.absoluteFilePath() + QDir::separator()) ||
+            (keyInfo.permissions() & (QFileDevice::ReadGroup | QFileDevice::WriteGroup | QFileDevice::ExeGroup |
+                                       QFileDevice::ReadOther | QFileDevice::WriteOther | QFileDevice::ExeOther)))
+            return {{}, {}};
+        QFile keyFileHandle(keyInfo.absoluteFilePath());
+        if (!keyFileHandle.open(QIODevice::ReadOnly)) return {{}, {}};
+        const QByteArray key = keyFileHandle.readAll();
+        if (key.size() < 32 || key.size() > 4096) return {{}, {}};
+        return {dir, std::move(frames), key};
     }
 
-    bool enabled() const { return !dir_.empty() && !requested_.empty(); }
+    bool enabled() const { return !dir_.empty() && !requested_.empty() && attestKey_.size() >= 32; }
     bool wants(uint64_t frame) const {
         return enabled() && requested_.contains(frame) && !completed_.contains(frame);
     }
@@ -97,8 +114,8 @@ public:
             fsr.size() != static_cast<size_t>(fsrW)*fsrH*4)
             return fail("Invalid dimensions, timestamp, or readback byte count");
 
-        // ANVIL baseline is its post-reconstruction color image. Lanczos is
-        // applied only to align the viewing grid, never to reconstruction.
+        // The causal live subset is NOT the immutable offline ANVIL baseline.
+        // Lanczos aligns presentation grids, not reconstruction methods.
         std::vector<uint8_t> baseline(static_cast<size_t>(fsrW)*fsrH*4);
         SwsContext* scaler = sws_getContext(
             static_cast<int>(rawW), static_cast<int>(rawH), AV_PIX_FMT_RGBA,
@@ -126,8 +143,8 @@ public:
                       static_cast<int>(fsrW)*4, QImage::Format_RGBA8888);
         QImage imageB(fsr.data(), static_cast<int>(fsrW), static_cast<int>(fsrH),
                       static_cast<int>(fsrW)*4, QImage::Format_RGBA8888);
-        const QString pathA = QDir(target).filePath("anvil_baseline.png");
-        const QString pathB = QDir(target).filePath("anvil_plus_fsr41.png");
+        const QString pathA = QDir(target).filePath("anvil_causal_live_control.png");
+        const QString pathB = QDir(target).filePath("anvil_causal_live_fsr41.png");
         if (!imageA.save(pathA, "PNG") || !imageB.save(pathB, "PNG")) {
             QFile::remove(pathA); QFile::remove(pathB);
             return fail("Could not write both lossless PNG images");
@@ -151,7 +168,7 @@ public:
                 {"label", label}, {"stage", stage}, {"status", status}};
         };
         QJsonObject manifest{
-            {"schema", "anvil-visual-pair-v1"},
+            {"schema", "anvil-visual-pair-v2"},
             {"frame_index", static_cast<qint64>(meta.frameIndex)},
             {"pts_us", static_cast<qint64>(meta.ptsUs)},
             {"pts_ticks", static_cast<qint64>(meta.ptsTicks)},
@@ -164,22 +181,34 @@ public:
             {"anvil_stage_ms", meta.anvilStageMs},
             {"fsr_dispatch_ms", meta.fsrDispatchMs},
             {"verified_same_frame", true},
+            {"capture_attestation", "producer-hmac-sha256-v1"},
             {"anvil_live_profile", "causal_cpu_previous_frame_v1"},
-            {"baseline_presentation", "GPU YUV-to-RGBA then Lanczos display-grid alignment"},
-            {"a", arm("baseline", "anvil_baseline.png", shaA,
-                "ANVIL baseline", "ANVIL causal live reconstruction v1 + Lanczos presentation", "baseline")},
-            {"b", arm("fsr41", "anvil_plus_fsr41.png", shaB,
-                "ANVIL baseline + FSR 4.1 — tryout",
-                "ANVIL causal live reconstruction v1 → FSR4.1 RE → presentation", "tryout")}};
+            {"live_control_presentation", "GPU YUV-to-RGBA then Lanczos display-grid alignment"},
+            {"a", arm("live-control", "anvil_causal_live_control.png", shaA,
+                "ANVIL causal live subset v1 — control", "causal_cpu_previous_frame_v1 + Lanczos display alignment", "control")},
+            {"b", arm("live-fsr41", "anvil_causal_live_fsr41.png", shaB,
+                "ANVIL causal live subset v1 + FSR 4.1 — tryout",
+                "causal_cpu_previous_frame_v1 → FSR4.1 RE → presentation", "tryout")}};
+        const QByteArray payload = QJsonDocument(manifest).toJson(QJsonDocument::Indented);
+        const QByteArray signature = QMessageAuthenticationCode::hash(
+            payload, attestKey_, QCryptographicHash::Sha256).toHex();
+        QSaveFile seal(QDir(target).filePath("capture.hmac"));
+        if (!seal.open(QIODevice::WriteOnly) ||
+            seal.write(signature) != signature.size() || !seal.commit()) {
+            seal.cancelWriting();
+            QFile::remove(pathA); QFile::remove(pathB);
+            return fail("Could not commit authenticated capture seal");
+        }
         QSaveFile out(QDir(target).filePath("manifest.json"));
         if (!out.open(QIODevice::WriteOnly)) {
             QFile::remove(pathA); QFile::remove(pathB);
+            QFile::remove(QDir(target).filePath("capture.hmac"));
             return fail("Could not open manifest for atomic write");
         }
-        const QByteArray payload = QJsonDocument(manifest).toJson(QJsonDocument::Indented);
         if (out.write(payload) != payload.size() || !out.commit()) {
             out.cancelWriting();
             QFile::remove(pathA); QFile::remove(pathB);
+            QFile::remove(QDir(target).filePath("capture.hmac"));
             return fail("Could not commit manifest");
         }
         completed_.insert(meta.frameIndex);
@@ -189,5 +218,6 @@ private:
     std::filesystem::path dir_;
     std::set<uint64_t> requested_;
     std::set<uint64_t> completed_;
+    QByteArray attestKey_;
 };
 } // namespace anvil

@@ -127,9 +127,11 @@ function showFrame(index, reset = true) {
   fact("ANVIL CPU stage", fmt(pair.anvil_stage_ms) + " ms");
   fact("FSR4 dispatch", fmt(pair.fsr_dispatch_ms) + " ms");
   fact("Source revision", pair.git_sha || "Not recorded");
+  fact("Live profile", pair.anvil_live_profile);
+  fact("Attestation", "Producer HMAC; not independent GPU proof");
   fact("A SHA-256", (a.sha256 || "").slice(0, 16) + "…");
   fact("B SHA-256", (b.sha256 || "").slice(0, 16) + "…");
-  text($("evidenceLine"), "VERIFIED · same source frame / SHA-256 checked / PNG dimensions match");
+  text($("evidenceLine"), "PRODUCER-KEY AUTHENTICATED · SHA-256 + complete PNG decoded · independent GPU proof pending");
   document.querySelectorAll(".frame-card").forEach((card, i) => {
     card.classList.toggle("selected", i === index);
     card.setAttribute("aria-pressed", String(i === index));
@@ -159,7 +161,7 @@ function buildFilmstrip() {
     button.addEventListener("click", () => showFrame(i));
     strip.append(button);
   }
-  text($("sampleCount"), state.pairs.length + " verified frame" +
+  text($("sampleCount"), state.pairs.length + " authenticated frame" +
        (state.pairs.length === 1 ? "" : "s"));
 }
 function startDrag(event) {
@@ -214,10 +216,10 @@ async function loadCatalog() {
       throw new Error("Invalid response");
     state.pairs = data.pairs;
     buildFilmstrip();
-    text($("verification"), data.pairs.length + " verified / " +
+    text($("verification"), data.pairs.length + " authenticated / " +
                             data.rejected.length + " rejected");
     $("frameSelect").disabled = data.pairs.length === 0;
-    if (!data.pairs.length) setEmpty("No verified capture pairs");
+    if (!data.pairs.length) setEmpty("No authenticated capture pairs");
     else showFrame(0);
   } catch (err) {
     text($("verification"), "Catalog unavailable");
