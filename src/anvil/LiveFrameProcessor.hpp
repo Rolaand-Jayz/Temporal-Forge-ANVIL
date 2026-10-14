@@ -5,6 +5,7 @@
 #include "anvil/Core.hpp"
 #include "media/VideoDecoder.hpp"
 #include <optional>
+#include <array>
 
 namespace anvil {
 
@@ -87,5 +88,35 @@ public:
 
 private:
     LiveUserStage stage_;
+};
+// A decoded frame is NOT a displayed frame. Remember each GPU slot's
+// ownership until its compute/presentation work completes successfully.
+// Failed and pending frames must never relabel a previously published image.
+class LivePublicationTracker {
+public:
+    explicit LivePublicationTracker(bool enabled)
+        : displayed_(enabled ? LiveUserStage::Standby : LiveUserStage::Off) {}
+
+    void submit(unsigned slot, LiveUserStage stage) {
+        if (slot < pending_.size()) pending_[slot] = stage;
+    }
+    LiveUserStage retire(unsigned slot, bool publishedSuccessfully) {
+        if (slot < pending_.size()) {
+            if (publishedSuccessfully && pending_[slot].has_value())
+                displayed_ = *pending_[slot];
+            pending_[slot].reset();
+        }
+        return displayed_;
+    }
+    LiveUserStage publishDirect(LiveUserStage stage) {
+        displayed_ = stage;
+        return displayed_;
+    }
+    LiveUserStage stage() const { return displayed_; }
+    void clearPending() { for (auto& item : pending_) item.reset(); }
+
+private:
+    LiveUserStage displayed_;
+    std::array<std::optional<LiveUserStage>, 2> pending_{};
 };
 } // namespace anvil

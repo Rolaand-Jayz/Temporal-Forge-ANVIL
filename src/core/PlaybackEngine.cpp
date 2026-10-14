@@ -1833,7 +1833,8 @@ bool PlaybackEngine::fsr4NativeOutput(VkImage &image, uint32_t &width,
 //            vkQueueWaitIdle, not locking).
 bool PlaybackEngine::fsr4RawOutput(VkImage &image, uint32_t &width,
                                    uint32_t &height) const {
-  if (!fsr4Ready_.load(std::memory_order_acquire))
+  if (!fsr4Ready_.load(std::memory_order_acquire) ||
+      !fsr4FrameReady_.load(std::memory_order_acquire))
     return false;
   GpuImageUploader *published =
       fsr4PublishedUploader_.load(std::memory_order_acquire);
@@ -2474,6 +2475,9 @@ void PlaybackEngine::videoDecodeLoop() {
   // Published to anvilLiveStage_ only on change so the UI label tracks who
   // owns the displayed pixels without a per-frame signal.
   anvil::LiveStageTracker anvilLiveStageTracker(anvilLiveEnabled);
+  // Decoder stage is a candidate; only a completed image publication may
+  // become the label for the frame visible in the native player.
+  anvil::LivePublicationTracker anvilPublication(anvilLiveEnabled);
   const auto publishAnvilLiveStage = [this](anvil::LiveUserStage stage) {
     if (anvilLiveStage_.exchange(static_cast<int>(stage),
                                  std::memory_order_acq_rel) ==
@@ -2481,7 +2485,7 @@ void PlaybackEngine::videoDecodeLoop() {
       return;
     emit anvilLiveStageChanged();
   };
-  publishAnvilLiveStage(anvilLiveStageTracker.stage());
+  publishAnvilLiveStage(anvilPublication.stage());
   anvil::ReviewPairCapture reviewPair = anvil::ReviewPairCapture::fromEnvironment();
   const bool reviewCaptureEnabled = anvilLiveEnabled && reviewPair.enabled();
   if (anvilLiveEnabled && std::getenv("ANVIL_REVIEW_CAPTURE_DIR") && !reviewPair.enabled())
@@ -2946,8 +2950,9 @@ void PlaybackEngine::videoDecodeLoop() {
         anvilStageElapsedMs = liveResult.elapsedMs;
         anvilReconstructedThisFrame =
             liveResult.status == anvil::LiveFrameStatus::Reconstructed;
+        // Do not relabel the last published VkImage while a new frame is
+        // still being processed, uploaded or dispatched.
         anvilLiveStageTracker.observe(liveResult.status);
-        publishAnvilLiveStage(anvilLiveStageTracker.stage());
         if (anvilReconstructedThisFrame) {
           ++anvilReconstructedFrames;
           if (anvilReconstructedFrames == 1 || anvilReconstructedFrames % 300 == 0)
@@ -3772,6 +3777,8 @@ void PlaybackEngine::videoDecodeLoop() {
                                                                  displayH)) {
                   logWarn("PlaybackEngine: in-flight presentation scaler "
                           "failed");
+                  anvilPublication.retire(
+                      firstUploader == fsr4Uploader_.get() ? 0u : 1u, false);
                 } else {
                   // Commit temporal state only after the completed frame has
                   // also produced a valid presentation image. Otherwise a
@@ -3781,6 +3788,8 @@ void PlaybackEngine::videoDecodeLoop() {
                   fsr4PublishedUploader_.store(firstUploader,
                                                 std::memory_order_release);
                   fsr4FrameReady_.store(true, std::memory_order_release);
+                  publishAnvilLiveStage(anvilPublication.retire(
+                      firstUploader == fsr4Uploader_.get() ? 0u : 1u, true));
                   lastFsr4DispatchMs_.store(completed.dispatchMs,
                                             std::memory_order_release);
                   lastFsr4GpuMs_.store(completed.gpuMs,
@@ -3790,6 +3799,8 @@ void PlaybackEngine::videoDecodeLoop() {
               } else {
                 logWarn("PlaybackEngine: in-flight FSR4 frame failed: {}",
                         completed.failReason);
+                anvilPublication.retire(
+                    firstUploader == fsr4Uploader_.get() ? 0u : 1u, false);
               }
             }
           } else {
@@ -4008,6 +4019,8 @@ void PlaybackEngine::videoDecodeLoop() {
                                             std::memory_order_release);
               fsr4NativePassthrough_.store(true, std::memory_order_release);
               fsr4FrameReady_.store(true, std::memory_order_release);
+              publishAnvilLiveStage(anvilPublication.publishDirect(
+                  anvilLiveStageTracker.stage()));
               fsr4Upscaled = true;
               fsr4OutW = firstUploader->sourceW();
               fsr4OutH = firstUploader->sourceH();
@@ -4164,6 +4177,11 @@ void PlaybackEngine::videoDecodeLoop() {
               // owned by the pending fence. The next decode iteration uses
               // the other slot; this slot is retired before it is reused.
               fsr4LastSubmittedUploader_ = firstUploader;
+              if (dr.ok) {
+                anvilPublication.submit(
+                    firstUploader == fsr4Uploader_.get() ? 0u : 1u,
+                    anvilLiveStageTracker.stage());
+              }
               fsr4NextDispatchSlot_ ^= 1u;
               fsr4Upscaled = true;
               fsr4OutW = firstUploader->outputW();
@@ -4791,6 +4809,8 @@ void PlaybackEngine::videoDecodeLoop() {
                 fsr4NativePassthrough_.store(false,
                                               std::memory_order_release);
                 fsr4FrameReady_.store(true, std::memory_order_release);
+                publishAnvilLiveStage(anvilPublication.publishDirect(
+                    anvilLiveStageTracker.stage()));
                 fsr4Upscaled = true;
                 fsr4OutW = presentationUploader->outputW();
                 fsr4OutH = presentationUploader->outputH();
@@ -4855,6 +4875,8 @@ void PlaybackEngine::videoDecodeLoop() {
               fsr4OutW = fsr4Uploader_->easuW();
               fsr4OutH = fsr4Uploader_->easuH();
               fsr4FrameReady_.store(true, std::memory_order_release);
+              publishAnvilLiveStage(anvilPublication.publishDirect(
+                  anvilLiveStageTracker.stage()));
               // Keep the benchmark capture path available for the spatial
               // control as well as the neural path.  Without this, an Off
               // or EASU-only run silently produced no image, so quality

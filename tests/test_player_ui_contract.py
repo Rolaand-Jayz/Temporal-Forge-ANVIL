@@ -112,6 +112,22 @@ def test_settings_status_text_is_truthful_about_the_live_stage():
     assert "ANVIL BYPASSED" in hud
 
 
+def test_anvil_status_is_published_only_after_completed_gpu_frame():
+    engine = (ROOT / "src/core/PlaybackEngine.cpp").read_text(encoding="utf-8")
+    header = (ROOT / "src/anvil/LiveFrameProcessor.hpp").read_text(encoding="utf-8")
+    decode = engine[engine.index("const auto liveResult = anvilLive.process(df, reset);"):
+                    engine.index("promoteStableFsrViewport();")]
+    assert "publishAnvilLiveStage" not in decode
+    assert "class LivePublicationTracker" in header
+    assert "anvilPublication.submit(" in engine
+    assert "anvilPublication.retire(" in engine
+    assert "anvilPublication.publishDirect(" in engine
+    assert engine.count("publishAnvilLiveStage(anvilPublication.publishDirect(") == 3
+    assert engine.count("anvilPublication.retire(") == 3
+    assert "firstUploader == fsr4Uploader_.get() ? 0u : 1u, true" in engine
+    assert "firstUploader == fsr4Uploader_.get() ? 0u : 1u, false" in engine
+
+
 def test_canvas_redraw_clears_previous_icon():
     icons = source("VectorIcon.qml")
     assert "ctx.reset()" in icons

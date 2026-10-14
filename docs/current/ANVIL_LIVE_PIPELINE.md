@@ -22,10 +22,13 @@ not a future-frame configuration, a completed roster, or a general shader.
 
 **Player UI status:** the engine exposes the folded live-stage state as the
 `playback.anvilLiveStage` property (`off`, `standby`, `reconstructing`,
-`bypassed`). The state tracks the latest frame's pixel ownership: `standby`
-covers opted-in but currently not reconstructing (priming, discontinuity,
-unsupported, no correspondence), `reconstructing` means the latest frame's
-pixels were replaced, and `bypassed` is the permanent post-budget-miss state.
+`bypassed`). The state tracks the **last successfully published image**, not the latest
+frame decoded/submitted to the GPU. `standby` means published decoder-owned
+pixels (priming, discontinuity, unsupported or no correspondence),
+`reconstructing` means published post-ANVIL pixels, and `bypassed` means
+published decoder-owned pixels after the budget deadline was exceeded.
+A budget miss may disable future reconstruction before a bypassed image is
+published; the UI must retain its old displayed stage in that interval.
 The native compare pane labels the raw side `SOURCE` only while it genuinely
 displays decoder-owned pixels; under an engaged stage it labels them
 post-ANVIL, and the settings Live Status line and the HUD report the same
@@ -51,3 +54,15 @@ ANVIL before it does **not** make FSR4 an ordinary postprocessing filter.
 the existing player and ANVIL regression suites. Visually test the opt-in on
 short clips with actual hardware and inspect frame pacing. No runtime quality
 or FPS performance claim is made from passing unit tests alone.
+
+
+### Native published-frame stage ownership (PR8-F0001)
+
+`playback.anvilLiveStage` is committed only with a successfully published
+Vulkan image, not when decoding completes. The synchronous FSR/native/EASU
+paths publish image and provenance together; asynchronous dual-uploader
+slots retain per-slot stage until completion, including the final presentation
+scaler. Upload, dispatch, fence and scaler failures leave the previously
+published provenance unchanged. The compare pane must not call post-ANVIL
+pixels SOURCE. Native Qt/Vulkan verification on AMD hardware remains a separate
+mandatory review gate.

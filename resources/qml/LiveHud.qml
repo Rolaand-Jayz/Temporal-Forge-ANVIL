@@ -43,9 +43,8 @@ Rectangle {
             text: {
                 if (!playback.hasMedia) return ""
                 const source = fsr.sourceWidth + "x" + fsr.sourceHeight
-                // The causal ANVIL live stage owns the pre-FSR pixels while it
-                // reconstructs; keep its state visible instead of implying a
-                // pure decode -> FSR chain.
+                // Show the stage of the last published image, never a pending
+                // CPU/GPU candidate from an incomplete dispatch.
                 const anvil = playback.anvilLiveStage === "reconstructing"
                     ? "  ·  ANVIL RECONSTRUCTING"
                     : playback.anvilLiveStage === "standby"

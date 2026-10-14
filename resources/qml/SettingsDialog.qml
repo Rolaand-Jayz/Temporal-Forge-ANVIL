@@ -487,7 +487,7 @@ ApplicationWindow {
                         }
 
                         SettingsSection {
-                            title: "Live Status"
+                            title: "Published Frame Stage"
                             Rectangle {
                                 width: parent.width
                                 height: 56
@@ -516,11 +516,9 @@ ApplicationWindow {
                                 Text {
                                     anchors.left: parent.left; anchors.leftMargin: 12
                                     anchors.verticalCenter: parent.verticalCenter
-                                    // Truthful opt-in live-stage state. The
-                                    // stage is off by default; "standby" is
-                                    // opted in but not reconstructing yet;
-                                    // "bypassed" means a budget miss disabled
-                                    // it for this playback (decoded pixels).
+                                    // This describes the last published image
+                                    // rather than pending CPU/GPU work. Failed
+                                    // dispatch leaves the earlier label intact.
                                     text: {
                                         if (playback.anvilLiveStage === "reconstructing")
                                             return "ANVIL live: reconstructing (causal pre-FSR, experimental)"

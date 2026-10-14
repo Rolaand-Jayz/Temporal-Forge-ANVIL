@@ -58,5 +58,18 @@ implementation, performance claims, and backend placement.
   is not acceptable.
 - FSR 3.1.5 is not linked in the clean build; non-FSR4 backend choices turn
   off experimental GPU dispatch. The settings panel says this explicitly.
-- ANVIL reconstruction and roster-driven FSR placement are future development;
-  this player UI must not pretend either already runs.
+- The causal CPU ANVIL live stage is connected as an experimental opt-in;
+  GPU/zero-copy reconstruction and roster-driven backend selection remain
+  future work and must not be described as completed.
+
+
+### Published-frame provenance (PR8-F0001)
+
+The raw comparison pane's label reads `playback.anvilLiveStage`, which is
+committed after successful GPU image publication, not speculative decode.
+Pending or failed Vulkan work retains the previous visible image's stage.
+`POST-ANVIL` denotes genuinely reconstructed pixels; `SOURCE` denotes
+unmodified decoded pixels. The settings Published Frame Stage and HUD use
+this same identity. Manually test default-off, opted-in reconstructed,
+unsupported/discontinuous, budget miss, failed upload/dispatch, both compare
+orientations and both window widths on Qt/Vulkan before reviewer acceptance.
