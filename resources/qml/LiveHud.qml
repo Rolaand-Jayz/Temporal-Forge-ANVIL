@@ -43,11 +43,22 @@ Rectangle {
             text: {
                 if (!playback.hasMedia) return ""
                 const source = fsr.sourceWidth + "x" + fsr.sourceHeight
-                if (!playback.fsr4Active) return source + "  ·  FSR INACTIVE"
+                // The causal ANVIL live stage owns the pre-FSR pixels while it
+                // reconstructs; keep its state visible instead of implying a
+                // pure decode -> FSR chain.
+                const anvil = playback.anvilLiveStage === "reconstructing"
+                    ? "  ·  ANVIL RECONSTRUCTING"
+                    : playback.anvilLiveStage === "standby"
+                        ? "  ·  ANVIL STANDBY"
+                        : playback.anvilLiveStage === "bypassed"
+                            ? "  ·  ANVIL BYPASSED"
+                            : ""
+                if (!playback.fsr4Active)
+                    return source + anvil + "  ·  FSR INACTIVE"
                 let res = source + "  →  " + playback.fsr4OutputWidth + "x" + playback.fsr4OutputHeight
                 if (playback.lastFsr4DispatchMs > 0)
                     res += "  ·  " + playback.lastFsr4DispatchMs.toFixed(1) + " ms"
-                return "FSR 4.1 RE  ·  " + res
+                return "FSR 4.1 RE  ·  " + res + anvil
             }
             color: "#b5c5cd"
             font.pixelSize: 11

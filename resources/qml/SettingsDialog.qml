@@ -379,7 +379,7 @@ ApplicationWindow {
                     // ============ Upscaler ============
                     SettingsPane {
                         title: "Playback Backend"
-                        subtitle: "Legacy FSR controls for the existing player. Only experimental FSR 4.1 is connected to the live Vulkan dispatch; other selections disable it. ANVIL reconstruction and rosters are not yet connected."
+                        subtitle: "Legacy FSR controls for the existing player. Only experimental FSR 4.1 is connected to the live Vulkan dispatch; other selections disable it. The causal ANVIL live stage is connected as an experimental opt-in pre-FSR reconstruction (launch with ANVIL_LIVE_PRE_FSR=1); the full ANVIL roster is not connected."
 
                         SettingsSection {
                             title: "Backend"
@@ -505,6 +505,33 @@ ApplicationWindow {
                                         return "FSR4: selected • enabling on playback"
                                     }
                                     color: fsr.backend === 3 ? "#39d353" : settingsWindow.cTextMuted
+                                    font.pixelSize: 12; font.family: "monospace"
+                                }
+                            }
+                            Rectangle {
+                                width: parent.width
+                                height: 56
+                                color: settingsWindow.cSurface
+                                radius: 6
+                                Text {
+                                    anchors.left: parent.left; anchors.leftMargin: 12
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    // Truthful opt-in live-stage state. The
+                                    // stage is off by default; "standby" is
+                                    // opted in but not reconstructing yet;
+                                    // "bypassed" means a budget miss disabled
+                                    // it for this playback (decoded pixels).
+                                    text: {
+                                        if (playback.anvilLiveStage === "reconstructing")
+                                            return "ANVIL live: reconstructing (causal pre-FSR, experimental)"
+                                        if (playback.anvilLiveStage === "standby")
+                                            return "ANVIL live: opted in • waiting to reconstruct"
+                                        if (playback.anvilLiveStage === "bypassed")
+                                            return "ANVIL live: bypassed after budget miss (decoded pixels)"
+                                        return "ANVIL live: off (opt in with ANVIL_LIVE_PRE_FSR=1)"
+                                    }
+                                    color: playback.anvilLiveStage === "reconstructing"
+                                        ? "#39d353" : settingsWindow.cTextMuted
                                     font.pixelSize: 12; font.family: "monospace"
                                 }
                             }

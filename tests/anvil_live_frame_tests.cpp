@@ -101,5 +101,92 @@ int main(int argc, char** argv) {
     REQUIRE(slow.disabledForBudget());
     REQUIRE(slow.process(slowFrame,false).status==LiveFrameStatus::OverBudget);
 
+    // --- PR8-F0001 regression: the UI's stage surface must distinguish
+    // decoder-owned pixels from post-ANVIL pixels with DISTINCT content, so
+    // a native compare pane can never label reconstructed pixels SOURCE.
+    // QML binds to the stageName() tokens; keep them stable.
+    REQUIRE(std::strcmp(LiveStageTracker::stageName(LiveUserStage::Off), "off") == 0);
+    REQUIRE(std::strcmp(LiveStageTracker::stageName(LiveUserStage::Standby), "standby") == 0);
+    REQUIRE(std::strcmp(LiveStageTracker::stageName(LiveUserStage::Reconstructing), "reconstructing") == 0);
+    REQUIRE(std::strcmp(LiveStageTracker::stageName(LiveUserStage::Bypassed), "bypassed") == 0);
+
+    LiveStageTracker disabledTracker(false);
+    REQUIRE(disabledTracker.stage()==LiveUserStage::Off);
+    disabledTracker.observe(LiveFrameStatus::Reconstructed); // never happens when off
+    REQUIRE(disabledTracker.stage()==LiveUserStage::Off);
+
+    // A moving high-contrast diagonal: consecutive frames have genuinely
+    // different pixels, unlike the fixed pattern above.
+    const auto moving = [](uint64_t index) {
+        DecodedVideoFrame d = frame(index);
+        const int w = d.width;
+        for(int y=0;y<d.height;++y)
+            for(int x=0;x<w;++x)
+                d.plane[0][static_cast<size_t>(y)*w+x] =
+                    static_cast<uint8_t>(((x + y + static_cast<int>(index)*8) % 64 < 32) ? 200 : 40);
+        return d;
+    };
+
+    LiveFrameProcessor distinct(20'000.0);
+    LiveStageTracker tracker(true);
+    REQUIRE(tracker.stage()==LiveUserStage::Standby);
+    auto m0=moving(0);
+    const auto m0Result=distinct.process(m0,false);
+    REQUIRE(m0Result.status==LiveFrameStatus::Primed);
+    tracker.observe(m0Result.status);
+    REQUIRE(tracker.stage()==LiveUserStage::Standby); // priming keeps SOURCE truthful
+
+    auto m1=moving(1);
+    const auto m1Luma=m1.plane[0]; // the decoder's own pixels
+    const auto m1Result=distinct.process(m1,false);
+    REQUIRE(m1Result.status==LiveFrameStatus::Reconstructed);
+    tracker.observe(m1Result.status);
+    REQUIRE(tracker.stage()==LiveUserStage::Reconstructing);
+    // The pane pixels are post-ANVIL: a bare SOURCE label would be false.
+    // If reconstruction ever becomes pixel-preserving for distinct content,
+    // this fails and the UI contract must be re-examined, not silenced.
+    REQUIRE(m1.plane[0]!=m1Luma);
+
+    // Per-frame bypass reasons return pixel ownership to the decoder for
+    // that frame; the stage must say so instead of coasting on the last
+    // success. A discontinuity replaces (not clears) history, so the next
+    // in-sequence frame resumes reconstruction.
+    auto m2=moving(2);
+    m2.ptsUs=m1.ptsUs; // force a discontinuity
+    const auto m2Result=distinct.process(m2,false);
+    REQUIRE(m2Result.status==LiveFrameStatus::Discontinuity);
+    tracker.observe(m2Result.status);
+    REQUIRE(tracker.stage()==LiveUserStage::Standby);
+    auto m3=moving(3);
+    const auto m3Original=moving(3);
+    const auto m3Result=distinct.process(m3,false);
+    REQUIRE(m3Result.status==LiveFrameStatus::Reconstructed);
+    tracker.observe(m3Result.status);
+    REQUIRE(tracker.stage()==LiveUserStage::Reconstructing);
+    // Still replacing pixels after the resume: compare against an
+    // unprocessed twin of the same frame.
+    REQUIRE(m3.plane[0]!=m3Original.plane[0]);
+    // A seek (explicit history reset) primes again: decoder-owned frame,
+    // stage honestly back to standby.
+    auto m5=moving(5);
+    const auto m5Result=distinct.process(m5,true);
+    REQUIRE(m5Result.status==LiveFrameStatus::Primed);
+    tracker.observe(m5Result.status);
+    REQUIRE(tracker.stage()==LiveUserStage::Standby);
+
+    // Budget bypass returns ownership of the pixels to the decoder and the
+    // status surface must say so instead of silently reverting to "source".
+    LiveFrameProcessor budget(1e-9);
+    LiveStageTracker budgetTracker(true);
+    auto b0=moving(3);
+    const auto b0Luma=b0.plane[0];
+    const auto b0Result=budget.process(b0,false);
+    REQUIRE(b0Result.status==LiveFrameStatus::OverBudget);
+    REQUIRE(b0.plane[0]==b0Luma); // decoder pixels preserved: SOURCE truthful again
+    budgetTracker.observe(b0Result.status);
+    REQUIRE(budgetTracker.stage()==LiveUserStage::Bypassed);
+    budgetTracker.observe(LiveFrameStatus::Reconstructed); // stage is dead; cannot resurrect
+    REQUIRE(budgetTracker.stage()==LiveUserStage::Bypassed);
+
     std::cout << "ANVIL live pre-FSR frame contract passed\n";
 }

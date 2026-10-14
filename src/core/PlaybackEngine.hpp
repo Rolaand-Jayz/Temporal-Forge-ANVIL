@@ -25,6 +25,7 @@
 #include "render/SideBufferSynth.hpp"
 #include "motion/MotionEstimator.hpp"
 #include "util/FsrTargetMath.hpp"
+#include "anvil/LiveFrameProcessor.hpp"
 
 #include <QObject>
 #include <QString>
@@ -78,6 +79,7 @@ class PlaybackEngine : public QObject {
     Q_PROPERTY(double lastFsr4DispatchMs READ lastFsr4DispatchMs NOTIFY fsr4StatusChanged)
     Q_PROPERTY(uint fsr4OutputWidth READ fsr4OutputWidth NOTIFY fsr4StatusChanged)
     Q_PROPERTY(uint fsr4OutputHeight READ fsr4OutputHeight NOTIFY fsr4StatusChanged)
+    Q_PROPERTY(QString anvilLiveStage READ anvilLiveStage NOTIFY anvilLiveStageChanged)
     Q_PROPERTY(QStringList playlist READ playlist NOTIFY playlistChanged)
     Q_PROPERTY(int playlistIndex READ playlistIndex NOTIFY playlistChanged)
     Q_PROPERTY(int playlistCount READ playlistCount NOTIFY playlistChanged)
@@ -187,6 +189,14 @@ public:
     [[nodiscard]] double lastFsr4DispatchMs() const { return lastFsr4DispatchMs_.load(std::memory_order_acquire); }
     [[nodiscard]] uint32_t fsr4OutputWidth() const { return fsr4OutW_.load(std::memory_order_acquire); }
     [[nodiscard]] uint32_t fsr4OutputHeight() const { return fsr4OutH_.load(std::memory_order_acquire); }
+    // Opt-in causal ANVIL live stage ("off", "standby", "reconstructing",
+    // "bypassed"). The UI must not call a compare pane SOURCE while this is
+    // "reconstructing": those pixels are post-ANVIL, not decoder-owned.
+    [[nodiscard]] QString anvilLiveStage() const {
+        return QString::fromLatin1(anvil::LiveStageTracker::stageName(
+            static_cast<anvil::LiveUserStage>(
+                anvilLiveStage_.load(std::memory_order_acquire))));
+    }
     QStringList playlist() const { return playlist_; }
     int playlistIndex() const { return playlistIndex_; }
     int playlistCount() const { return playlist_.size(); }
@@ -201,6 +211,7 @@ signals:
     void errorOccurred(const QString& message);
     void frameCounterChanged();
     void fsr4StatusChanged();
+    void anvilLiveStageChanged();
     void compareEnabledChanged();
     void playlistChanged();
 
@@ -304,6 +315,9 @@ private:
     std::atomic<bool> fsr4ProofRun_{false};    // proof has executed (pass or fail)
     std::atomic<bool> fsr4ProofPassed_{false}; // proof passed
     std::atomic<uint32_t> fsr4OutW_{0}, fsr4OutH_{0}; // current output dims
+    // Folded opt-in live-stage state; written by the decode loop only on
+    // change, read by the UI thread through the anvilLiveStage property.
+    std::atomic<int> anvilLiveStage_{0};
     std::atomic<uint32_t> fsrViewportW_{1280}, fsrViewportH_{720};
     std::atomic<uint32_t> fsrTargetViewportW_{1280}, fsrTargetViewportH_{720};
     std::atomic<int64_t> fsrViewportChangedUs_{0};
