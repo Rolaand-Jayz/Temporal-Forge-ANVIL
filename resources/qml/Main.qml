@@ -60,10 +60,8 @@ ApplicationWindow {
         return entries
     }
 
-    // Truthful identity of the raw compare pane. While the opt-in causal
-    // ANVIL live stage is reconstructing, those pixels are post-ANVIL, not
-    // the decoder's original SOURCE. standby/bypassed states leave the
-    // decoded pixels untouched, so SOURCE remains accurate there.
+    // The stage follows the last successfully published Vulkan image, not
+    // a speculative decode status; failed/pending work keeps its prior label.
     function rawPaneStageLabel() {
         return playback.anvilLiveStage === "reconstructing"
             ? "POST-ANVIL" : "SOURCE"
@@ -316,10 +314,8 @@ ApplicationWindow {
             }
         }
 
-        // A/B annotations describe what the player actually displays. The raw
-        // pane is decoder-owned SOURCE only while the opt-in causal ANVIL live
-        // stage is not reconstructing; an engaged stage replaces those pixels
-        // before the FSR upload, so the pane is then post-ANVIL.
+        // Annotate the last successfully published image. An incomplete or
+        // failed GPU dispatch does not change the image's provenance.
         Rectangle {
             anchors.left: parent.left
             anchors.top: parent.top

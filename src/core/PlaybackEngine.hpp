@@ -189,9 +189,8 @@ public:
     [[nodiscard]] double lastFsr4DispatchMs() const { return lastFsr4DispatchMs_.load(std::memory_order_acquire); }
     [[nodiscard]] uint32_t fsr4OutputWidth() const { return fsr4OutW_.load(std::memory_order_acquire); }
     [[nodiscard]] uint32_t fsr4OutputHeight() const { return fsr4OutH_.load(std::memory_order_acquire); }
-    // Opt-in causal ANVIL live stage ("off", "standby", "reconstructing",
-    // "bypassed"). The UI must not call a compare pane SOURCE while this is
-    // "reconstructing": those pixels are post-ANVIL, not decoder-owned.
+    // Stage of the last successfully published Vulkan frame, not the most
+    // recently decoded frame. Pending/failed work cannot relabel pixels.
     [[nodiscard]] QString anvilLiveStage() const {
         return QString::fromLatin1(anvil::LiveStageTracker::stageName(
             static_cast<anvil::LiveUserStage>(
@@ -315,8 +314,8 @@ private:
     std::atomic<bool> fsr4ProofRun_{false};    // proof has executed (pass or fail)
     std::atomic<bool> fsr4ProofPassed_{false}; // proof passed
     std::atomic<uint32_t> fsr4OutW_{0}, fsr4OutH_{0}; // current output dims
-    // Folded opt-in live-stage state; written by the decode loop only on
-    // change, read by the UI thread through the anvilLiveStage property.
+    // Published-image identity. Decoder candidates cannot write this atomic;
+    // only successful publication and playback initialization can change it.
     std::atomic<int> anvilLiveStage_{0};
     std::atomic<uint32_t> fsrViewportW_{1280}, fsrViewportH_{720};
     std::atomic<uint32_t> fsrTargetViewportW_{1280}, fsrTargetViewportH_{720};

@@ -188,5 +188,27 @@ int main(int argc, char** argv) {
     budgetTracker.observe(LiveFrameStatus::Reconstructed); // stage is dead; cannot resurrect
     REQUIRE(budgetTracker.stage()==LiveUserStage::Bypassed);
 
+    // Publication-order ownership: delayed/failed GPUs do not change the
+    // provenance of a reconstructed image still displayed by the player.
+    LivePublicationTracker published(true);
+    REQUIRE(published.stage()==LiveUserStage::Standby);
+    published.submit(0, LiveUserStage::Reconstructing);
+    REQUIRE(published.stage()==LiveUserStage::Standby); // GPU pending
+    REQUIRE(published.retire(0, true)==LiveUserStage::Reconstructing);
+    published.submit(1, LiveUserStage::Standby); // unsupported/discontinuity
+    REQUIRE(published.stage()==LiveUserStage::Reconstructing);
+    REQUIRE(published.retire(1, false)==LiveUserStage::Reconstructing); // failed
+    published.submit(1, LiveUserStage::Bypassed); // budget miss
+    REQUIRE(published.stage()==LiveUserStage::Reconstructing);
+    REQUIRE(published.retire(1, false)==LiveUserStage::Reconstructing);
+    published.submit(1, LiveUserStage::Bypassed);
+    REQUIRE(published.retire(1, true)==LiveUserStage::Bypassed);
+    published.submit(0, LiveUserStage::Reconstructing);
+    REQUIRE(published.retire(0, false)==LiveUserStage::Bypassed); // scaler fail
+    REQUIRE(published.publishDirect(LiveUserStage::Standby)==LiveUserStage::Standby);
+    REQUIRE(published.publishDirect(LiveUserStage::Reconstructing)==LiveUserStage::Reconstructing);
+    published.submit(0, LiveUserStage::Standby);
+    published.clearPending(); // teardown/reconfigure
+    REQUIRE(published.retire(0, true)==LiveUserStage::Reconstructing);
     std::cout << "ANVIL live pre-FSR frame contract passed\n";
 }
