@@ -57,3 +57,7 @@ The closure set supersedes stale imperative language in older active-era documen
 The successor architecture decision is recorded in the authorized execution pack ([`zcode_packs/README.md`](zcode_packs/README.md)) and proceeds under its contracts and evidence guardrails. Reuse from this repository is permitted when evidence supports it, but FSR-specific motion, jitter, history, scaling, graph, and composition assumptions are not inherited by default.
 
 The FSR-era record is a source of evidence, not a solution template.
+
+## PR reviewer and repair handoffs
+
+When a maintainer requests an ANVIL PR review or repair handoff, publish its frozen, exact-head reviewer evidence **inside this repository** under [`docs/review-handoffs/`](docs/review-handoffs/README.md), in addition to GitHub PR comments. Follow the immutable, per-PR snapshot and `LATEST.md` convention there. A handoff is not merge approval; do not update `main`, modify source, or imply that a previously reviewed SHA verifies subsequent repair commits. This maintainer-directed documentation publication does not authorize the evaluator to implement repairs.
