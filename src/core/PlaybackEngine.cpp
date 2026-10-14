@@ -2470,6 +2470,18 @@ void PlaybackEngine::videoDecodeLoop() {
     return ms;
   }();
   anvil::LiveFrameProcessor anvilLive(anvilBudgetMs);
+  // Fold per-frame live statuses into the user-facing stage surfaced to QML.
+  // Published to anvilLiveStage_ only on change so the UI label tracks who
+  // owns the displayed pixels without a per-frame signal.
+  anvil::LiveStageTracker anvilLiveStageTracker(anvilLiveEnabled);
+  const auto publishAnvilLiveStage = [this](anvil::LiveUserStage stage) {
+    if (anvilLiveStage_.exchange(static_cast<int>(stage),
+                                 std::memory_order_acq_rel) ==
+        static_cast<int>(stage))
+      return;
+    emit anvilLiveStageChanged();
+  };
+  publishAnvilLiveStage(anvilLiveStageTracker.stage());
   anvil::ReviewPairCapture reviewPair = anvil::ReviewPairCapture::fromEnvironment();
   const bool reviewCaptureEnabled = anvilLiveEnabled && reviewPair.enabled();
   if (anvilLiveEnabled && std::getenv("ANVIL_REVIEW_CAPTURE_DIR") && !reviewPair.enabled())
@@ -2934,6 +2946,8 @@ void PlaybackEngine::videoDecodeLoop() {
         anvilStageElapsedMs = liveResult.elapsedMs;
         anvilReconstructedThisFrame =
             liveResult.status == anvil::LiveFrameStatus::Reconstructed;
+        anvilLiveStageTracker.observe(liveResult.status);
+        publishAnvilLiveStage(anvilLiveStageTracker.stage());
         if (anvilReconstructedThisFrame) {
           ++anvilReconstructedFrames;
           if (anvilReconstructedFrames == 1 || anvilReconstructedFrames % 300 == 0)

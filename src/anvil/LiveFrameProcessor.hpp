@@ -38,4 +38,54 @@ private:
 };
 
 const char* liveFrameStatusName(LiveFrameStatus status);
+
+// User-facing aggregate of the opt-in live stage, folded from the per-frame
+// LiveFrameStatus by the decode loop. The native player UI binds its compare
+// pane label, HUD and settings text to this state so a pane is called SOURCE
+// only while it genuinely displays decoder-owned pixels.
+enum class LiveUserStage { Off, Standby, Reconstructing, Bypassed };
+
+class LiveStageTracker {
+public:
+    explicit LiveStageTracker(bool enabled)
+        : stage_(enabled ? LiveUserStage::Standby : LiveUserStage::Off) {}
+
+    void observe(LiveFrameStatus status) {
+        if (stage_ == LiveUserStage::Off || stage_ == LiveUserStage::Bypassed)
+            return;
+        switch (status) {
+        case LiveFrameStatus::Reconstructed:
+            stage_ = LiveUserStage::Reconstructing;
+            break;
+        case LiveFrameStatus::OverBudget:
+            // A budget miss permanently disables the stage for this playback
+            // instance; later frames are decoder-owned again, but the stage
+            // must not silently vanish from the status surface.
+            stage_ = LiveUserStage::Bypassed;
+            break;
+        default:
+            // Priming, unsupported format, discontinuity and absent
+            // correspondence all leave THIS frame's pixels decoder-owned:
+            // the stage reports standby until reconstruction resumes, so a
+            // pane never attributes unprocessed pixels to ANVIL either.
+            stage_ = LiveUserStage::Standby;
+            break;
+        }
+    }
+
+    LiveUserStage stage() const { return stage_; }
+
+    static const char* stageName(LiveUserStage stage) {
+        switch (stage) {
+        case LiveUserStage::Off: return "off";
+        case LiveUserStage::Standby: return "standby";
+        case LiveUserStage::Reconstructing: return "reconstructing";
+        case LiveUserStage::Bypassed: return "bypassed";
+        }
+        return "unknown";
+    }
+
+private:
+    LiveUserStage stage_;
+};
 } // namespace anvil

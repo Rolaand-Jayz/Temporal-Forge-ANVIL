@@ -60,6 +60,15 @@ ApplicationWindow {
         return entries
     }
 
+    // Truthful identity of the raw compare pane. While the opt-in causal
+    // ANVIL live stage is reconstructing, those pixels are post-ANVIL, not
+    // the decoder's original SOURCE. standby/bypassed states leave the
+    // decoded pixels untouched, so SOURCE remains accurate there.
+    function rawPaneStageLabel() {
+        return playback.anvilLiveStage === "reconstructing"
+            ? "POST-ANVIL" : "SOURCE"
+    }
+
     // A compact playlist drawer. The engine owns ordering and end-of-media
     // advancement; this view only selects an existing item or adds files.
     Popup {
@@ -307,8 +316,10 @@ ApplicationWindow {
             }
         }
 
-        // A/B annotations describe what the player actually displays. ANVIL
-        // processing is not currently connected to the real-time player.
+        // A/B annotations describe what the player actually displays. The raw
+        // pane is decoder-owned SOURCE only while the opt-in causal ANVIL live
+        // stage is not reconstructing; an engaged stage replaces those pixels
+        // before the FSR upload, so the pane is then post-ANVIL.
         Rectangle {
             anchors.left: parent.left
             anchors.top: parent.top
@@ -321,7 +332,7 @@ ApplicationWindow {
             Text {
                 anchors.centerIn: parent
                 color: theme.foreground
-                text: compare.rawOnLeft ? "SOURCE" : "PLAYER OUTPUT"
+                text: compare.rawOnLeft ? rawPaneStageLabel() : "PLAYER OUTPUT"
                 font.pixelSize: 10; font.weight: Font.DemiBold
             }
         }
@@ -337,7 +348,7 @@ ApplicationWindow {
             Text {
                 anchors.centerIn: parent
                 color: theme.foreground
-                text: compare.rawOnLeft ? "PLAYER OUTPUT" : "SOURCE"
+                text: compare.rawOnLeft ? "PLAYER OUTPUT" : rawPaneStageLabel()
                 font.pixelSize: 10; font.weight: Font.DemiBold
             }
         }

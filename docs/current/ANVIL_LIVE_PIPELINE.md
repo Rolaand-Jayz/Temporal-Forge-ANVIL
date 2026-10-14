@@ -20,6 +20,18 @@ planes prior to any FSR dispatch. Raw observations, exact PTS/ticks, color
 metadata, frame indices and codec side information are preserved. This is
 not a future-frame configuration, a completed roster, or a general shader.
 
+**Player UI status:** the engine exposes the folded live-stage state as the
+`playback.anvilLiveStage` property (`off`, `standby`, `reconstructing`,
+`bypassed`). The state tracks the latest frame's pixel ownership: `standby`
+covers opted-in but currently not reconstructing (priming, discontinuity,
+unsupported, no correspondence), `reconstructing` means the latest frame's
+pixels were replaced, and `bypassed` is the permanent post-budget-miss state.
+The native compare pane labels the raw side `SOURCE` only while it genuinely
+displays decoder-owned pixels; under an engaged stage it labels them
+post-ANVIL, and the settings Live Status line and the HUD report the same
+state. The browser reviewer is a separate surface with its own provenance
+labeling.
+
 **Fail open:** missing/unsupported format, GPU-backed frame, malformed plane,
 scene discontinuity, and absent proven correspondence leave decoded pixels
 unchanged. A stage budget miss discards the computed result and permanently

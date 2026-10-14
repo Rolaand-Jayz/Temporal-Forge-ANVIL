@@ -18,21 +18,30 @@ the playback engine or change FSR GPU execution.
 - Labels must describe the functionality that *actually exists*. The old
   playback-speed selector was a display-only control and has been removed.
   Frame stepping has been removed from the UI because the paused render\n  queue cannot actually present a step; an honest step control needs an\n  engine-level implementation.
+- Compare-pane labels must identify the actual pixel-generation stage. The
+  raw pane is labeled SOURCE only while `playback.anvilLiveStage` is not
+  `reconstructing`; under an engaged opt-in causal ANVIL stage those pixels
+  are post-ANVIL and the pane says so.
 - Seeking while dragging previews the selected position and issues one seek
   upon release, rather than flooding the decoder with new seek requests.
-- Player UI and the ANVIL reconstruction/roster integration are separate
-  engineering milestones. The current FSR preset selector is legacy playback
+- The causal ANVIL live reconstruction stage is connected to real-time
+  playback as an experimental opt-in (`ANVIL_LIVE_PRE_FSR=1`); the settings
+  status text and HUD report its actual state (`off`, `standby`,
+  `reconstructing`, `bypassed`). The full ANVIL roster remains a separate
+  engineering milestone: the current FSR preset selector is legacy playback
   state, not an ANVIL candidate roster.
 
 ## Verification
 
 - CMake Qt/QML build checks component registration and QML validity.
 - `python3 -m pytest -q tests/test_player_ui_contract.py` checks for
-  accidental emoji reintroduction, inert playback-speed controls, the A/B\n  swap path, and the real status shown by the HUD.
+  accidental emoji reintroduction, inert playback-speed controls, the A/B\n  swap path, stage-aware compare labels, truthful ANVIL live-stage status\n  text, and the real status shown by the HUD.
 - Manual acceptance (needs a real Qt/Vulkan player session): launch with no
   media; open a file; play/pause; scrub; mute; open playlist and
   settings; check keyboard focus; test 760px and 1280px layouts; enter/exit
-  fullscreen; verify compare-side swapping, divider-only dragging, and the context-menu controls. Do not claim
+  fullscreen; verify compare-side swapping, divider-only dragging, and the context-menu controls. Repeat the compare and settings checks once with
+  `ANVIL_LIVE_PRE_FSR=1` and confirm the raw pane and status text identify
+  the ANVIL stage instead of claiming SOURCE/not-connected. Do not claim
   this last validation is complete without an actual run.
 
 ## Out of scope

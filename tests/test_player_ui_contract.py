@@ -68,6 +68,50 @@ def test_comparison_swap_and_divider_are_wired_to_rendering():
     assert "PLAYER OUTPUT" in ui and "SOURCE" in ui
 
 
+def test_compare_pane_labels_identify_the_actual_pixel_stage():
+    # PR8-F0001: the raw compare pane is decoder-owned SOURCE only while the
+    # opt-in causal ANVIL live stage is not reconstructing. A bare
+    # unconditional SOURCE label would relabel post-ANVIL pixels.
+    ui = source("Main.qml")
+    # Both pane labels must route through the stage-aware helper.
+    assert 'text: compare.rawOnLeft ? rawPaneStageLabel() : "PLAYER OUTPUT"' in ui
+    assert 'text: compare.rawOnLeft ? "PLAYER OUTPUT" : rawPaneStageLabel()' in ui
+    assert "function rawPaneStageLabel()" in ui
+    # The helper must distinguish the reconstructing stage from SOURCE and
+    # bind to the engine property, so the label follows the actual pixels.
+    assert 'playback.anvilLiveStage === "reconstructing"' in ui
+    assert '"POST-ANVIL" : "SOURCE"' in ui
+    # The pre-repair unconditional labels are gone.
+    assert '? "SOURCE" : "PLAYER OUTPUT"' not in ui
+    assert '? "PLAYER OUTPUT" : "SOURCE"' not in ui
+    # The stale claim that ANVIL processing is not connected must not return.
+    assert "not currently connected" not in ui
+
+
+def test_settings_status_text_is_truthful_about_the_live_stage():
+    # PR8-F0001: settings must state when the causal ANVIL live stage is
+    # available/active while distinguishing the incomplete roster, in both
+    # the default-off and opt-in states.
+    settings = source("SettingsDialog.qml")
+    assert "not yet connected" not in settings
+    assert "ANVIL_LIVE_PRE_FSR=1" in settings
+    assert "opt-in" in settings or "opt in" in settings
+    # The full roster must stay described as not connected (it is).
+    assert "full ANVIL roster is not connected" in settings
+    # Live status must bind to the engine's stage property with distinct
+    # user-visible wording per state, including the default-off state.
+    assert 'playback.anvilLiveStage === "reconstructing"' in settings
+    assert 'playback.anvilLiveStage === "standby"' in settings
+    assert 'playback.anvilLiveStage === "bypassed"' in settings
+    assert "ANVIL live: off (opt in with ANVIL_LIVE_PRE_FSR=1)" in settings
+    hud = source("LiveHud.qml")
+    # The HUD keeps the stage visible while it is opted in; FSR-only wording
+    # would imply a pure decode -> FSR chain under an engaged stage.
+    assert 'playback.anvilLiveStage === "reconstructing"' in hud
+    assert "ANVIL RECONSTRUCTING" in hud
+    assert "ANVIL BYPASSED" in hud
+
+
 def test_canvas_redraw_clears_previous_icon():
     icons = source("VectorIcon.qml")
     assert "ctx.reset()" in icons
@@ -76,5 +120,7 @@ def test_canvas_redraw_clears_previous_icon():
 
 def test_hud_does_not_reuse_stale_fsr_timing_when_disabled():
     hud = source("LiveHud.qml")
-    assert 'if (!playback.fsr4Active) return source + "  ·  FSR INACTIVE"' in hud
+    # The anvil segment is composed before the inactive branch, so the guard
+    # still returns without touching lastFsr4DispatchMs.
+    assert 'if (!playback.fsr4Active)\n                    return source + anvil + "  ·  FSR INACTIVE"' in hud
     assert "FSR 4.1 RE" in hud
