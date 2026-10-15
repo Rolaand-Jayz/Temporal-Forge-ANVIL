@@ -42,6 +42,8 @@ struct ReviewFrameMeta {
     double fsrDispatchMs = 0;
     std::string sourceId;
     std::string gitSha;
+    std::string gitDirty, gitDirtyHash, provenanceSource;
+    std::string binarySha256, inputSha256;
 };
 
 // All capture inputs are the ACTUAL output of the same player frame:
@@ -178,6 +180,12 @@ public:
             {"output_height", static_cast<int>(fsrH)},
             {"source_id", QString::fromStdString(meta.sourceId)},
             {"git_sha", QString::fromStdString(meta.gitSha)},
+            {"git_dirty", meta.gitDirty == "true" ? QJsonValue(true)
+                : meta.gitDirty == "false" ? QJsonValue(false) : QJsonValue(QJsonValue::Null)},
+            {"git_dirty_hash", QString::fromStdString(meta.gitDirtyHash)},
+            {"provenance_source", QString::fromStdString(meta.provenanceSource)},
+            {"binary_sha256", QString::fromStdString(meta.binarySha256)},
+            {"input_sha256", QString::fromStdString(meta.inputSha256)},
             {"anvil_stage_ms", meta.anvilStageMs},
             {"fsr_dispatch_ms", meta.fsrDispatchMs},
             {"verified_same_frame", true},

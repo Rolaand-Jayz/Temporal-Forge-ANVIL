@@ -516,6 +516,7 @@ ApplicationWindow {
                                 Text {
                                     anchors.left: parent.left; anchors.leftMargin: 12
                                     anchors.verticalCenter: parent.verticalCenter
+                                    objectName: "publishedFrameSettings"
                                     // This describes the last published image
                                     // rather than pending CPU/GPU work. Failed
                                     // dispatch leaves the earlier label intact.

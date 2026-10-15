@@ -181,9 +181,9 @@ inline bool submitAndWait(VkDevice device, VkQueue queue, VkCommandBuffer cmd,
     si.commandBufferCount = 1;
     si.pCommandBuffers = &cmd;
     if (vkQueueSubmit(queue, 1, &si, fence) != VK_SUCCESS) return false;
-    vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
-    vkResetFences(device, 1, &fence);
-    return true;
+    if (vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX) != VK_SUCCESS)
+        return false;
+    return vkResetFences(device, 1, &fence) == VK_SUCCESS;
 }
 
 } // namespace temporal_forge

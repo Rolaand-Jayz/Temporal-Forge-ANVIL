@@ -1,0 +1,135 @@
+Test project /mnt/workdrive/anvil-verification/anvil-unified/build
+      Start  1: vulkan_submission_failure_tests
+ 1/46 Test  #1: vulkan_submission_failure_tests .............   Passed    0.01 sec
+      Start  2: preset_math_tests
+ 2/46 Test  #2: preset_math_tests ...........................   Passed    0.01 sec
+      Start  3: quality_lab_config_tests
+ 3/46 Test  #3: quality_lab_config_tests ....................   Passed    0.01 sec
+      Start  4: fsr4_paths_contract_tests
+ 4/46 Test  #4: fsr4_paths_contract_tests ...................   Passed    0.00 sec
+      Start  5: playlist_eos_tests
+ 5/46 Test  #5: playlist_eos_tests ..........................   Passed    0.01 sec
+      Start  6: jitter_tests
+ 6/46 Test  #6: jitter_tests ................................   Passed    0.00 sec
+      Start  7: synthetic_jitter_contract_audit_tests
+ 7/46 Test  #7: synthetic_jitter_contract_audit_tests .......   Passed    0.01 sec
+      Start  8: frame_identity_tests
+ 8/46 Test  #8: frame_identity_tests ........................   Passed    0.02 sec
+      Start  9: temporal_frame_continuity_tests
+ 9/46 Test  #9: temporal_frame_continuity_tests .............   Passed    0.00 sec
+      Start 10: backend_tests
+10/46 Test #10: backend_tests ...............................   Passed    0.01 sec
+      Start 11: sidebuffer_tests
+11/46 Test #11: sidebuffer_tests ............................   Passed    0.01 sec
+      Start 12: motion_estimator_tests
+12/46 Test #12: motion_estimator_tests ......................   Passed    0.01 sec
+      Start 13: fsr4_weight_tests
+13/46 Test #13: fsr4_weight_tests ...........................   Passed    0.02 sec
+      Start 14: fsr4_postpass_contract_tests
+14/46 Test #14: fsr4_postpass_contract_tests ................   Passed    0.01 sec
+      Start 15: fsr4_temporal_contract_tests
+15/46 Test #15: fsr4_temporal_contract_tests ................   Passed    0.01 sec
+      Start 16: fsr4_residual_quantization_contract_tests
+16/46 Test #16: fsr4_residual_quantization_contract_tests ...   Passed    0.00 sec
+      Start 17: fsr4_motion_contract_tests
+17/46 Test #17: fsr4_motion_contract_tests ..................   Passed    0.01 sec
+      Start 18: color_metadata_contract_tests
+18/46 Test #18: color_metadata_contract_tests ...............   Passed    0.00 sec
+      Start 19: jitter_policy_tests
+19/46 Test #19: jitter_policy_tests .........................   Passed    0.00 sec
+      Start 20: fsr4_tensormap_tests
+20/46 Test #20: fsr4_tensormap_tests ........................***Skipped   0.00 sec
+      Start 21: gpu_capability_handoff_contract_tests
+21/46 Test #21: gpu_capability_handoff_contract_tests .......   Passed    0.00 sec
+      Start 22: gpu_probe
+22/46 Test #22: gpu_probe ...................................***Not Run (Disabled)   0.00 sec
+      Start 23: cm_dump
+23/46 Test #23: cm_dump .....................................***Not Run (Disabled)   0.00 sec
+      Start 24: fsr4_harness_tests
+24/46 Test #24: fsr4_harness_tests ..........................***Not Run (Disabled)   0.00 sec
+      Start 25: jitter_gpu_contract_tests
+25/46 Test #25: jitter_gpu_contract_tests ...................***Not Run (Disabled)   0.00 sec
+      Start 26: media_pipeline_tests
+26/46 Test #26: media_pipeline_tests ........................   Passed    0.12 sec
+      Start 27: native_player_ui_tests
+27/46 Test #27: native_player_ui_tests ......................   Passed    1.35 sec
+      Start 28: native_player_ui_optin_tests
+28/46 Test #28: native_player_ui_optin_tests ................   Passed    1.34 sec
+      Start 29: native_player_ui_budget_tests
+29/46 Test #29: native_player_ui_budget_tests ...............   Passed    1.34 sec
+      Start 30: native_compare_gpu_tests
+30/46 Test #30: native_compare_gpu_tests ....................Subprocess aborted***Exception:   0.55 sec
+(lsfg-vk) [ERROR]: Failed to initialize global info:
+(lsfg-vk) [ERROR]: - Unknown key in configuration: game
+[2026-10-14 19:56:21] INFO  ?:0: Vulkan: using Qt shared instance
+[2026-10-14 19:56:21] INFO  ?:0: Vulkan: enumerated 246 device extensions on 'AMD Radeon RX 7900 GRE (RADV NAVI31)'
+[2026-10-14 19:56:21] INFO  ?:0: Vulkan: enabled device extensions (5):
+[2026-10-14 19:56:21] INFO  ?:0: Vulkan:   ext VK_KHR_swapchain
+[2026-10-14 19:56:21] INFO  ?:0: Vulkan:   ext VK_KHR_external_memory_fd
+[2026-10-14 19:56:21] INFO  ?:0: Vulkan:   ext VK_EXT_image_drm_format_modifier
+[2026-10-14 19:56:21] INFO  ?:0: Vulkan:   ext VK_KHR_cooperative_matrix
+[2026-10-14 19:56:21] INFO  ?:0: Vulkan:   ext VK_EXT_subgroup_size_control
+[2026-10-14 19:56:21] INFO  ?:0: Vulkan: enabled device features (14): baseline[samplerAnisotropy=true textureCompressionBC=true shaderStorageImageWriteWithoutFormat=true imageCubeArray=true shaderStorageImageExtendedFormats=true timelineSemaphore=true shaderSubgroupExtendedTypes=true] fsr4[shaderFloat16=true shaderInt8=true shaderIntegerDotProduct=true storageBuffer8BitAccess=true subgroupSizeControl=true computeFullSubgroups=true cooperativeMatrix=true]
+[2026-10-14 19:56:21] INFO  ?:0: Vulkan: fsr4ClassExtensions=true fsr4ClassFeatures=true requireSubgroupSize64=true (bounds 32..64)
+[2026-10-14 19:56:21] INFO  ?:0: Vulkan: graphics queue family 0, FSR compute queue family 1
+[2026-10-14 19:56:21] INFO  ?:0: Vulkan: device 'AMD Radeon RX 7900 GRE (RADV NAVI31)' selected, queue family 0
+[2026-10-14 19:56:21] INFO  ?:0: GpuCapabilityProbe: AMD Radeon RX 7900 GRE (RADV NAVI31) (radv) -> INT8 DOT4 (RDNA3 cooperative matrix, SINT8->SINT32) [tile 16x16, SINT8->SINT32 accum] + FP16 fallback available
+[2026-10-14 19:56:21] INFO  ?:0: PlaybackEngine: Vulkan handles set; FSR4 will be initialized on first frame
+[2026-10-14 19:56:21] INFO  ?:0: PlaybackEngine: openUrl('file:///mnt/workdrive/anvil-verification/anvil-unified/build/tests/compare.mp4')
+[2026-10-14 19:56:21] INFO  ?:0: PlaybackEngine: close() stopThreads
+[2026-10-14 19:56:21] INFO  ?:0: PlaybackEngine: close() audio.stop
+[2026-10-14 19:56:21] INFO  ?:0: PlaybackEngine: FSR4 path torn down
+[2026-10-14 19:56:21] INFO  ?:0: PlaybackEngine: close() fully done
+[2026-10-14 19:56:21] INFO  ?:0: PlaybackEngine: close() done, opening demuxer
+[2026-10-14 19:56:21] INFO  ?:0: PlaybackEngine: demux->open('/mnt/workdrive/anvil-verification/anvil-unified/build/tests/compare.mp4')
+[2026-10-14 19:56:21] INFO  ?:0: Demuxer: opened '/mnt/workdrive/anvil-verification/anvil-unified/build/tests/compare.mp4' [mov,mp4,m4a,3gp,3g2,mj2] duration=8.000s streams=1 video=0 audio=-1381258232 sub=-1381258232
+[2026-10-14 19:56:21] INFO  ?:0: PlaybackEngine: demux opened ok
+[2026-10-14 19:56:21] INFO  ?:0: VideoDecoder: hardware decode disabled because codec motion metadata was requested
+[2026-10-14 19:56:21] INFO  ?:0: VideoDecoder: opened codec 'h264' 64x48 pix_fmt=yuv420p
+[2026-10-14 19:56:21] INFO  ?:0: PlaybackEngine: starting decode threads
+[2026-10-14 19:56:21] INFO  ?:0: PlaybackEngine: opened '/mnt/workdrive/anvil-verification/anvil-unified/build/tests/compare.mp4', playing=true
+[h264 @ 0x55b507e0a340] A hardware frames or device context is required for hardware accelerated decoding.
+[h264 @ 0x55b507e0a340] Failed setup for format vaapi: hwaccel initialisation returned error.
+[2026-10-14 19:56:21] INFO  ?:0: GpuImageUploader: EASU RGBA8 format features optimal=0x1dd83
+[2026-10-14 19:56:21] INFO  ?:0: GpuImageUploader: allocated source 64x48 -> model 64x48 -> output 128x96
+OK: EASU-only publishes a valid paired source/output
+OK: source is a distinct native-resolution VkImage, not EASU output
+OK: rawOnly selects the decoder/control image
+OK: enhanced-only selects spatial output
+OK: actual Qt-presented raw and EASU pixels differ for the frozen frame
+OK: comparison orientation: source/output
+OK: comparison orientation: output/source
+OK: published pixel stage matches default-off or reconstructed opt-in frame
+OK: raw cache populated before mode switch
+[2026-10-14 19:56:21] INFO  ?:0: PlaybackEngine: FSR4 upscaling enabled
+OK: mode switch withdraws raw publication
+OK: missing raw publication clears the node and stale cache
+[2026-10-14 19:56:21] INFO  ?:0: PlaybackEngine: FSR4 off — entering EASU-only GPU upscale mode
+[2026-10-14 19:56:21] INFO  ?:0: PlaybackEngine: FSR4 upscaling disabled
+Assertion fctx->async_lock failed at libavcodec/pthread_frame.c:171
+
+      Start 31: native_compare_gpu_optin_tests
+31/46 Test #31: native_compare_gpu_optin_tests ..............   Passed    0.40 sec
+      Start 32: file_switch_tests
+32/46 Test #32: file_switch_tests ...........................   Passed    7.92 sec
+      Start 33: vulkan_capability_plan_tests
+33/46 Test #33: vulkan_capability_plan_tests ................   Passed    0.01 sec
+      Start 34: player_build_provenance_tests
+34/46 Test #34: player_build_provenance_tests ...............   Passed    0.03 sec
+      Start 35: anvil_core_tests
+35/46 Test #35: anvil_core_tests ............................   Passed    0.48 sec
+      Start 36: anvil_refinement_tests
+36/46 Test #36: anvil_refinement_tests ......................   Passed    0.02 sec
+      Start 37: anvil_geometry_estimate_tests
+37/46 Test #37: anvil_geometry_estimate_tests ...............   Passed    0.04 sec
+      Start 38: anvil_codec_tests
+38/46 Test #38: anvil_codec_tests ...........................   Passed    0.25 sec
+      Start 39: anvil_side_info_tests
+39/46 Test #39: anvil_side_info_tests .......................   Passed    0.02 sec
+      Start 40: anvil_output_backend_tests
+40/46 Test #40: anvil_output_backend_tests ..................   Passed    0.02 sec
+      Start 41: anvil_runner_tests
+41/46 Test #41: anvil_runner_tests ..........................   Passed    4.53 sec
+      Start 42: anvil_timestamp_tests
+42/46 Test #42: anvil_timestamp_tests .......................   Passed    0.12 sec
+      Start 43: anvil_provenance_rebuild_regression

@@ -141,7 +141,7 @@ The historical player runtime requires a **Vulkan 1.3** driver.
 | C++23 compiler (GCC 13+/Clang 17+ class) | build | required | configure/build fails |
 | CMake ≥ 3.24 | build | required | configure fails |
 | Ninja | build | required | configure fails |
-| Qt 6.6+ — Core, Gui, Quick, Qml, Widgets, ShaderTools | build + runtime | required | configure fails |
+| Qt 6.6+ — Core, Gui, Quick, Qml, Widgets, ShaderTools; Test for test builds | build + runtime | required | configure fails |
 | glslangValidator | build | required | configure fails |
 | Vulkan loader + headers, API 1.3 | build + runtime | required | build fails / runtime cannot start |
 | FFmpeg ≥ 5.1 development libraries | build + runtime | required | configure/build fails |

@@ -126,7 +126,11 @@ function showFrame(index, reset = true) {
   fact("Native ticks", pair.pts_ticks + " (" + pair.tb_num + "/" + pair.tb_den + ")");
   fact("ANVIL CPU stage", fmt(pair.anvil_stage_ms) + " ms");
   fact("FSR4 dispatch", fmt(pair.fsr_dispatch_ms) + " ms");
-  fact("Source revision", pair.git_sha || "Not recorded");
+  fact("Source revision", (pair.git_sha || "Not recorded") + (pair.git_dirty === true ? " (modified source)" : ""));
+  fact("Build identity", pair.provenance_source || "Not recorded");
+  fact("Source modifications SHA-256", pair.git_dirty_hash || "Not recorded / clean");
+  fact("Executable SHA-256", pair.binary_sha256 || "Not recorded");
+  fact("Input SHA-256", pair.input_sha256 || "Not recorded");
   fact("Live profile", pair.anvil_live_profile);
   fact("Attestation", "Producer HMAC; not independent GPU proof");
   fact("A SHA-256", (a.sha256 || "").slice(0, 16) + "…");

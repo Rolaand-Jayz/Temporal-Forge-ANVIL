@@ -91,3 +91,47 @@ proof. Run it with the generated `build/tests/compare.mp4` fixture both normally
 and with `ANVIL_LIVE_PRE_FSR=1`. The small fixture permits real CPU reconstruction;
 CPU history uses decoded-frame continuity rather than FSR dispatch completion.
 This behavioral test supplements the manual acceptance checklist above.
+
+
+### Full-player regression and capture provenance
+
+`native_player_ui_tests` loads the production `Main.qml`, its HUD/Settings,
+and the real playback/controllers on Qt Vulkan. It checks the C comparison
+shortcut, both pane orientations, source dimensions, and 760/1280 layouts;
+the opt-in and budget variants check reconstructed and bypassed state text.
+Paused mode changes invalidate both surfaces through playback status signals,
+independently of the frame-pacing timer. Source dimensions refresh on media
+changes even when no preset or window change occurs.
+
+On a provisioned machine, `TFORGE_TEST_NEURAL=1` runs the same full-player
+harness with the neural backend. The test executable alone wraps Vulkan
+submission/timestamp symbols to hold and reject an actual neural graph submit,
+then checks rendered control pixels, labels and retry. Successful submissions
+always use the real driver; this is deliberate dependency-failure injection.
+Set `TFORGE_TEST_CAPTURE_DIR` to save actual full-window screenshots. These
+runs and any producer-authenticated paired captures are repair-side evidence;
+independent evaluator acceptance and complete review scope remain separate.
+
+Player consumers directly link generated build provenance. Paired manifests
+record the built revision, modified-source flag/hash, executable SHA-256 and
+input SHA-256 where readable; the browser displays these identities. A producer
+HMAC authenticates key possession and payload integrity, not independent GPU
+origin or image quality. Missing fields in older captures remain visibly absent.
+
+
+The presented control is a source-resolution GPU copy committed after successful
+output work. Conversion uploads write a separate working image; failed neural
+submissions and later retries cannot overwrite the previous comparison control.
+For chained FSR passes, source ownership stays with the original first uploader,
+while output ownership follows the final uploader. Readiness releases only after
+control, output and stage publication. Submission helpers propagate queue, fence
+wait and fence reset errors instead of treating a failed wait as success.
+
+Spatial publication observes the same queued-frame backpressure as neural
+publication, so pausing holds the displayed pair. Completed publication notifies
+both QML surfaces even if a prior update observed temporary unavailability.
+
+Seek flushes are queued as decoder packet boundaries: the demux thread never
+calls `avcodec_flush_buffers` on a context being used by the decode thread.
+Clearing the presentation frame queue also resets its backpressure count, and
+obsolete seek-generation candidates cannot publish after a wait.

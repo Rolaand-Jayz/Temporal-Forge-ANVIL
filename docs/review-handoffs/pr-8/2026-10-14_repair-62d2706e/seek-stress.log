@@ -1,0 +1,85 @@
+Test project /mnt/workdrive/anvil-verification/anvil-unified/build
+    Start 30: native_compare_gpu_tests
+    Test #30: native_compare_gpu_tests .........   Passed    0.42 sec
+    Start 30: native_compare_gpu_tests
+    Test #30: native_compare_gpu_tests .........   Passed    0.38 sec
+    Start 30: native_compare_gpu_tests
+    Test #30: native_compare_gpu_tests .........   Passed    0.39 sec
+    Start 30: native_compare_gpu_tests
+    Test #30: native_compare_gpu_tests .........   Passed    0.40 sec
+    Start 30: native_compare_gpu_tests
+    Test #30: native_compare_gpu_tests .........   Passed    0.40 sec
+    Start 30: native_compare_gpu_tests
+    Test #30: native_compare_gpu_tests .........   Passed    0.39 sec
+    Start 30: native_compare_gpu_tests
+    Test #30: native_compare_gpu_tests .........   Passed    0.40 sec
+    Start 30: native_compare_gpu_tests
+    Test #30: native_compare_gpu_tests .........   Passed    0.39 sec
+    Start 30: native_compare_gpu_tests
+    Test #30: native_compare_gpu_tests .........   Passed    0.40 sec
+    Start 30: native_compare_gpu_tests
+    Test #30: native_compare_gpu_tests .........   Passed    0.38 sec
+    Start 30: native_compare_gpu_tests
+    Test #30: native_compare_gpu_tests .........   Passed    0.40 sec
+    Start 30: native_compare_gpu_tests
+    Test #30: native_compare_gpu_tests .........   Passed    0.39 sec
+    Start 30: native_compare_gpu_tests
+    Test #30: native_compare_gpu_tests .........   Passed    0.39 sec
+    Start 30: native_compare_gpu_tests
+    Test #30: native_compare_gpu_tests .........   Passed    0.39 sec
+    Start 30: native_compare_gpu_tests
+    Test #30: native_compare_gpu_tests .........   Passed    0.40 sec
+    Start 30: native_compare_gpu_tests
+    Test #30: native_compare_gpu_tests .........   Passed    0.38 sec
+    Start 30: native_compare_gpu_tests
+    Test #30: native_compare_gpu_tests .........   Passed    0.39 sec
+    Start 30: native_compare_gpu_tests
+    Test #30: native_compare_gpu_tests .........   Passed    0.41 sec
+    Start 30: native_compare_gpu_tests
+    Test #30: native_compare_gpu_tests .........   Passed    1.96 sec
+    Start 30: native_compare_gpu_tests
+1/2 Test #30: native_compare_gpu_tests .........   Passed    0.40 sec
+    Start 31: native_compare_gpu_optin_tests
+    Test #31: native_compare_gpu_optin_tests ...   Passed    0.40 sec
+    Start 31: native_compare_gpu_optin_tests
+    Test #31: native_compare_gpu_optin_tests ...   Passed    0.41 sec
+    Start 31: native_compare_gpu_optin_tests
+    Test #31: native_compare_gpu_optin_tests ...   Passed    0.41 sec
+    Start 31: native_compare_gpu_optin_tests
+    Test #31: native_compare_gpu_optin_tests ...   Passed    0.41 sec
+    Start 31: native_compare_gpu_optin_tests
+    Test #31: native_compare_gpu_optin_tests ...   Passed    0.40 sec
+    Start 31: native_compare_gpu_optin_tests
+    Test #31: native_compare_gpu_optin_tests ...   Passed    0.41 sec
+    Start 31: native_compare_gpu_optin_tests
+    Test #31: native_compare_gpu_optin_tests ...   Passed    0.40 sec
+    Start 31: native_compare_gpu_optin_tests
+    Test #31: native_compare_gpu_optin_tests ...   Passed    0.41 sec
+    Start 31: native_compare_gpu_optin_tests
+    Test #31: native_compare_gpu_optin_tests ...   Passed    0.41 sec
+    Start 31: native_compare_gpu_optin_tests
+    Test #31: native_compare_gpu_optin_tests ...   Passed    0.40 sec
+    Start 31: native_compare_gpu_optin_tests
+    Test #31: native_compare_gpu_optin_tests ...   Passed    0.41 sec
+    Start 31: native_compare_gpu_optin_tests
+    Test #31: native_compare_gpu_optin_tests ...   Passed    0.40 sec
+    Start 31: native_compare_gpu_optin_tests
+    Test #31: native_compare_gpu_optin_tests ...   Passed    0.41 sec
+    Start 31: native_compare_gpu_optin_tests
+    Test #31: native_compare_gpu_optin_tests ...   Passed    0.41 sec
+    Start 31: native_compare_gpu_optin_tests
+    Test #31: native_compare_gpu_optin_tests ...   Passed    0.41 sec
+    Start 31: native_compare_gpu_optin_tests
+    Test #31: native_compare_gpu_optin_tests ...   Passed    0.41 sec
+    Start 31: native_compare_gpu_optin_tests
+    Test #31: native_compare_gpu_optin_tests ...   Passed    0.40 sec
+    Start 31: native_compare_gpu_optin_tests
+    Test #31: native_compare_gpu_optin_tests ...   Passed    0.39 sec
+    Start 31: native_compare_gpu_optin_tests
+    Test #31: native_compare_gpu_optin_tests ...   Passed    0.41 sec
+    Start 31: native_compare_gpu_optin_tests
+2/2 Test #31: native_compare_gpu_optin_tests ...   Passed    0.41 sec
+
+100% tests passed out of 2
+
+Total Test time (real) =  17.61 sec

@@ -670,6 +670,8 @@ void GpuImageUploader::destroy() {
   destroyGpuImage(device_, sourceModel_);
   destroyGpuImage(device_, color_);
   destroyGpuImage(device_, rawPresentation_);
+  destroyGpuImage(device_, publishedRawPresentation_);
+  rawPublicationValid_ = false;
   destroyGpuImage(device_, yPlane_);
   destroyGpuImage(device_, uPlane_);
   destroyGpuImage(device_, vPlane_);
@@ -734,6 +736,8 @@ bool GpuImageUploader::allocate(uint32_t sourceW, uint32_t sourceH,
   destroyGpuImage(device_, sourceModel_);
   destroyGpuImage(device_, color_);
   destroyGpuImage(device_, rawPresentation_);
+  destroyGpuImage(device_, publishedRawPresentation_);
+  rawPublicationValid_ = false;
   destroyGpuImage(device_, yPlane_);
   destroyGpuImage(device_, uPlane_);
   destroyGpuImage(device_, vPlane_);
@@ -793,8 +797,14 @@ bool GpuImageUploader::allocate(uint32_t sourceW, uint32_t sourceH,
                        VK_IMAGE_ASPECT_COLOR_BIT, color_, "fsr4_color");
   ok &= createGpuImage(
       device_, physical_, sourceW, sourceH, VK_FORMAT_R8G8B8A8_UNORM,
-      VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+      VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
+          VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
       VK_IMAGE_ASPECT_COLOR_BIT, rawPresentation_, "fsr4_raw_present",
+      queueFamily_, presentationQueueFamily_);
+  ok &= createGpuImage(device_, physical_, sourceW, sourceH,
+      VK_FORMAT_R8G8B8A8_UNORM,
+      VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+      VK_IMAGE_ASPECT_COLOR_BIT, publishedRawPresentation_, "published_raw_control",
       queueFamily_, presentationQueueFamily_);
   // EASU 2x intermediate: same format as color_ (rgb10_a2) so the FSR4
   // prepass can consume it directly. Allocated at 2x native dimensions.
@@ -951,6 +961,46 @@ bool GpuImageUploader::endUploadCmd() {
   }
   uploadCmdRecording_ = false;
   return submitAndWait(device_, queue_, cmd_, fence_);
+}
+
+bool GpuImageUploader::publishRawPresentation() {
+  if (frameUploadBatch_ || deferredFrameUploads_ ||
+      rawPresentation_.image == VK_NULL_HANDLE ||
+      publishedRawPresentation_.image == VK_NULL_HANDLE || !beginUploadCmd())
+    return false;
+  VkImageMemoryBarrier barriers[2]{};
+  for (auto& barrier : barriers) {
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT,0,1,0,1};
+    barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+  }
+  barriers[0].image = rawPresentation_.image;
+  barriers[0].oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+  barriers[0].srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+  barriers[0].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+  barriers[1].image = publishedRawPresentation_.image;
+  barriers[1].oldLayout = publishedRawPresentation_.layout;
+  barriers[1].srcAccessMask = rawPublicationValid_ ? VK_ACCESS_SHADER_READ_BIT : 0;
+  barriers[1].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  vkCmdPipelineBarrier(cmd_,VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+      VK_PIPELINE_STAGE_TRANSFER_BIT,0,0,nullptr,0,nullptr,2,barriers);
+  VkImageCopy copy{};
+  copy.srcSubresource = {VK_IMAGE_ASPECT_COLOR_BIT,0,0,1};
+  copy.dstSubresource = copy.srcSubresource;
+  copy.extent = {srcW_,srcH_,1};
+  vkCmdCopyImage(cmd_,rawPresentation_.image,VK_IMAGE_LAYOUT_GENERAL,
+      publishedRawPresentation_.image,VK_IMAGE_LAYOUT_GENERAL,1,&copy);
+  auto ready = barriers[1];
+  ready.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+  ready.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  ready.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+  vkCmdPipelineBarrier(cmd_,VK_PIPELINE_STAGE_TRANSFER_BIT,
+      VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,0,0,nullptr,0,nullptr,1,&ready);
+  rawPublicationValid_ = endUploadCmd();
+  if (rawPublicationValid_) publishedRawPresentation_.layout = VK_IMAGE_LAYOUT_GENERAL;
+  return rawPublicationValid_;
 }
 
 bool GpuImageUploader::beginFrameUploads(bool allowBatch) {

@@ -118,6 +118,12 @@ struct GpuImageUploader {
   VkImage colorImage() const { return color_.image; }
   VkImageView rawPresentationView() const { return rawPresentation_.view; }
   VkImage rawPresentationImage() const { return rawPresentation_.image; }
+  // Stable source/control image: updated only after successful output work.
+  bool publishRawPresentation();
+  VkImage publishedRawPresentationImage() const {
+    return rawPublicationValid_.load(std::memory_order_acquire)
+        ? publishedRawPresentation_.image : VK_NULL_HANDLE;
+  }
 
   // EASU 2x pre-scale output (2x native res). When EASU is active, the FSR4
   // dispatch / display path reads this instead of the native colorView.
@@ -324,6 +330,8 @@ private:
       depth_, reactive_, tcMask_, exposure_;
   // Output images (output dims)
   GpuImage output_, history_[2], recurrent_[2], reprojectedColor_;
+  GpuImage publishedRawPresentation_;
+  std::atomic<bool> rawPublicationValid_{false};
   GpuImage presentation_;
   // Keep one recently used presentation target so a resize oscillating between
   // two window sizes reuses its VkImage/allocation instead of reallocating on
