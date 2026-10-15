@@ -25,6 +25,7 @@
 #include "render/SideBufferSynth.hpp"
 #include "motion/MotionEstimator.hpp"
 #include "util/FsrTargetMath.hpp"
+#include "anvil/LiveFrameProcessor.hpp"
 
 #include <QObject>
 #include <QString>
@@ -78,6 +79,7 @@ class PlaybackEngine : public QObject {
     Q_PROPERTY(double lastFsr4DispatchMs READ lastFsr4DispatchMs NOTIFY fsr4StatusChanged)
     Q_PROPERTY(uint fsr4OutputWidth READ fsr4OutputWidth NOTIFY fsr4StatusChanged)
     Q_PROPERTY(uint fsr4OutputHeight READ fsr4OutputHeight NOTIFY fsr4StatusChanged)
+    Q_PROPERTY(QString anvilLiveStage READ anvilLiveStage NOTIFY anvilLiveStageChanged)
     Q_PROPERTY(QStringList playlist READ playlist NOTIFY playlistChanged)
     Q_PROPERTY(int playlistIndex READ playlistIndex NOTIFY playlistChanged)
     Q_PROPERTY(int playlistCount READ playlistCount NOTIFY playlistChanged)
@@ -187,6 +189,13 @@ public:
     [[nodiscard]] double lastFsr4DispatchMs() const { return lastFsr4DispatchMs_.load(std::memory_order_acquire); }
     [[nodiscard]] uint32_t fsr4OutputWidth() const { return fsr4OutW_.load(std::memory_order_acquire); }
     [[nodiscard]] uint32_t fsr4OutputHeight() const { return fsr4OutH_.load(std::memory_order_acquire); }
+    // Stage of the last successfully published Vulkan frame, not the most
+    // recently decoded frame. Pending/failed work cannot relabel pixels.
+    [[nodiscard]] QString anvilLiveStage() const {
+        return QString::fromLatin1(anvil::LiveStageTracker::stageName(
+            static_cast<anvil::LiveUserStage>(
+                anvilLiveStage_.load(std::memory_order_acquire))));
+    }
     QStringList playlist() const { return playlist_; }
     int playlistIndex() const { return playlistIndex_; }
     int playlistCount() const { return playlist_.size(); }
@@ -201,6 +210,7 @@ signals:
     void errorOccurred(const QString& message);
     void frameCounterChanged();
     void fsr4StatusChanged();
+    void anvilLiveStageChanged();
     void compareEnabledChanged();
     void playlistChanged();
 
@@ -262,6 +272,7 @@ private:
     std::unique_ptr<GpuImageUploader> fsr4InFlightUploader_;
     std::unique_ptr<Fsr4DispatchHarness> fsr4InFlightHarness_;
     std::atomic<GpuImageUploader *> fsr4PublishedUploader_{nullptr};
+    std::atomic<GpuImageUploader *> fsr4PublishedRawUploader_{nullptr};
     GpuImageUploader *fsr4LastSubmittedUploader_ = nullptr;
     uint32_t fsr4NextDispatchSlot_ = 0;
     // Optional progressive chain. The final pass remains in the legacy
@@ -304,6 +315,9 @@ private:
     std::atomic<bool> fsr4ProofRun_{false};    // proof has executed (pass or fail)
     std::atomic<bool> fsr4ProofPassed_{false}; // proof passed
     std::atomic<uint32_t> fsr4OutW_{0}, fsr4OutH_{0}; // current output dims
+    // Published-image identity. Decoder candidates cannot write this atomic;
+    // only successful publication and playback initialization can change it.
+    std::atomic<int> anvilLiveStage_{0};
     std::atomic<uint32_t> fsrViewportW_{1280}, fsrViewportH_{720};
     std::atomic<uint32_t> fsrTargetViewportW_{1280}, fsrTargetViewportH_{720};
     std::atomic<int64_t> fsrViewportChangedUs_{0};

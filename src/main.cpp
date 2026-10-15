@@ -116,6 +116,20 @@ int main(int argc, char** argv) {
         settings.jitterStrength = std::clamp(std::strtof(value, nullptr), 0.0f, 1.5f);
     }
 
+    // A paired review must always evaluate FSR4.1, never a persisted fallback
+    // backend or a preset left at Off. This is session-local only.
+    const bool visualReviewSession =
+        std::getenv("ANVIL_LIVE_PRE_FSR") &&
+        std::string_view(std::getenv("ANVIL_LIVE_PRE_FSR")) == "1" &&
+        std::getenv("ANVIL_REVIEW_CAPTURE_DIR") &&
+        std::getenv("ANVIL_REVIEW_FRAMES");
+    if (visualReviewSession) {
+        settings.backend = temporal_forge::BackendKind::Fsr4ReExperimental;
+        settings.preset = temporal_forge::UpscalePreset::Quality;
+        temporal_forge::logInfo(
+            "ANVIL paired review: session-local FSR4.1 Quality backend forced");
+    }
+
     temporal_forge::PlaybackEngine engine;
     engine.setQualityLabConfig(qualityLab);
     temporal_forge::FsrController fsr(&engine);
@@ -254,6 +268,11 @@ int main(int argc, char** argv) {
 
     // Persist settings on quit (spec 05 "Settings Persistence").
     QObject::connect(&app, &QGuiApplication::aboutToQuit, [&]() {
+        if (visualReviewSession) {
+            temporal_forge::logInfo(
+                "ANVIL paired review: leaving persisted player settings unchanged");
+            return;
+        }
         temporal_forge::Settings s;
         store.load(s); // start from current
         s.preset = fsr.preset();

@@ -9,7 +9,10 @@ namespace temporal_forge {
 
 FsrController::FsrController(PlaybackEngine* engine, QObject* parent)
     : QObject(parent), engine_(engine) {
-    // Poll the engine for source dimensions. Cheap; tied to media changes.
+    // Source identity changes on open/close without a preset or window change.
+    if (engine_)
+        connect(engine_, &PlaybackEngine::mediaChanged,
+                this, &FsrController::refreshSource);
     refreshSource();
 }
 

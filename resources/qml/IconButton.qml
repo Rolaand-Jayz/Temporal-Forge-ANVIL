@@ -1,74 +1,77 @@
-// IconButton.qml — reusable icon/text button for the control overlay.
-//
-// Designed to drop into a RowLayout. Highlights on hover, shows a tooltip on
-// hover, supports a "primary" state (the play/pause button is bigger and
-// brighter) and a "checked" state (compare, fullscreen). Used by Main.qml's
-// control bar so every transport button looks and behaves the same way.
+// One semantic icon-button control: vector icon, accessible name, hover/focus/pressed states.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
 Item {
     id: root
-
-    // The text shown inside the button. Can be a glyph or (with showLabel)
-    // a short string like "1.00x".
-    property string glyph: ""
+    property string iconName: ""
+    property string textLabel: ""
     property string tooltip: ""
     property bool primary: false
     property bool checked: false
-    property bool showLabel: false
     signal clicked()
 
-    implicitWidth: showLabel ? label.implicitWidth + 16 : 36
-    implicitHeight: 36
-    Layout.preferredHeight: 36
+    PlayerTheme { id: theme }
+    implicitWidth: textLabel.length ? Math.max(52, contents.implicitWidth + 24) : (primary ? 48 : 38)
+    implicitHeight: 40
+    Layout.preferredHeight: implicitHeight
+    activeFocusOnTab: true
+    Accessible.role: Accessible.Button
+    Accessible.name: tooltip.length ? tooltip : (textLabel || iconName)
+    Accessible.onPressAction: if (root.enabled) root.clicked()
 
-    // Hover detection drives the highlight + tooltip + auto-hide hold-off.
+    Rectangle {
+        anchors.fill: parent
+        radius: 9
+        color: !root.enabled ? "transparent"
+             : pointer.pressed ? theme.accentPressed
+             : root.primary ? theme.accent
+             : root.checked ? theme.accentTint
+             : pointer.containsMouse || root.activeFocus ? theme.surfaceRaised
+             : "transparent"
+        border.width: root.checked || root.activeFocus ? 1 : 0
+        border.color: root.activeFocus ? theme.accent : theme.border
+        Behavior on color { ColorAnimation { duration: 110 } }
+    }
+
+    Row {
+        id: contents
+        anchors.centerIn: parent
+        spacing: root.textLabel.length && root.iconName.length ? 6 : 0
+
+        VectorIcon {
+            visible: root.iconName.length > 0
+            anchors.verticalCenter: parent.verticalCenter
+            name: root.iconName
+            width: root.primary ? 23 : 20
+            height: width
+            color: !root.enabled ? theme.disabled
+                 : root.primary && !pointer.pressed ? theme.background
+                 : root.checked || pointer.containsMouse || root.activeFocus ? theme.foreground
+                 : theme.secondary
+        }
+        Text {
+            visible: root.textLabel.length > 0
+            anchors.verticalCenter: parent.verticalCenter
+            text: root.textLabel
+            color: !root.enabled ? theme.disabled : root.primary && !pointer.pressed ? theme.background : theme.foreground
+            font.pixelSize: 12
+            font.weight: Font.DemiBold
+        }
+    }
+
     MouseArea {
-        id: ma
+        id: pointer
         anchors.fill: parent
         hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
+        cursorShape: root.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
         enabled: root.enabled
         onClicked: root.clicked()
     }
-
-    Rectangle {
-        id: bg
-        anchors.fill: parent
-        radius: 6
-        color: {
-            if (!root.enabled) return "transparent"
-            if (ma.pressed) return "#2a2a32"
-            if (root.checked) return "#3a1f1c"
-            if (ma.containsMouse) return "#1e1e24"
-            return "transparent"
-        }
-        border.color: root.checked ? "#e44d3a" : "transparent"
-        border.width: root.checked ? 1 : 0
-        Behavior on color { ColorAnimation { duration: 90 } }
-    }
-
-    Text {
-        id: label
-        anchors.centerIn: parent
-        text: root.glyph
-        color: {
-            if (!root.enabled) return "#555560"
-            if (root.checked) return "#ffffff"
-            if (root.primary) return "#ffffff"
-            if (ma.containsMouse) return "#ffffff"
-            return "#d8d8de"
-        }
-        font.pixelSize: root.primary ? 22 : (root.showLabel ? 12 : 17)
-        font.bold: root.primary || root.showLabel
-        horizontalAlignment: Qt.AlignHCenter
-        verticalAlignment: Qt.AlignVCenter
-    }
-
-    // Tooltip on hover — purely declarative, no native Tooltip dependency.
-    ToolTip.visible: ma.containsMouse && root.tooltip.length > 0
+    Keys.onReturnPressed: if (root.enabled) root.clicked()
+    Keys.onSpacePressed: if (root.enabled) root.clicked()
+    ToolTip.visible: pointer.containsMouse && root.tooltip.length > 0
     ToolTip.delay: 400
     ToolTip.text: root.tooltip
 }

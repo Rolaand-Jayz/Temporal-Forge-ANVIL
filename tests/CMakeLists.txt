@@ -20,6 +20,8 @@ function(tforge_add_test name)
     add_test(NAME ${name} COMMAND ${name})
 endfunction()
 
+tforge_add_test(vulkan_submission_failure_tests SOURCES vulkan_submission_failure_tests.cpp)
+
 tforge_add_test(preset_math_tests
     SOURCES preset_math_tests.cpp
             ../src/backend/UpscaleTypes.cpp)
@@ -261,6 +263,39 @@ endif()
 # against temporal_forge_lib so it reuses the real engine code without
 # pulling in main.cpp or the QML module.
 if(TARGET temporal_forge_lib AND TARGET tforge_sample_mp4)
+    set(COMPARE_MP4 "${CMAKE_CURRENT_BINARY_DIR}/compare.mp4")
+    add_custom_command(OUTPUT ${COMPARE_MP4}
+        COMMAND ${FFMPEG_BIN} -y -loglevel error -f lavfi
+            -i "testsrc2=size=64x48:rate=30:duration=8"
+            -c:v libx264 -pix_fmt yuv420p -color_range tv -colorspace bt709
+            ${COMPARE_MP4}
+        VERBATIM)
+    add_custom_target(tforge_compare_mp4 DEPENDS ${COMPARE_MP4})
+    find_package(Qt6 REQUIRED COMPONENTS Test)
+    add_executable(native_player_ui_tests native_player_ui_tests.cpp)
+    target_link_libraries(native_player_ui_tests PRIVATE temporal_forge_lib Qt6::Test)
+    target_link_options(native_player_ui_tests PRIVATE "-Wl,--wrap=vkQueueSubmit" "-Wl,--wrap=vkCmdWriteTimestamp")
+    target_compile_definitions(native_player_ui_tests PRIVATE TFORGE_SOURCE_ROOT="${CMAKE_SOURCE_DIR}")
+    add_dependencies(native_player_ui_tests temporal_forge_player tforge_compare_mp4)
+    add_test(NAME native_player_ui_tests COMMAND native_player_ui_tests "${COMPARE_MP4}")
+    add_test(NAME native_player_ui_optin_tests COMMAND native_player_ui_tests "${COMPARE_MP4}")
+    set_tests_properties(native_player_ui_tests native_player_ui_optin_tests PROPERTIES SKIP_RETURN_CODE 77)
+    set_tests_properties(native_player_ui_optin_tests PROPERTIES ENVIRONMENT "ANVIL_LIVE_PRE_FSR=1")
+    add_test(NAME native_player_ui_budget_tests COMMAND native_player_ui_tests "${COMPARE_MP4}")
+    set_tests_properties(native_player_ui_budget_tests PROPERTIES SKIP_RETURN_CODE 77
+        ENVIRONMENT "ANVIL_LIVE_PRE_FSR=1;ANVIL_LIVE_BUDGET_MS=0.1;TFORGE_TEST_EXPECT_STAGE=bypassed")
+    add_executable(native_compare_gpu_tests native_compare_gpu_tests.cpp)
+    target_link_libraries(native_compare_gpu_tests PRIVATE temporal_forge_lib)
+    target_compile_features(native_compare_gpu_tests PRIVATE cxx_std_23)
+    add_dependencies(native_compare_gpu_tests temporal_forge_player tforge_compare_mp4)
+    add_test(NAME native_compare_gpu_tests COMMAND native_compare_gpu_tests
+        "${COMPARE_MP4}")
+    set_tests_properties(native_compare_gpu_tests PROPERTIES SKIP_RETURN_CODE 77)
+    add_test(NAME native_compare_gpu_optin_tests COMMAND native_compare_gpu_tests
+        "${COMPARE_MP4}")
+    set_tests_properties(native_compare_gpu_optin_tests PROPERTIES
+        SKIP_RETURN_CODE 77 ENVIRONMENT "ANVIL_LIVE_PRE_FSR=1")
+
     add_executable(file_switch_tests file_switch_tests.cpp)
     target_link_libraries(file_switch_tests PRIVATE temporal_forge_lib)
     target_compile_features(file_switch_tests PRIVATE cxx_std_23)
@@ -280,6 +315,12 @@ tforge_add_test(vulkan_capability_plan_tests
             ../src/render/VulkanContext.cpp
             ../src/util/Log.cpp)
 target_link_libraries(vulkan_capability_plan_tests PRIVATE Vulkan::Vulkan)
+
+# Exercise provenance through the same static-library interface as the player,
+# without a display, GPU or provisioned FSR assets.
+tforge_add_test(player_build_provenance_tests SOURCES player_build_provenance_tests.cpp)
+target_link_libraries(player_build_provenance_tests PRIVATE temporal_forge_lib)
+target_compile_definitions(player_build_provenance_tests PRIVATE TFORGE_SOURCE_ROOT="${CMAKE_SOURCE_DIR}")
 
 # --- ANVIL successor tests (Qt-free, FFmpeg-only) ---
 pkg_check_modules(FFMPEG_ANVIL IMPORTED_TARGET libavformat libavcodec libavutil libswscale)
@@ -501,3 +542,17 @@ if(ANVIL_PYTHON3 AND FFMPEG_ANVIL_FOUND AND FFMPEG_BIN)
 elseif(NOT ANVIL_PYTHON3)
     message(STATUS "ANVIL: python3 not found; anvil_provenance_rebuild_regression disabled")
 endif()
+
+# ANVIL causal live-stage contract: genuine decoded-frame input, no disk I/O.
+tforge_add_test(anvil_live_frame_tests SOURCES anvil_live_frame_tests.cpp)
+add_test(NAME anvil_live_frame_negative_control
+         COMMAND anvil_live_frame_tests --negative-control)
+set_tests_properties(anvil_live_frame_negative_control PROPERTIES WILL_FAIL TRUE)
+
+target_link_libraries(anvil_live_frame_tests PRIVATE anvil_lib)
+
+# Matched, immutable visual-review pair capture (Qt + libswscale only).
+tforge_add_test(anvil_review_pair_tests SOURCES anvil_review_pair_tests.cpp)
+target_link_libraries(anvil_review_pair_tests PRIVATE Qt6::Core Qt6::Gui ${FFMPEG_LIBRARIES})
+target_link_directories(anvil_review_pair_tests PRIVATE ${FFMPEG_LIBRARY_DIRS})
+target_include_directories(anvil_review_pair_tests PRIVATE ${FFMPEG_INCLUDE_DIRS})

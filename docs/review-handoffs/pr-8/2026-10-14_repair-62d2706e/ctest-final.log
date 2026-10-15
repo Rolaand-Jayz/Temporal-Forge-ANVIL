@@ -1,0 +1,102 @@
+Test project /mnt/workdrive/anvil-verification/anvil-unified/build
+      Start  1: vulkan_submission_failure_tests
+ 1/45 Test  #1: vulkan_submission_failure_tests .............   Passed    0.00 sec
+      Start  2: preset_math_tests
+ 2/45 Test  #2: preset_math_tests ...........................   Passed    0.00 sec
+      Start  3: quality_lab_config_tests
+ 3/45 Test  #3: quality_lab_config_tests ....................   Passed    0.10 sec
+      Start  4: fsr4_paths_contract_tests
+ 4/45 Test  #4: fsr4_paths_contract_tests ...................   Passed    0.00 sec
+      Start  5: playlist_eos_tests
+ 5/45 Test  #5: playlist_eos_tests ..........................   Passed    0.00 sec
+      Start  6: jitter_tests
+ 6/45 Test  #6: jitter_tests ................................   Passed    0.00 sec
+      Start  7: synthetic_jitter_contract_audit_tests
+ 7/45 Test  #7: synthetic_jitter_contract_audit_tests .......   Passed    0.00 sec
+      Start  8: frame_identity_tests
+ 8/45 Test  #8: frame_identity_tests ........................   Passed    0.07 sec
+      Start  9: temporal_frame_continuity_tests
+ 9/45 Test  #9: temporal_frame_continuity_tests .............   Passed    0.00 sec
+      Start 10: backend_tests
+10/45 Test #10: backend_tests ...............................   Passed    0.01 sec
+      Start 11: sidebuffer_tests
+11/45 Test #11: sidebuffer_tests ............................   Passed    0.01 sec
+      Start 12: motion_estimator_tests
+12/45 Test #12: motion_estimator_tests ......................   Passed    0.02 sec
+      Start 13: fsr4_weight_tests
+13/45 Test #13: fsr4_weight_tests ...........................   Passed    0.04 sec
+      Start 14: fsr4_postpass_contract_tests
+14/45 Test #14: fsr4_postpass_contract_tests ................   Passed    0.00 sec
+      Start 15: fsr4_temporal_contract_tests
+15/45 Test #15: fsr4_temporal_contract_tests ................   Passed    0.00 sec
+      Start 16: fsr4_residual_quantization_contract_tests
+16/45 Test #16: fsr4_residual_quantization_contract_tests ...   Passed    0.00 sec
+      Start 17: fsr4_motion_contract_tests
+17/45 Test #17: fsr4_motion_contract_tests ..................   Passed    0.14 sec
+      Start 18: color_metadata_contract_tests
+18/45 Test #18: color_metadata_contract_tests ...............   Passed    0.00 sec
+      Start 19: jitter_policy_tests
+19/45 Test #19: jitter_policy_tests .........................   Passed    0.00 sec
+      Start 20: fsr4_tensormap_tests
+20/45 Test #20: fsr4_tensormap_tests ........................***Skipped   0.00 sec
+      Start 21: gpu_capability_handoff_contract_tests
+21/45 Test #21: gpu_capability_handoff_contract_tests .......   Passed    0.00 sec
+      Start 22: gpu_probe
+22/45 Test #22: gpu_probe ...................................***Not Run (Disabled)   0.00 sec
+      Start 23: cm_dump
+23/45 Test #23: cm_dump .....................................***Not Run (Disabled)   0.00 sec
+      Start 24: fsr4_harness_tests
+24/45 Test #24: fsr4_harness_tests ..........................***Not Run (Disabled)   0.00 sec
+      Start 25: jitter_gpu_contract_tests
+25/45 Test #25: jitter_gpu_contract_tests ...................***Not Run (Disabled)   0.00 sec
+      Start 26: media_pipeline_tests
+26/45 Test #26: media_pipeline_tests ........................   Passed    0.15 sec
+      Start 27: native_player_ui_tests
+27/45 Test #27: native_player_ui_tests ......................   Passed    1.74 sec
+      Start 28: native_player_ui_optin_tests
+28/45 Test #28: native_player_ui_optin_tests ................   Passed    1.40 sec
+      Start 29: native_player_ui_budget_tests
+29/45 Test #29: native_player_ui_budget_tests ...............   Passed    1.36 sec
+      Start 30: native_compare_gpu_tests
+30/45 Test #30: native_compare_gpu_tests ....................   Passed    0.39 sec
+      Start 31: native_compare_gpu_optin_tests
+31/45 Test #31: native_compare_gpu_optin_tests ..............   Passed    0.41 sec
+      Start 32: file_switch_tests
+32/45 Test #32: file_switch_tests ...........................   Passed    8.28 sec
+      Start 33: vulkan_capability_plan_tests
+33/45 Test #33: vulkan_capability_plan_tests ................   Passed    0.08 sec
+      Start 34: player_build_provenance_tests
+34/45 Test #34: player_build_provenance_tests ...............   Passed    0.03 sec
+      Start 35: anvil_core_tests
+35/45 Test #35: anvil_core_tests ............................   Passed    0.74 sec
+      Start 36: anvil_refinement_tests
+36/45 Test #36: anvil_refinement_tests ......................   Passed    0.05 sec
+      Start 37: anvil_geometry_estimate_tests
+37/45 Test #37: anvil_geometry_estimate_tests ...............   Passed    0.12 sec
+      Start 38: anvil_codec_tests
+38/45 Test #38: anvil_codec_tests ...........................   Passed    0.36 sec
+      Start 39: anvil_side_info_tests
+39/45 Test #39: anvil_side_info_tests .......................   Passed    0.04 sec
+      Start 40: anvil_output_backend_tests
+40/45 Test #40: anvil_output_backend_tests ..................   Passed    0.05 sec
+      Start 41: anvil_runner_tests
+41/45 Test #41: anvil_runner_tests ..........................   Passed    4.77 sec
+      Start 42: anvil_timestamp_tests
+42/45 Test #42: anvil_timestamp_tests .......................   Passed    0.19 sec
+      Start 43: anvil_live_frame_tests
+43/45 Test #43: anvil_live_frame_tests ......................   Passed    0.07 sec
+      Start 44: anvil_live_frame_negative_control
+44/45 Test #44: anvil_live_frame_negative_control ...........   Passed    0.02 sec
+      Start 45: anvil_review_pair_tests
+45/45 Test #45: anvil_review_pair_tests .....................   Passed    0.02 sec
+
+100% tests passed out of 41
+
+Total Test time (real) =  20.68 sec
+
+The following tests did not run:
+	 20 - fsr4_tensormap_tests (Skipped)
+	 22 - gpu_probe (Disabled)
+	 23 - cm_dump (Disabled)
+	 24 - fsr4_harness_tests (Disabled)
+	 25 - jitter_gpu_contract_tests (Disabled)

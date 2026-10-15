@@ -1,0 +1,42 @@
+ninja: Entering directory `build'
+[0/2] Re-checking globbed directories...
+[1/49] Copying temporal_forge_player qml sources into build dir
+[2/49] ANVIL: capturing build-time Git provenance
+[3/49] Automatic MOC and UIC for target anvil_lib
+[4/48] Building CXX object CMakeFiles/anvil_lib.dir/anvil_provenance/AnvilBuildProvenance.cpp.o
+[5/48] Linking CXX static library libanvil_lib.a
+[6/48] Running qmlimportscanner for temporal_forge_player
+[7/48] Generating qt.conf part for temporal_forge_player
+[8/48] Generating qt.conf file
+[9/48] Automatic MOC and UIC for target temporal_forge_player
+[10/47] Running AUTOMOC file extraction for target temporal_forge_player
+[11/22] Running rcc for resource temporal_forge_player_raw_qml_0
+[12/22] Generating .rcc/qmlcache/temporal_forge_player_resources_qml_SettingsDialog_qml.cpp, .rcc/qmlcache/temporal_forge_player_resources_qml_SettingsDialog_qml.cpp.aotstats
+[13/22] Building CXX object CMakeFiles/temporal_forge_player.dir/anvil_provenance/AnvilBuildProvenance.cpp.o
+[14/22] Building CXX object CMakeFiles/temporal_forge_player.dir/build/.qt/rcc/qrc_temporal_forge_player_raw_qml_0.cpp.o
+[15/22] Building CXX object CMakeFiles/temporal_forge_player.dir/build/.rcc/qmlcache/temporal_forge_player_resources_qml_SettingsDialog_qml.cpp.o
+[16/22] Linking CXX executable temporal_forge_player
+[17/22] Automatic MOC and UIC for target native_player_ui_tests
+[18/21] Building CXX object tests/CMakeFiles/native_player_ui_tests.dir/__/anvil_provenance/AnvilBuildProvenance.cpp.o
+[19/21] Building CXX object tests/CMakeFiles/native_player_ui_tests.dir/native_player_ui_tests.cpp.o
+In file included from /mnt/workdrive/anvil-verification/anvil-unified/src/render/SideBufferSynth.hpp:17,
+                 from /mnt/workdrive/anvil-verification/anvil-unified/src/motion/MotionEstimator.hpp:14,
+                 from /mnt/workdrive/anvil-verification/anvil-unified/src/config/QualityLabConfig.hpp:9,
+                 from /mnt/workdrive/anvil-verification/anvil-unified/src/core/PlaybackEngine.hpp:15,
+                 from /mnt/workdrive/anvil-verification/anvil-unified/tests/native_player_ui_tests.cpp:4:
+/mnt/workdrive/anvil-verification/anvil-unified/src/util/Jitter.hpp: In function ‘constexpr uint32_t temporal_forge::fsrJitterPhaseCount(uint32_t, uint32_t)’:
+/mnt/workdrive/anvil-verification/anvil-unified/src/util/Jitter.hpp:70:27: warning: ISO C++ does not support ‘__int128’ for ‘type name’ [-Wpedantic]
+   70 |     using Wide = unsigned __int128;
+      |                           ^~~~~~~~
+/mnt/workdrive/anvil-verification/anvil-unified/tests/native_player_ui_tests.cpp: In lambda function:
+/mnt/workdrive/anvil-verification/anvil-unified/tests/native_player_ui_tests.cpp:218:36: warning: ignoring return value of ‘bool QTest::qWaitForWindowActive(QWindow*, int)’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  218 |         QTest::qWaitForWindowActive(w, 2000);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~
+In file included from /usr/include/qt6/QtTest/qtestsystem.h:11,
+                 from /usr/include/qt6/QtTest/qtest.h:271,
+                 from /usr/include/qt6/QtTest/QTest:1,
+                 from /mnt/workdrive/anvil-verification/anvil-unified/tests/native_player_ui_tests.cpp:22:
+/usr/include/qt6/QtGui/qtestsupport_gui.h:27:33: note: declared here
+   27 | [[nodiscard]] Q_GUI_EXPORT bool qWaitForWindowActive(QWindow *window, int timeout);
+      |                                 ^~~~~~~~~~~~~~~~~~~~
+[20/21] Linking CXX executable tests/native_player_ui_tests

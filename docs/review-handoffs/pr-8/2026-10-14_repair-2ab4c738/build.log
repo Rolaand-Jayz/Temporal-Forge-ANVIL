@@ -1,0 +1,26 @@
+[0/2] Re-checking globbed directories...
+[1/20] ANVIL: capturing build-time Git provenance
+[2/20] Automatic MOC and UIC for target anvil_core_tests
+[3/19] Automatic MOC and UIC for target anvil_lib
+[4/18] Building CXX object tests/CMakeFiles/anvil_core_tests.dir/__/anvil_provenance/AnvilBuildProvenance.cpp.o
+[5/18] Building CXX object CMakeFiles/anvil_lib.dir/anvil_provenance/AnvilBuildProvenance.cpp.o
+[6/18] Linking CXX static library libanvil_lib.a
+[7/18] Linking CXX executable tests/anvil_core_tests
+[8/18] Linking CXX executable tests/anvil_live_frame_tests
+[9/18] Linking CXX executable anvil_runner
+[10/18] Linking CXX executable tests/anvil_runner_tests
+[11/18] Linking CXX executable temporal_forge_player
+[12/18] Automatic MOC and UIC for target native_compare_gpu_tests
+[13/17] Linking CXX executable tests/file_switch_tests
+[14/17] Linking CXX executable tests/jitter_gpu_contract_tests
+[15/17] Building CXX object tests/CMakeFiles/native_compare_gpu_tests.dir/native_compare_gpu_tests.cpp.o
+In file included from /mnt/workdrive/anvil-verification/anvil-unified/src/render/SideBufferSynth.hpp:17,
+                 from /mnt/workdrive/anvil-verification/anvil-unified/src/motion/MotionEstimator.hpp:14,
+                 from /mnt/workdrive/anvil-verification/anvil-unified/src/config/QualityLabConfig.hpp:9,
+                 from /mnt/workdrive/anvil-verification/anvil-unified/src/core/PlaybackEngine.hpp:15,
+                 from /mnt/workdrive/anvil-verification/anvil-unified/tests/native_compare_gpu_tests.cpp:5:
+/mnt/workdrive/anvil-verification/anvil-unified/src/util/Jitter.hpp: In function ‘constexpr uint32_t temporal_forge::fsrJitterPhaseCount(uint32_t, uint32_t)’:
+/mnt/workdrive/anvil-verification/anvil-unified/src/util/Jitter.hpp:70:27: warning: ISO C++ does not support ‘__int128’ for ‘type name’ [-Wpedantic]
+   70 |     using Wide = unsigned __int128;
+      |                           ^~~~~~~~
+[16/17] Linking CXX executable tests/native_compare_gpu_tests

@@ -1,5 +1,8 @@
 // PlaybackEngine.cpp
 #include "core/PlaybackEngine.hpp"
+#include "anvil/LiveFrameProcessor.hpp"
+#include "anvil/BuildProvenance.hpp"
+#include "core/ReviewPairCapture.hpp"
 #include "backend/GpuCapabilityProbe.hpp"
 #include "backend/WeightBlob.hpp"
 #include "core/PlaylistAdvancement.hpp"
@@ -20,6 +23,7 @@ extern "C" {
 #include <cstring>
 #include <cstdlib>
 #include <QFileInfo>
+#include <QCoreApplication>
 #include <QFile>
 #include <QCryptographicHash>
 #include <QJsonArray>
@@ -1319,6 +1323,7 @@ void PlaybackEngine::teardownFsr4Path() {
   // dispatch or aborted before recording any commands referencing the
   // uploader/harness, and no Qt-side texture is sampling the output image.
   fsr4PublishedUploader_.store(nullptr, std::memory_order_release);
+  fsr4PublishedRawUploader_.store(nullptr, std::memory_order_release);
   fsr4Uploader_.reset();
   fsr4Harness_.reset();
   fsr4InFlightUploader_.reset();
@@ -1536,6 +1541,7 @@ bool PlaybackEngine::initFsr4Path(int decodedW, int decodedH, int modelW,
     fsr4Uploader_.reset();
     fsr4Harness_.reset();
     fsr4PublishedUploader_.store(nullptr, std::memory_order_release);
+    fsr4PublishedRawUploader_.store(nullptr, std::memory_order_release);
     fsr4InFlightUploader_.reset();
     fsr4InFlightHarness_.reset();
     fsr4LastSubmittedUploader_ = nullptr;
@@ -1783,13 +1789,15 @@ bool PlaybackEngine::fsr4NativeOutput(VkImage &image, uint32_t &width,
   // The uploader is alive (kept by easuOnlyMode_), so we can hand its EASU
   // image directly to the render thread. Same no-mutex invariant applies.
   if (easuOnlyMode_.load(std::memory_order_acquire)) {
-    if (!fsr4FrameReady_.load(std::memory_order_acquire) || !fsr4Uploader_)
+    if (!fsr4FrameReady_.load(std::memory_order_acquire))
       return false;
-    if (!fsr4Uploader_->easuReady())
+    GpuImageUploader *published =
+        fsr4PublishedUploader_.load(std::memory_order_acquire);
+    if (!published || !published->easuReady())
       return false;
-    image = fsr4Uploader_->easuColorImage();
-    width = fsr4Uploader_->easuW();
-    height = fsr4Uploader_->easuH();
+    image = published->easuColorImage();
+    width = published->easuW();
+    height = published->easuH();
     return image != VK_NULL_HANDLE && width > 0 && height > 0;
   }
   if (!fsr4Enabled_.load(std::memory_order_acquire) ||
@@ -1810,7 +1818,7 @@ bool PlaybackEngine::fsr4NativeOutput(VkImage &image, uint32_t &width,
   // output image is the current frame in display space; history is model
   // space and must never be presented as the video frame.
   if (fsr4NativePassthrough_.load(std::memory_order_acquire)) {
-    image = published->rawPresentationImage();
+    image = published->publishedRawPresentationImage();
     width = published->sourceW();
     height = published->sourceH();
   } else {
@@ -1821,22 +1829,28 @@ bool PlaybackEngine::fsr4NativeOutput(VkImage &image, uint32_t &width,
   return image != VK_NULL_HANDLE && width > 0 && height > 0;
 }
 
-// fsr4RawOutput: hand the Qt render thread the RAW decoded-frame presentation
-//                image (for compare mode / raw-only passthrough).
+// fsr4RawOutput: hand Qt the last successfully published pre-FSR control.
+//                This stable copy may contain opt-in ANVIL reconstruction;
+//                failed or pending uploads cannot overwrite its pixels.
 //
 // Called by: VideoSurfaceItem::updatePaintNode on the Qt render thread (~60Hz).
-// Calls:     reads fsr4Ready_ atomic, fsr4Uploader_->rawPresentationImage().
+// Calls:     reads publication readiness and the published source owner.
 // Notes:     Same no-mutex invariant as fsr4NativeOutput (teardown via
 //            vkQueueWaitIdle, not locking).
 bool PlaybackEngine::fsr4RawOutput(VkImage &image, uint32_t &width,
                                    uint32_t &height) const {
-  if (!fsr4Ready_.load(std::memory_order_acquire))
+  // The spatial EASU path has no neural harness, hence fsr4Ready_ is false.
+  // Its raw image is nevertheless paired with the successfully published
+  // EASU image, owned by the same uploader. Do not expose an in-flight input.
+  if ((!easuOnlyMode_.load(std::memory_order_acquire) &&
+       !fsr4Ready_.load(std::memory_order_acquire)) ||
+      !fsr4FrameReady_.load(std::memory_order_acquire))
     return false;
   GpuImageUploader *published =
-      fsr4PublishedUploader_.load(std::memory_order_acquire);
+      fsr4PublishedRawUploader_.load(std::memory_order_acquire);
   if (!published)
     return false;
-  image = published->rawPresentationImage();
+  image = published->publishedRawPresentationImage();
   width = published->sourceW();
   height = published->sourceH();
   return image != VK_NULL_HANDLE && width > 0 && height > 0;
@@ -2110,6 +2124,12 @@ bool PlaybackEngine::openUrlInternal(const QUrl &url) {
          qualityLabConfig_.motion.mode != MotionEstimatorMode::Off) ||
          userNeedsCodecMotion))
       vdec_->setMotionMetadataRequested(true);
+    // The current ANVIL causal CPU algorithm requires software YUV planes.
+    // VAAPI would bypass every requested review frame rather than produce
+    // legitimate ANVIL evidence. Force software decode only in opt-in mode.
+    if (const char* stage = std::getenv("ANVIL_LIVE_PRE_FSR");
+        stage && std::strcmp(stage, "1") == 0)
+      vdec_->setMotionMetadataRequested(true);
     if (!vdec_->open(demux_->ctx(), info.videoIndex))
       vdec_.reset();
   }
@@ -2232,6 +2252,7 @@ void PlaybackEngine::seekUs(qint64 us) {
   {
     std::lock_guard lock(frameMutex_);
     frames_.clear();
+    queuedFrames_.store(0, std::memory_order_release);
   }
   {
     std::lock_guard lock(audioMutex_);
@@ -2347,11 +2368,26 @@ void PlaybackEngine::demuxLoop() {
     // Handle pending seek.
     if (seekPending_.exchange(false)) {
       int64_t target = seekTargetUs_.load();
-      if (vdec_)
-        vdec_->flush();
-      if (adec_)
-        adec_->flush();
       demux_->seekUs(target);
+      {
+        // AVCodecContext is owned by its decode thread. Flushing it here
+        // races avcodec_receive_frame (FFmpeg frame-thread async_lock).
+        // Queue the boundary before any packet from the new position.
+        std::lock_guard lock(pktMutex_);
+        videoPackets_.clear();
+        audioPackets_.clear();
+        if (vdec_) {
+          Packet flush;
+          flush.isFlush = true;
+          videoPackets_.push_back(std::move(flush));
+        }
+        if (adec_) {
+          Packet flush;
+          flush.isFlush = true;
+          audioPackets_.push_back(std::move(flush));
+        }
+      }
+      pktCv_.notify_all();
       audio_.setStartPts(target); // rebase audio clock at seek target
       lastRenderedPtsUs_.store(target);
     }
@@ -2444,6 +2480,55 @@ void PlaybackEngine::videoDecodeLoop() {
   TemporalFrameContinuity temporalFrameContinuity;
   DecodedVideoFrame pendingDecodedFrame;
   bool hasPendingDecodedFrame = false;
+  // Testing the actual placement: decode -> ANVIL -> existing FSR dispatch.
+  // Explicit opt-in; ordinary real-time playback has zero ANVIL processing.
+  const bool anvilLiveEnabled = [] {
+    const char* value = std::getenv("ANVIL_LIVE_PRE_FSR");
+    return value && std::strcmp(value, "1") == 0;
+  }();
+  const double anvilBudgetMs = [] {
+    const char* value = std::getenv("ANVIL_LIVE_BUDGET_MS");
+    if (!value || !*value) return 6.0;
+    char* end = nullptr;
+    const double ms = std::strtod(value, &end);
+    if (end == value || (end && *end) || !std::isfinite(ms) ||
+        ms < 0.1 || ms > 1000.0)
+      return 6.0;
+    return ms;
+  }();
+  anvil::LiveFrameProcessor anvilLive(anvilBudgetMs);
+  // Fold per-frame live statuses into the user-facing stage surfaced to QML.
+  // Published to anvilLiveStage_ only on change so the UI label tracks who
+  // owns the displayed pixels without a per-frame signal.
+  anvil::LiveStageTracker anvilLiveStageTracker(anvilLiveEnabled);
+  // Decoder stage is a candidate; only a completed image publication may
+  // become the label for the frame visible in the native player.
+  anvil::LivePublicationTracker anvilPublication(anvilLiveEnabled);
+  const auto publishAnvilLiveStage = [this](anvil::LiveUserStage stage) {
+    if (anvilLiveStage_.exchange(static_cast<int>(stage),
+                                 std::memory_order_acq_rel) ==
+        static_cast<int>(stage))
+      return;
+    emit anvilLiveStageChanged();
+  };
+  publishAnvilLiveStage(anvilPublication.stage());
+  const auto publishRawControl = [this](GpuImageUploader* uploader) {
+    // No reader may pair a freshly committed control with the prior stage.
+    // Restore readiness only after output owner and stage publish together.
+    fsr4FrameReady_.store(false, std::memory_order_release);
+    return uploader->publishRawPresentation();
+  };
+  anvil::ReviewPairCapture reviewPair = anvil::ReviewPairCapture::fromEnvironment();
+  const bool reviewCaptureEnabled = anvilLiveEnabled && reviewPair.enabled();
+  if (anvilLiveEnabled && std::getenv("ANVIL_REVIEW_CAPTURE_DIR") && !reviewPair.enabled())
+    logWarn("ANVIL capture disabled: no valid external attestation key (see ANVIL_REVIEW_ATTEST_KEY_FILE)");
+  if (reviewPair.enabled() && !anvilLiveEnabled)
+    logWarn("ANVIL review capture requires ANVIL_LIVE_PRE_FSR=1; no pair will be published");
+  bool anvilBudgetWarningEmitted = false;
+  uint64_t anvilReconstructedFrames = 0;
+  if (anvilLiveEnabled)
+    logInfo("ANVIL live causal CPU stage enabled before FSR: budget={}ms "
+            "(experimental; not performance qualified)", anvilBudgetMs);
   static const bool forceResetEnv =
       std::getenv("TFORGE_FSR4_FORCE_RESET") != nullptr;
   static const bool motionConfidenceReactiveEnv =
@@ -2737,6 +2822,7 @@ void PlaybackEngine::videoDecodeLoop() {
       // FSR history. Otherwise the next source frame could compare against a
       // luma frame from the previous seek/file sequence.
       sideBufferSynth_.resetAnalysisHistory();
+      anvilLive.reset();
       pendingDecodedFrame = {};
       hasPendingDecodedFrame = false;
       firstAfterSeek = true;
@@ -2753,9 +2839,9 @@ void PlaybackEngine::videoDecodeLoop() {
     DecodedVideoFrame df;
     double decodeCpuMs = 0.0;
     while (true) {
-      // Demux performs the decoder flush on its own thread, so the decode
-      // thread uses the generation counter to reset its CPU-side temporal
-      // companion state at the same boundary. A pending seek also stops this
+      // Demux queues a flush marker for this decoder-owned context. The
+      // generation counter also resets CPU-side temporal companion state
+      // at the same boundary. A pending seek stops this
       // old packet from producing another frame before the flush completes.
       const uint64_t currentSeekGeneration =
           seekGeneration_.load(std::memory_order_acquire);
@@ -2766,6 +2852,7 @@ void PlaybackEngine::videoDecodeLoop() {
       }
       if (currentSeekGeneration != handledSeekGeneration) {
         sideBufferSynth_.resetAnalysisHistory();
+        anvilLive.reset();
         pendingDecodedFrame = {};
         hasPendingDecodedFrame = false;
         firstAfterSeek = true;
@@ -2874,9 +2961,9 @@ void PlaybackEngine::videoDecodeLoop() {
       // validated future frame. This player remains causal, so timestamp
       // discontinuities reset the temporal state rather than attempting to
       // bridge an uncertain reference chain.
-      const bool reset = firstAfterSeek || renderSizeChanged ||
-                         timestampDiscontinuity ||
-                         frameIndexDiscontinuity || forceResetEnv ||
+      const bool decodedReset = firstAfterSeek || renderSizeChanged ||
+                                timestampDiscontinuity || forceResetEnv;
+      const bool reset = decodedReset || frameIndexDiscontinuity ||
                          requestedTemporalReset;
       firstAfterSeek = false;
 
@@ -2885,6 +2972,34 @@ void PlaybackEngine::videoDecodeLoop() {
           ? static_cast<float>(df.ptsUs - lastAnalysisPtsUs_) / 1000.0f
           : 0.0f;
       lastAnalysisPtsUs_ = df.ptsUs;
+      // Source pixels pass through unchanged on unsupported formats, seek,
+      // no correspondence or a missed stage deadline. Timestamp, color,
+      // codec motion side data, and frame identity remain decoder-owned.
+      bool anvilReconstructedThisFrame = false;
+      double anvilStageElapsedMs = 0.0;
+      if (anvilLiveEnabled) {
+        // CPU history advances on decoded observations, independently of
+        // neural GPU dispatch. LiveFrameProcessor checks its own frame IDs;
+        // FSR-only continuity would reset it on every EASU-only frame.
+        const auto liveResult = anvilLive.process(df, decodedReset);
+        anvilStageElapsedMs = liveResult.elapsedMs;
+        anvilReconstructedThisFrame =
+            liveResult.status == anvil::LiveFrameStatus::Reconstructed;
+        // Do not relabel the last published VkImage while a new frame is
+        // still being processed, uploaded or dispatched.
+        anvilLiveStageTracker.observe(liveResult.status);
+        if (anvilReconstructedThisFrame) {
+          ++anvilReconstructedFrames;
+          if (anvilReconstructedFrames == 1 || anvilReconstructedFrames % 300 == 0)
+            logInfo("ANVIL causal live stage: frames={} last_ms={} valid_samples={}",
+                    anvilReconstructedFrames, liveResult.elapsedMs, liveResult.usableSamples);
+        } else if (liveResult.status == anvil::LiveFrameStatus::OverBudget &&
+                   !anvilBudgetWarningEmitted) {
+          anvilBudgetWarningEmitted = true;
+          logWarn("ANVIL live stage exceeded its CPU budget ({} ms); "
+                  "bypassing for the rest of playback", liveResult.elapsedMs);
+        }
+      }
       promoteStableFsrViewport();
       // JitterOffset is expressed in render/source-pixel units by the FSR
       // contract. The YUV/DRM upload owns the single color sampling offset;
@@ -3590,6 +3705,8 @@ void PlaybackEngine::videoDecodeLoop() {
           });
           if (!running_.load() || seekPending_.load())
             continue;
+          if (seekGeneration_.load(std::memory_order_acquire) != currentSeekGeneration)
+            continue;
         }
         // The dispatch block holds fsrDispatchMutex_ for its whole duration,
         // including the lazy init/realloc. teardownFsr4Path (called from the
@@ -3694,17 +3811,23 @@ void PlaybackEngine::videoDecodeLoop() {
               firstUploader->completeDeferredFrameUploads();
               if (completed.ok) {
                 if (!firstUploader->dispatchPresentationScaler(displayW,
-                                                                 displayH)) {
+                                                                 displayH) ||
+                    !publishRawControl(firstUploader)) {
                   logWarn("PlaybackEngine: in-flight presentation scaler "
                           "failed");
+                  anvilPublication.retire(
+                      firstUploader == fsr4Uploader_.get() ? 0u : 1u, false);
                 } else {
                   // Commit temporal state only after the completed frame has
                   // also produced a valid presentation image. Otherwise a
                   // presentation failure would make an unpublished frame the
                   // history source for the next dispatch.
                   firstUploader->advanceHistory();
+                  fsr4PublishedRawUploader_.store(firstUploader, std::memory_order_release);
                   fsr4PublishedUploader_.store(firstUploader,
                                                 std::memory_order_release);
+                  publishAnvilLiveStage(anvilPublication.retire(
+                      firstUploader == fsr4Uploader_.get() ? 0u : 1u, true));
                   fsr4FrameReady_.store(true, std::memory_order_release);
                   lastFsr4DispatchMs_.store(completed.dispatchMs,
                                             std::memory_order_release);
@@ -3715,6 +3838,8 @@ void PlaybackEngine::videoDecodeLoop() {
               } else {
                 logWarn("PlaybackEngine: in-flight FSR4 frame failed: {}",
                         completed.failReason);
+                anvilPublication.retire(
+                    firstUploader == fsr4Uploader_.get() ? 0u : 1u, false);
               }
             }
           } else {
@@ -3926,12 +4051,20 @@ void PlaybackEngine::videoDecodeLoop() {
             logWarn("PlaybackEngine: FSR4 input upload failed");
           } else {
             if (nativePassthrough) {
+              if (!publishRawControl(firstUploader)) {
+                fsr4FrameReady_.store(false, std::memory_order_release);
+                emit fsr4StatusChanged();
+                continue;
+              }
+              fsr4PublishedRawUploader_.store(firstUploader, std::memory_order_release);
               // endFrameUploads(nullptr) above has already submitted and
               // waited for the color conversion. Publish the raw image so
               // both display and diagnostics see the exact native frame.
               fsr4PublishedUploader_.store(firstUploader,
                                             std::memory_order_release);
               fsr4NativePassthrough_.store(true, std::memory_order_release);
+              publishAnvilLiveStage(anvilPublication.publishDirect(
+                  anvilLiveStageTracker.stage()));
               fsr4FrameReady_.store(true, std::memory_order_release);
               fsr4Upscaled = true;
               fsr4OutW = firstUploader->sourceW();
@@ -4055,7 +4188,8 @@ void PlaybackEngine::videoDecodeLoop() {
                                     ? 2u
                                     : 0u;
 
-            const bool runAsync = asyncSlots && !dumpOutputEnv &&
+            const bool runAsync = asyncSlots && !reviewCaptureEnabled &&
+                                  !dumpOutputEnv &&
                                   !dumpPresentationEnv &&
                                   !dumpSequenceLimit && !dumpDecoderEnv &&
                                   !dumpRawEnv && !dumpModelInputEnv;
@@ -4088,6 +4222,11 @@ void PlaybackEngine::videoDecodeLoop() {
               // owned by the pending fence. The next decode iteration uses
               // the other slot; this slot is retired before it is reused.
               fsr4LastSubmittedUploader_ = firstUploader;
+              if (dr.ok) {
+                anvilPublication.submit(
+                    firstUploader == fsr4Uploader_.get() ? 0u : 1u,
+                    anvilLiveStageTracker.stage());
+              }
               fsr4NextDispatchSlot_ ^= 1u;
               fsr4Upscaled = true;
               fsr4OutW = firstUploader->outputW();
@@ -4277,6 +4416,12 @@ void PlaybackEngine::videoDecodeLoop() {
               }
             }
 
+            if (dr.ok && !runAsync && !publishRawControl(firstUploader)) {
+              dr.ok = false;
+              dr.failReason = "publish paired raw control";
+              fsr4FrameReady_.store(false, std::memory_order_release);
+              emit fsr4StatusChanged();
+            }
             if (dr.ok && !runAsync) {
               // All chained passes share the same publication boundary. The
               // history index for every pass advances only after the final
@@ -4284,6 +4429,67 @@ void PlaybackEngine::videoDecodeLoop() {
               // every temporal state chain.
               for (size_t pass = 0; pass < passCount; ++pass)
                 uploaderAt(pass)->advanceHistory();
+
+              // Pair from ONE verified ANVIL-processed source frame; raw
+              // uploader and completed FSR presentation share its identity.
+              // Fail closed on interpolated inputs, bypasses, or readback
+              // failure. Capturing deliberately stalls this experimental
+              // frame; never enable it during normal throughput tests.
+              if (reviewCaptureEnabled && reviewPair.wants(fsrFrame->frameIndex)) {
+                if (fsrFrame != &df || !anvilReconstructedThisFrame ||
+                    nativePassthrough) {
+                  logWarn("ANVIL review frame={} skipped: not a matched "
+                          "reconstructed+FSR source frame", fsrFrame->frameIndex);
+                } else {
+                  std::vector<uint8_t> baseRgba, fsrRgba;
+                  uint32_t baseW=0, baseH=0, finalW=0, finalH=0;
+                  const bool baseOk = firstUploader->readbackRaw(
+                      baseRgba, baseW, baseH);
+                  const bool fsrOk = presentationUploader->readbackPresentation(
+                      fsrRgba, finalW, finalH);
+                  if (!baseOk || !fsrOk) {
+                    logWarn("ANVIL review frame={} GPU readback failed "
+                            "(raw={} FSR={})", df.frameIndex, baseOk, fsrOk);
+                  } else {
+                    const QVariantMap media = mediaInfoQml();
+                    anvil::ReviewFrameMeta meta;
+                    meta.frameIndex = df.frameIndex;
+                    meta.ptsUs = df.ptsUs;
+                    meta.ptsTicks = df.ptsTicks;
+                    meta.tbNum = df.tbNum;
+                    meta.tbDen = df.tbDen;
+                    meta.sourceW = df.width;
+                    meta.sourceH = df.height;
+                    meta.anvilStageMs = anvilStageElapsedMs;
+                    meta.fsrDispatchMs = chainDispatchMs;
+                    meta.sourceId = media.value("path").toString().toStdString();
+                    meta.gitSha = anvil::buildprov::gitSha
+                                    ? anvil::buildprov::gitSha : "";
+                    meta.gitDirty = anvil::buildprov::gitDirty;
+                    meta.gitDirtyHash = anvil::buildprov::gitDirtyHash;
+                    meta.provenanceSource = anvil::buildprov::origin;
+                    // Controlled capture already stalls for GPU readbacks.
+                    // Bind the result to actual executable and source bytes;
+                    // unavailable identities stay empty, never guessed.
+                    const auto hashFile = [](const QString& path) {
+                      QFile file(path);
+                      QCryptographicHash hash(QCryptographicHash::Sha256);
+                      return file.open(QIODevice::ReadOnly) && hash.addData(&file)
+                          ? hash.result().toHex().toStdString() : std::string{};
+                    };
+                    meta.binarySha256 = hashFile(QCoreApplication::applicationFilePath());
+                    meta.inputSha256 = hashFile(QString::fromStdString(meta.sourceId));
+                    QString error;
+                    if (reviewPair.save(meta, baseRgba, baseW, baseH,
+                                        fsrRgba, finalW, finalH, &error))
+                      logInfo("ANVIL review frame={} pair saved at {}x{}",
+                              df.frameIndex, finalW, finalH);
+                    else
+                      logWarn("ANVIL review frame={} pair rejected: {}",
+                              df.frameIndex, error.toStdString());
+                  }
+                }
+              }
             }
 
             static uint32_t fsrFrameCounter = 0;
@@ -4660,6 +4866,9 @@ void PlaybackEngine::videoDecodeLoop() {
                 ++fsr4SequenceFramesSeen_;
               }
               if (!runAsync) {
+                // Chained FSR output still compares against the original
+                // pre-FSR control, not an intermediate FSR pass's input.
+                fsr4PublishedRawUploader_.store(firstUploader, std::memory_order_release);
                 fsr4PublishedUploader_.store(presentationUploader,
                                               std::memory_order_release);
                 // A successful neural publication must clear the native
@@ -4667,7 +4876,10 @@ void PlaybackEngine::videoDecodeLoop() {
                 // leave the render thread serving stale raw input forever.
                 fsr4NativePassthrough_.store(false,
                                               std::memory_order_release);
+                publishAnvilLiveStage(anvilPublication.publishDirect(
+                    anvilLiveStageTracker.stage()));
                 fsr4FrameReady_.store(true, std::memory_order_release);
+                emit fsr4StatusChanged();
                 fsr4Upscaled = true;
                 fsr4OutW = presentationUploader->outputW();
                 fsr4OutH = presentationUploader->outputH();
@@ -4683,8 +4895,26 @@ void PlaybackEngine::videoDecodeLoop() {
       // gets a clean edge-adaptive upscale instead of pixelated bilinear.
       if (!fsr4Upscaled && easuOnlyMode_.load(std::memory_order_acquire) &&
           vkDevice_ != VK_NULL_HANDLE) {
+        // Like neural output, spatial images must not advance ahead of their
+        // queued frame. In particular pause must preserve the displayed pair.
+        if (fsr4FrameReady_.load(std::memory_order_acquire) && !headlessBenchmarkEnv) {
+          std::unique_lock frameLock(frameMutex_);
+          frameCv_.wait(frameLock, [&] {
+            return !running_.load() || seekPending_.load() ||
+                queuedFrames_.load(std::memory_order_acquire) == 0;
+          });
+          if (!running_.load() || seekPending_.load())
+            continue;
+          if (seekGeneration_.load(std::memory_order_acquire) != currentSeekGeneration)
+            continue;
+        }
         std::unique_lock dispatchLock(fsrDispatchMutex_);
         if (!fsrAbortRequested_.load(std::memory_order_acquire)) {
+          // This spatial path reuses its images in place. Withdraw the pair
+          // before allocation/upload and leave it unavailable on any failure.
+          fsr4FrameReady_.store(false, std::memory_order_release);
+          fsr4PublishedUploader_.store(nullptr, std::memory_order_release);
+          fsr4PublishedRawUploader_.store(nullptr, std::memory_order_release);
           // Lazy-init the uploader for EASU-only mode (native source, 2x
           // target — the target is unused since EASU writes directly).
           if (!fsr4Uploader_) {
@@ -4706,12 +4936,15 @@ void PlaybackEngine::videoDecodeLoop() {
           if (fsr4Uploader_ &&
               (fsr4Uploader_->sourceW() != static_cast<uint32_t>(df.width) ||
                fsr4Uploader_->sourceH() != static_cast<uint32_t>(df.height))) {
-            fsr4Uploader_->allocate(
+            if (!fsr4Uploader_->allocate(
                 static_cast<uint32_t>(df.width),
                 static_cast<uint32_t>(df.height),
                 static_cast<uint32_t>(df.width) * 2u,
-                static_cast<uint32_t>(df.height) * 2u);
-            fsr4Uploader_->transitionOutputToGeneral();
+                static_cast<uint32_t>(df.height) * 2u) ||
+                !fsr4Uploader_->transitionOutputToGeneral()) {
+              logWarn("PlaybackEngine: EASU-only reallocation failed");
+              fsr4Uploader_.reset();
+            }
           }
           if (fsr4Uploader_) {
             // Keep the spatial conversion and EASU dispatch in explicitly
@@ -4723,15 +4956,22 @@ void PlaybackEngine::videoDecodeLoop() {
                 qualityLabPresentationScaler(
                     qualityLabConfig_,
                     presentationScaler_.load(std::memory_order_acquire)));
-            bool ok = fsr4Uploader_->uploadColor(df);
+            bool ok = batchOk && fsr4Uploader_->uploadColor(df);
             if (ok)
               ok = fsr4Uploader_->dispatchEasu();
-            fsr4Uploader_->endFrameUploads();
+            ok = fsr4Uploader_->endFrameUploads() && ok;
+            if (ok) ok = publishRawControl(fsr4Uploader_.get());
             if (ok) {
               fsr4Upscaled = true;
               fsr4OutW = fsr4Uploader_->easuW();
               fsr4OutH = fsr4Uploader_->easuH();
+              fsr4PublishedRawUploader_.store(fsr4Uploader_.get(), std::memory_order_release);
+              fsr4PublishedUploader_.store(fsr4Uploader_.get(),
+                                          std::memory_order_release);
+              publishAnvilLiveStage(anvilPublication.publishDirect(
+                  anvilLiveStageTracker.stage()));
               fsr4FrameReady_.store(true, std::memory_order_release);
+              emit fsr4StatusChanged();
               // Keep the benchmark capture path available for the spatial
               // control as well as the neural path.  Without this, an Off
               // or EASU-only run silently produced no image, so quality

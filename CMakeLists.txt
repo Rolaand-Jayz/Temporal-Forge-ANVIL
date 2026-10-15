@@ -202,6 +202,8 @@ qt_add_qml_module(temporal_forge_player
     QML_FILES
         resources/qml/Main.qml
         resources/qml/IconButton.qml
+        resources/qml/VectorIcon.qml
+        resources/qml/PlayerTheme.qml
         resources/qml/LiveHud.qml
         resources/qml/SettingsDialog.qml
         resources/qml/SettingsPane.qml
@@ -283,6 +285,17 @@ endforeach()
 target_link_directories(anvil_lib PUBLIC ${FFMPEG_LIBRARY_DIRS})
 target_include_directories(anvil_lib PUBLIC ${FFMPEG_INCLUDE_DIRS})
 target_link_libraries(anvil_lib PUBLIC Threads::Threads)
+
+# The existing player can opt into ANVIL's causal live stage before FSR.
+# The ANVIL runner remains Qt- and Vulkan-independent.
+target_link_libraries(temporal_forge_lib PUBLIC anvil_lib)
+# The player/capture consumers reference buildprov directly. A weak fallback
+# in the static archive can satisfy that reference before the generated strong
+# object is extracted. Link the generated object directly into each consumer,
+# as the provenance contract tests already do, so captures identify this build.
+target_sources(temporal_forge_lib INTERFACE "${ANVIL_PROVENANCE_SOURCE}")
+add_dependencies(temporal_forge_lib anvil_provenance)
+
 
 add_executable(anvil_runner tools/anvil/main.cpp)
 target_include_directories(anvil_runner PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")

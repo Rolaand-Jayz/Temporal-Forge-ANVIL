@@ -1,0 +1,34 @@
+{
+  "target_ref": "patch:sha256:6738f1d2a0205b29ea57e18990fd36c3e9376f200c07c3dbb0c5a92742acbc90",
+  "clean_streak": 0,
+  "complete": false,
+  "passes": [
+    {
+      "id": "V1",
+      "lens": "real Main.qml lifecycle/source pair",
+      "evidence": "focused.log",
+      "complete_scope": false
+    },
+    {
+      "id": "V2",
+      "lens": "actual neural and presentation failure injection",
+      "evidence": [
+        "neural.log",
+        "presentation.log"
+      ],
+      "complete_scope": false
+    },
+    {
+      "id": "V3",
+      "lens": "regression, provenance, authenticated browser",
+      "evidence": [
+        "ctest.log",
+        "python.log",
+        "capture-verification.json",
+        "browser-publication.png"
+      ],
+      "complete_scope": false
+    }
+  ],
+  "note": "Targeted successful checks, not three exhaustive contractual clean passes. Provenance rebuild regression creates a detached worktree from committed HEAD; current consumer linkage is separately tested by player_build_provenance_tests."
+}

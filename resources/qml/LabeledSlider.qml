@@ -36,13 +36,13 @@ Item {
 
             Text {
                 text: root.label
-                color: root.enabled ? "#b0b0bc" : "#555560"
+                color: root.enabled ? "#b5c5cd" : "#54616a"
                 font.pixelSize: 12
                 Layout.fillWidth: true
             }
             Text {
                 text: root.value.toFixed(root.decimals) + root.suffix
-                color: root.enabled ? "#e44d3a" : "#555560"
+                color: root.enabled ? "#41d995" : "#54616a"
                 font.pixelSize: 11
                 font.family: "monospace"
                 horizontalAlignment: Qt.AlignRight
@@ -68,13 +68,13 @@ Item {
                 width: control.availableWidth
                 height: implicitHeight
                 radius: 2
-                color: "#2a2a32"
+                color: "#293640"
 
                 Rectangle {
                     width: control.visualPosition * parent.width
                     height: parent.height
                     radius: 2
-                    color: root.enabled ? "#e44d3a" : "#555560"
+                    color: root.enabled ? "#41d995" : "#54616a"
                 }
             }
             handle: Rectangle {
@@ -83,8 +83,8 @@ Item {
                 implicitWidth: 14
                 implicitHeight: 14
                 radius: 7
-                color: control.pressed ? "#ffffff" : "#e8e8ee"
-                border.color: "#e44d3a"
+                color: control.pressed ? "#ffffff" : "#f1f6f5"
+                border.color: "#41d995"
                 border.width: 2
             }
         }

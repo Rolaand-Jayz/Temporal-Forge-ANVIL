@@ -17,12 +17,12 @@ Menu {
 
     // Top-level: Play/Pause + Mute.
     MenuItem {
-        text: playback.playing ? "❚❚  Pause" : "▶  Play"
+        text: playback.playing ? "Pause" : "Play"
         enabled: playback.hasMedia
         onTriggered: playback.togglePlay()
     }
     MenuItem {
-        text: playback.muted ? "🔇  Unmute" : "🔊  Mute"
+        text: playback.muted ? "Unmute" : "Mute"
         onTriggered: playback.muted = !playback.muted
     }
 
@@ -115,7 +115,7 @@ Menu {
 
     // --- Screenshot / clipboard (real, via ScreenCaptureController) ---
     MenuItem {
-        text: "📸  Save Screenshot"
+        text: "Save screenshot"
         enabled: playback.hasMedia
         onTriggered: {
             capture.captureToFile(playback, playback.mediaTitle)
@@ -124,7 +124,7 @@ Menu {
         }
     }
     MenuItem {
-        text: "📋  Copy Frame to Clipboard"
+        text: "Copy frame to clipboard"
         enabled: playback.hasMedia
         onTriggered: capture.captureToClipboard(playback)
     }
@@ -133,7 +133,7 @@ Menu {
 
     // --- A/B compare (real, via CompareController) ---
     MenuItem {
-        text: compare.active ? "⇄  Disable A/B Compare" : "⇄  Enable A/B Compare"
+        text: compare.active ? "Disable A/B compare" : "Enable A/B compare"
         enabled: playback.hasMedia
         onTriggered: compare.active = !compare.active
     }
@@ -147,25 +147,25 @@ Menu {
 
     // --- Playlist transport + file ops ---
     MenuItem {
-        text: "⏮  Previous item (or restart)"
+        text: "Previous item (or restart)"
         enabled: playback.hasMedia
         onTriggered: playback.previous()
     }
     MenuItem {
-        text: "⏭  Next item"
+        text: "Next item"
         enabled: playback.hasNext
         onTriggered: playback.next()
     }
     MenuItem {
-        text: "☷  Show Playlist"
+        text: "Show playlist"
         onTriggered: if (root.playlistPopup) root.playlistPopup.open()
     }
     MenuItem {
-        text: "📁  Open Videos…"
+        text: "Open videos…"
         onTriggered: openDialog.open()
     }
     MenuItem {
-        text: "↻  Reload"
+        text: "Reload"
         enabled: playback.hasMedia
         onTriggered: {
             const path = playback.mediaInfo.path || ""
@@ -177,12 +177,12 @@ Menu {
     MenuSeparator {}
 
     MenuItem {
-        text: window.visibility === Window.FullScreen ? "⛶  Exit Fullscreen" : "⛶  Fullscreen"
+        text: window.visibility === Window.FullScreen ? "Exit fullscreen" : "Fullscreen"
         onTriggered: window.visibility === Window.FullScreen
                      ? window.showNormal() : window.showFullScreen()
     }
     MenuItem {
-        text: "⚙  Settings…"
+        text: "Settings…"
         onTriggered: settingsDialog.show()
     }
 }

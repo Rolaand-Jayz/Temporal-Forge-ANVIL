@@ -1,0 +1,26 @@
+{
+  "parent_head": "62d2706ed8937c2d07f851506b2291588388e885",
+  "result_ref": "patch:sha256:6738f1d2a0205b29ea57e18990fd36c3e9376f200c07c3dbb0c5a92742acbc90",
+  "note": "Seals production/test/document changes; evidence packet excluded to avoid self reference. Captured dirty hash is build generator identity, not this patch hash.",
+  "files": {
+    "CMakeLists.txt": "060629d0122ff78b175b92cdef9e60e8a35fa94bb984b6daecb0cfd004cfd245",
+    "README.md": "8763142f71a6f0681bb23df617911f91a00aca38af0ed8bdb7867ebf294bdf04",
+    "docs/current/PLAYER_UI.md": "35caf0cdb3843a6d1648365741c5eba12a4fad20cdf4534f64b88bcd44d00b47",
+    "resources/qml/LiveHud.qml": "191f3ef027c0bf31bc3af2e2f177b094ed61505ed3249e7ada91443a8ebe80ae",
+    "resources/qml/Main.qml": "e787200759e391e4ba68531f131c7a150cdfadd9e55588ecb8a30efd4c9c92f1",
+    "resources/qml/SettingsDialog.qml": "978d1123dc859ccf59a233dbf0171c903e8b0a7f6ebea361e49f0c74421655d4",
+    "src/core/PlaybackEngine.cpp": "0c7d58fb10a363ab6986517447e6ca2cf67058bab5c4872a3dc4ddd39c34197b",
+    "src/core/PlaybackEngine.hpp": "219e2af947dcc2fabcf8bd4895aec7dbd35aded7f7b2eb55324347a9dbd2094b",
+    "src/core/ReviewPairCapture.hpp": "8bf70e2f1d380fc6ec7586fe429f43aa17aa74fffaafd86def62626bf5784d93",
+    "src/render/GpuImageUploader.cpp": "6ad5168b6f69440e99b0016127d63d2b4d85fab58645ada85637d199b702713d",
+    "src/render/GpuImageUploader.hpp": "441a215f32987f4bfa58c6d3ebf5a6fca3294f0f4406097281ee4fc008b98ef1",
+    "src/render/VulkanUtil.hpp": "a6545a03d0310b2d569ba054d8ec230140019bae5b1665874d0c31a5c7f778c9",
+    "src/ui/FsrController.cpp": "573fb0fef89ce8fc931247f70ae6411633650eaf7d3cae402b051b2f4d8fb7fb",
+    "tests/CMakeLists.txt": "a70a8ce527fa77ca80d4b475461924982643b36f89cec073527e4e1aa0601241",
+    "tests/anvil_review_pair_tests.cpp": "ddc68da34d40aa4c412ec67b5ebe1a7bac85b50f199e03f805d334a8bef000be",
+    "tools/anvil/review/app.js": "f09d7b23b1e2b54d615e4219be81aa415403daa1373419fd95bc8c99fca003fa",
+    "tests/native_player_ui_tests.cpp": "293537732618bd33a622ec5450a19d811a6472531a9261f59522fb47371af92a",
+    "tests/player_build_provenance_tests.cpp": "54f93e68c3230770a4ac1857523acddf6b95ee3acb3cee8d2111313d91899964",
+    "tests/vulkan_submission_failure_tests.cpp": "80cfe4531215dccdd4accaad942d84c6fd2453a25197199a734ac1cdaa8f73f0"
+  }
+}
