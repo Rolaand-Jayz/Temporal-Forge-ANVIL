@@ -73,3 +73,21 @@ unmodified decoded pixels. The settings Published Frame Stage and HUD use
 this same identity. Manually test default-off, opted-in reconstructed,
 unsupported/discontinuous, budget miss, failed upload/dispatch, both compare
 orientations and both window widths on Qt/Vulkan before reviewer acceptance.
+
+### EASU-only comparison (PR8-F0002)
+
+With neural FSR disabled, the spatial output and native-resolution control
+come from the same successfully published uploader. Neural harness readiness
+is not required for this control. Upload/reallocation withdraws the spatial
+pair until conversion, scaling and GPU submission succeed. A raw-only or
+split comparison with unavailable input renders no video; it never substitutes
+processed output or a cached input from a previous publication.
+
+`native_compare_gpu_tests` runs the real decoder, spatial uploader and Qt
+Vulkan scene graph, checking distinct native/control and spatial image handles,
+both split orientations, missing publication, mode switching and recovery.
+It returns 77 when no display/device is available; such a skip is not runtime
+proof. Run it with the generated `build/tests/compare.mp4` fixture both normally
+and with `ANVIL_LIVE_PRE_FSR=1`. The small fixture permits real CPU reconstruction;
+CPU history uses decoded-frame continuity rather than FSR dispatch completion.
+This behavioral test supplements the manual acceptance checklist above.

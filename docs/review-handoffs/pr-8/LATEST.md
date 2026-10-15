@@ -7,3 +7,9 @@
 The frozen defect is `PR8-F0001` (r1); do not duplicate its ID or alter its acceptance criteria. Review discussion and publication evidence: https://github.com/Rolaand-Jayz/Temporal-Forge-ANVIL/pull/8#pullrequestreview-5520118585 .
 
 On each future evaluation, add an immutable dated snapshot subdirectory containing `review.md` and `repair-handoff.json`, and update this index *after* the reviewer has actually evaluated the new head. Do not overwrite prior records.
+
+## Local repair evidence (2026-10-14)
+
+[Provisional repair packet](2026-10-14_repair-2ab4c738/repair.md) against parent `2ab4c738`: pre-publication patch snapshot, real AMD Qt/Vulkan evidence and comments-only intake for PR8-F0001/PR8-F0002. This does not replace the latest independent evaluation above. Full structured source reconciliation, independent acceptance and hosted repair-head checks remain open.
+
+The maintainer authorized committing and pushing this repair to PR #8 on 2026-10-14. The packet retains the original local-patch identity and proof limits; use the repair commit and live PR head for publication identity. Repair reply drafts have not been authorized for posting.

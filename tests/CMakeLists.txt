@@ -261,6 +261,26 @@ endif()
 # against temporal_forge_lib so it reuses the real engine code without
 # pulling in main.cpp or the QML module.
 if(TARGET temporal_forge_lib AND TARGET tforge_sample_mp4)
+    set(COMPARE_MP4 "${CMAKE_CURRENT_BINARY_DIR}/compare.mp4")
+    add_custom_command(OUTPUT ${COMPARE_MP4}
+        COMMAND ${FFMPEG_BIN} -y -loglevel error -f lavfi
+            -i "testsrc2=size=64x48:rate=30:duration=8"
+            -c:v libx264 -pix_fmt yuv420p -color_range tv -colorspace bt709
+            ${COMPARE_MP4}
+        VERBATIM)
+    add_custom_target(tforge_compare_mp4 DEPENDS ${COMPARE_MP4})
+    add_executable(native_compare_gpu_tests native_compare_gpu_tests.cpp)
+    target_link_libraries(native_compare_gpu_tests PRIVATE temporal_forge_lib)
+    target_compile_features(native_compare_gpu_tests PRIVATE cxx_std_23)
+    add_dependencies(native_compare_gpu_tests temporal_forge_player tforge_compare_mp4)
+    add_test(NAME native_compare_gpu_tests COMMAND native_compare_gpu_tests
+        "${COMPARE_MP4}")
+    set_tests_properties(native_compare_gpu_tests PROPERTIES SKIP_RETURN_CODE 77)
+    add_test(NAME native_compare_gpu_optin_tests COMMAND native_compare_gpu_tests
+        "${COMPARE_MP4}")
+    set_tests_properties(native_compare_gpu_optin_tests PROPERTIES
+        SKIP_RETURN_CODE 77 ENVIRONMENT "ANVIL_LIVE_PRE_FSR=1")
+
     add_executable(file_switch_tests file_switch_tests.cpp)
     target_link_libraries(file_switch_tests PRIVATE temporal_forge_lib)
     target_compile_features(file_switch_tests PRIVATE cxx_std_23)
