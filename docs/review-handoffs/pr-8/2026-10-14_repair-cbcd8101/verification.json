@@ -1,0 +1,69 @@
+{
+ "target": "patch:sha256:ef6ab9a41eafd54a3dc98c3b12401303d01d9367bec9847492034592f40f9e14 (uncommitted on cbcd8101; commit with this packet is the resulting published revision)",
+ "loops": [
+  {
+   "index": 1,
+   "lens": "runtime geometry and visual UI acceptance",
+   "coverage": [
+    "PR8-F0003 AC-01",
+    "PR8-F0003 AC-02",
+    "PR8-F0003 AC-03",
+    "SCOPE-03"
+   ],
+   "evidence": [
+    "native-off.log (0 failures; realized 760x480 and 1280x720 player geometry; realized 760x560 and 1280x680 settings geometry; banner laid out/visible, bounds in viewport, untruncated at both widths; distinct-capture check OK)",
+    "native-optin.log (0 failures)",
+    "neural.log (0 failures, TFORGE_FSR4_RE_ROOT provisioned)",
+    "presentation.log (0 failures)",
+    "ui-presentation-complete/ captures + capture-verification.json (sizes, hashes, pixel audit: warn pixels start at x=205 > divider 181)",
+    "vision inspection of settings-760 banner and main-760/main-1280 captures: both warning lines fully readable, controls unclipped"
+   ],
+   "new_ids": [],
+   "regressions": [],
+   "blocking_gaps": [],
+   "clean": true
+  },
+  {
+   "index": 2,
+   "lens": "regression and contract suites",
+   "coverage": [
+    "SCOPE-05",
+    "tests_regressions",
+    "ci_build_release (local half)"
+   ],
+   "evidence": [
+    "ctest.log: 100% of 42 passed (1 asset-dependent skip, 4 disabled \u2014 same disabled set as prior evidence)",
+    "python.log: CI-selected 9 suites 144 passed + 39 subtests",
+    "full local pytest outside CI selection: 3 failures in test_m6_quality_class_annotations / test_review_harness_contract verified byte-identical at parent head cbcd8101 via git-stash control \u2014 pre-existing, untouched by this repair"
+   ],
+   "new_ids": [],
+   "regressions": [],
+   "blocking_gaps": [],
+   "clean": true
+  },
+  {
+   "index": 3,
+   "lens": "source adversarial review and root-cause falsification",
+   "coverage": [
+    "diff_inventory",
+    "requirements_contract",
+    "runtime_paths (QML layout)",
+    "error_recovery (compositor-denied resize)",
+    "prior_findings"
+   ],
+   "evidence": [
+    "repair.patch: 3 files (+104/-6); no PlaybackEngine/GpuImageUploader/capture code touched (F0001/F0002 code paths unchanged)",
+    "resize-rootcause-probe/: two-window Wayland probe shows resize issued while inactive is silently dropped (after1280: 760x480) and activate-then-resize is delivered (after1280: 1280x720) \u2014 falsifier for the dropped-1280 root cause",
+    "intermediate candidate before the activation fix failed loudly with \"FAIL: compositor realizes the requested player window geometry\" \u2014 the new assertion catches exactly the prior silent defect (negative control observed during development, not from the final binary)",
+    "test_player_ui_contract.py still passes (banner wording unchanged)"
+   ],
+   "new_ids": [],
+   "regressions": [],
+   "blocking_gaps": [],
+   "clean": true
+  }
+ ],
+ "complete": true,
+ "clean_streak": 3,
+ "scope": "PR8-F0003 repair-scoped three-loop receipt; full-PR exhaustive discovery loops remain the independent evaluator\u2019s gate (0/3 certified at PR level)."
+}
