@@ -1,0 +1,63 @@
+(lsfg-vk) [ERROR]: Failed to initialize global info:
+(lsfg-vk) [ERROR]: - Unknown key in configuration: game
+[2026-10-14 18:55:44] INFO  ?:0: Vulkan: using Qt shared instance
+[2026-10-14 18:55:44] INFO  ?:0: Vulkan: enumerated 246 device extensions on 'AMD Radeon RX 7900 GRE (RADV NAVI31)'
+[2026-10-14 18:55:44] INFO  ?:0: Vulkan: enabled device extensions (5):
+[2026-10-14 18:55:44] INFO  ?:0: Vulkan:   ext VK_KHR_swapchain
+[2026-10-14 18:55:44] INFO  ?:0: Vulkan:   ext VK_KHR_external_memory_fd
+[2026-10-14 18:55:44] INFO  ?:0: Vulkan:   ext VK_EXT_image_drm_format_modifier
+[2026-10-14 18:55:44] INFO  ?:0: Vulkan:   ext VK_KHR_cooperative_matrix
+[2026-10-14 18:55:44] INFO  ?:0: Vulkan:   ext VK_EXT_subgroup_size_control
+[2026-10-14 18:55:44] INFO  ?:0: Vulkan: enabled device features (14): baseline[samplerAnisotropy=true textureCompressionBC=true shaderStorageImageWriteWithoutFormat=true imageCubeArray=true shaderStorageImageExtendedFormats=true timelineSemaphore=true shaderSubgroupExtendedTypes=true] fsr4[shaderFloat16=true shaderInt8=true shaderIntegerDotProduct=true storageBuffer8BitAccess=true subgroupSizeControl=true computeFullSubgroups=true cooperativeMatrix=true]
+[2026-10-14 18:55:44] INFO  ?:0: Vulkan: fsr4ClassExtensions=true fsr4ClassFeatures=true requireSubgroupSize64=true (bounds 32..64)
+[2026-10-14 18:55:44] INFO  ?:0: Vulkan: graphics queue family 0, FSR compute queue family 1
+[2026-10-14 18:55:44] INFO  ?:0: Vulkan: device 'AMD Radeon RX 7900 GRE (RADV NAVI31)' selected, queue family 0
+[2026-10-14 18:55:44] INFO  ?:0: GpuCapabilityProbe: AMD Radeon RX 7900 GRE (RADV NAVI31) (radv) -> INT8 DOT4 (RDNA3 cooperative matrix, SINT8->SINT32) [tile 16x16, SINT8->SINT32 accum] + FP16 fallback available
+[2026-10-14 18:55:44] INFO  ?:0: PlaybackEngine: Vulkan handles set; FSR4 will be initialized on first frame
+[2026-10-14 18:55:44] INFO  ?:0: PlaybackEngine: openUrl('file:///mnt/workdrive/anvil-verification/anvil-unified/build/tests/compare.mp4')
+[2026-10-14 18:55:44] INFO  ?:0: PlaybackEngine: close() stopThreads
+[2026-10-14 18:55:44] INFO  ?:0: PlaybackEngine: close() audio.stop
+[2026-10-14 18:55:44] INFO  ?:0: PlaybackEngine: FSR4 path torn down
+[2026-10-14 18:55:44] INFO  ?:0: PlaybackEngine: close() fully done
+[2026-10-14 18:55:44] INFO  ?:0: PlaybackEngine: close() done, opening demuxer
+[2026-10-14 18:55:44] INFO  ?:0: PlaybackEngine: demux->open('/mnt/workdrive/anvil-verification/anvil-unified/build/tests/compare.mp4')
+[2026-10-14 18:55:44] INFO  ?:0: Demuxer: opened '/mnt/workdrive/anvil-verification/anvil-unified/build/tests/compare.mp4' [mov,mp4,m4a,3gp,3g2,mj2] duration=8.000s streams=1 video=0 audio=-1381258232 sub=-1381258232
+[2026-10-14 18:55:44] INFO  ?:0: PlaybackEngine: demux opened ok
+[2026-10-14 18:55:44] INFO  ?:0: VideoDecoder: hardware decode disabled because codec motion metadata was requested
+[2026-10-14 18:55:44] INFO  ?:0: VideoDecoder: opened codec 'h264' 64x48 pix_fmt=yuv420p
+[2026-10-14 18:55:44] INFO  ?:0: PlaybackEngine: starting decode threads
+[2026-10-14 18:55:44] INFO  ?:0: PlaybackEngine: opened '/mnt/workdrive/anvil-verification/anvil-unified/build/tests/compare.mp4', playing=true
+[2026-10-14 18:55:44] INFO  ?:0: ANVIL live causal CPU stage enabled before FSR: budget=6ms (experimental; not performance qualified)
+[h264 @ 0x5576f127b280] A hardware frames or device context is required for hardware accelerated decoding.
+[h264 @ 0x5576f127b280] Failed setup for format vaapi: hwaccel initialisation returned error.
+[2026-10-14 18:55:44] INFO  ?:0: GpuImageUploader: EASU RGBA8 format features optimal=0x1dd83
+[2026-10-14 18:55:44] INFO  ?:0: GpuImageUploader: allocated source 64x48 -> model 64x48 -> output 128x96
+[2026-10-14 18:55:44] INFO  ?:0: ANVIL causal live stage: frames=1 last_ms=0.282659 valid_samples=3072
+OK: EASU-only publishes a valid paired source/output
+OK: source is a distinct native-resolution VkImage, not EASU output
+OK: rawOnly selects the decoder/control image
+OK: enhanced-only selects spatial output
+OK: actual Qt-presented raw and EASU pixels differ for the frozen frame
+OK: save actual Qt GPU readback evidence
+OK: comparison orientation: source/output
+OK: comparison orientation: output/source
+OK: published pixel stage matches default-off or reconstructed opt-in frame
+OK: raw cache populated before mode switch
+[2026-10-14 18:55:44] INFO  ?:0: PlaybackEngine: FSR4 upscaling enabled
+OK: mode switch withdraws raw publication
+OK: missing raw publication clears the node and stale cache
+[2026-10-14 18:55:44] INFO  ?:0: PlaybackEngine: FSR4 off — entering EASU-only GPU upscale mode
+[2026-10-14 18:55:44] INFO  ?:0: PlaybackEngine: FSR4 upscaling disabled
+OK: EASU pair recovers after FSR/EASU switch
+[2026-10-14 18:55:44] INFO  ?:0: ANVIL causal live stage: frames=300 last_ms=0.272239 valid_samples=3072
+OK: raw pane recovers with the new pair
+[2026-10-14 18:55:44] INFO  ?:0: PlaybackEngine: close() stopThreads
+[2026-10-14 18:55:44] INFO  ?:0: PlaybackEngine: close() audio.stop
+[2026-10-14 18:55:44] INFO  ?:0: PlaybackEngine: FSR4 path torn down
+[2026-10-14 18:55:44] INFO  ?:0: PlaybackEngine: close() fully done
+OK: close invalidates prior raw texture
+native_compare_gpu_tests: 0 failures; device=AMD Radeon RX 7900 GRE (RADV NAVI31)
+[2026-10-14 18:55:44] INFO  ?:0: PlaybackEngine: close() stopThreads
+[2026-10-14 18:55:44] INFO  ?:0: PlaybackEngine: close() audio.stop
+[2026-10-14 18:55:44] INFO  ?:0: PlaybackEngine: FSR4 path torn down
+[2026-10-14 18:55:44] INFO  ?:0: PlaybackEngine: close() fully done

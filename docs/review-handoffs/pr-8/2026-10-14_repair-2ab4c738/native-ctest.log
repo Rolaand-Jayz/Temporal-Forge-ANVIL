@@ -1,0 +1,9 @@
+Test project /mnt/workdrive/anvil-verification/anvil-unified/build
+    Start 26: native_compare_gpu_tests
+1/2 Test #26: native_compare_gpu_tests .........   Passed    0.73 sec
+    Start 27: native_compare_gpu_optin_tests
+2/2 Test #27: native_compare_gpu_optin_tests ...   Passed    0.22 sec
+
+100% tests passed out of 2
+
+Total Test time (real) =   1.00 sec

@@ -1,0 +1,13 @@
+{
+  "parent_head": "2ab4c73847a64fd72e93f3ab1ac4ae3006097636",
+  "patch_ref": "patch:sha256:d4cf17b68db35ce0307644b826a09c06e432f2d0623a1ac8a5840749b728033c",
+  "digest_definition": "SHA-256 of repair.patch: git diff --binary HEAD for tracked repair paths, followed by git diff --no-index /dev/null for native_compare_gpu_tests.cpp. Evidence packet files excluded to avoid a self-referential digest.",
+  "source_files_sha256": {
+    "docs/current/PLAYER_UI.md": "2f146e433ee989e900e22707072f443a9f6e889592c4b07a704081fecf2bd98c",
+    "src/core/PlaybackEngine.cpp": "fd60f895ea9c6a376720f5a69a94843b4afc56bc0cdfc37a4cacc0b238304bcb",
+    "src/ui/VideoSurfaceItem.cpp": "77c018c3327e769503070f72244cab030dcd3b80130b91f1464d44bac7f541f1",
+    "tests/CMakeLists.txt": "6d0c92e36a8dc9c4279e49ad5285e2fa3f1a851042f1b0b38b39ccd78bc442ab",
+    "tests/test_player_ui_contract.py": "9a1664dc4eb38d9308c53c170842d067a3abf8a51043958fc1af607209dce254",
+    "tests/native_compare_gpu_tests.cpp": "c1226364bc2495bac98a7f18ad056f05e7b3947deb3c94613ae13bf1aaf65e81"
+  }
+}

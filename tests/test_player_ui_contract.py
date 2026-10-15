@@ -115,7 +115,7 @@ def test_settings_status_text_is_truthful_about_the_live_stage():
 def test_anvil_status_is_published_only_after_completed_gpu_frame():
     engine = (ROOT / "src/core/PlaybackEngine.cpp").read_text(encoding="utf-8")
     header = (ROOT / "src/anvil/LiveFrameProcessor.hpp").read_text(encoding="utf-8")
-    decode = engine[engine.index("const auto liveResult = anvilLive.process(df, reset);"):
+    decode = engine[engine.index("const auto liveResult = anvilLive.process(df, decodedReset);"):
                     engine.index("promoteStableFsrViewport();")]
     assert "publishAnvilLiveStage" not in decode
     assert "class LivePublicationTracker" in header

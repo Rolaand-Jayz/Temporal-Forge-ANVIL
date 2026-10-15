@@ -84,27 +84,45 @@ void VideoSurfaceItem::refresh() {
 //            split-screen compare (raw vs enhanced) and raw-only passthrough.
 //            Caches the QSGTexture until the underlying VkImage/dims change.
 QSGNode* VideoSurfaceItem::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData*) {
-    auto* node = static_cast<QSGSimpleTextureNode*>(oldNode);
     if (!m_engine) {
         auto* ctx = qmlContext(this);
         if (ctx)
             m_engine = qobject_cast<PlaybackEngine*>(
                 ctx->contextProperty("playback").value<QObject*>());
     }
-    if (!m_engine || !window()) return node;
+    // Nodes never own the cached wrappers. Retire them before replacing or
+    // invalidating a wrapper, including transitions between single/split mode.
+    delete oldNode;
+    oldNode = nullptr;
+    if (!m_engine || !window()) return nullptr;
 
     VkImage fsrImage = VK_NULL_HANDLE, rawImage = VK_NULL_HANDLE;
     uint32_t fsrW = 0, fsrH = 0, rawW = 0, rawH = 0;
     const bool haveFsr = m_engine->fsr4NativeOutput(fsrImage, fsrW, fsrH);
     const bool haveRaw = m_engine->fsr4RawOutput(rawImage, rawW, rawH);
-    if (!haveFsr && !m_rawOnly) return oldNode;
+    if (!haveRaw) {
+        delete m_rawTexture;
+        m_rawTexture = nullptr;
+        m_rawImage = VK_NULL_HANDLE;
+        m_rawSize = {};
+    }
+    if (!haveFsr) {
+        delete m_nativeTexture;
+        m_nativeTexture = nullptr;
+        m_nativeImage = VK_NULL_HANDLE;
+        m_nativeSize = {};
+    }
+    // Raw-only and split comparisons fail closed. A missing raw image must
+    // never select enhanced output or retain input from a previous publication.
+    if ((m_rawOnly || m_compareActive) && !haveRaw) return nullptr;
+    if (!m_rawOnly && !haveFsr) return nullptr;
 
     const QSize fsrSize{int(fsrW), int(fsrH)};
-    if (haveFsr && (!m_nativeTexture || m_nativeImage != fsrImage || m_nativeSize != fsrSize)) {
+    if (!m_rawOnly && haveFsr && (!m_nativeTexture || m_nativeImage != fsrImage || m_nativeSize != fsrSize)) {
         delete m_nativeTexture;
         m_nativeTexture = QNativeInterface::QSGVulkanTexture::fromNative(
             fsrImage, VK_IMAGE_LAYOUT_GENERAL, window(), fsrSize);
-        if (!m_nativeTexture) return oldNode;
+        if (!m_nativeTexture) return nullptr;
         // Video presentation should use reconstruction-friendly linear
         // filtering by default. Nearest filtering exposes hard source-pixel
         // blocks when low-resolution video is enlarged.
@@ -118,7 +136,7 @@ QSGNode* VideoSurfaceItem::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData
             delete m_rawTexture;
             m_rawTexture = QNativeInterface::QSGVulkanTexture::fromNative(
                 rawImage, VK_IMAGE_LAYOUT_GENERAL, window(), rawSize);
-            if (!m_rawTexture) return oldNode;
+            if (!m_rawTexture) return nullptr;
             m_rawTexture->setFiltering(QSGTexture::Linear);
             m_rawImage = rawImage;
             m_rawSize = rawSize;
@@ -126,8 +144,9 @@ QSGNode* VideoSurfaceItem::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData
     }
 
     const QRectF bounds = boundingRect();
-    const bool showRawOnly = m_rawOnly && m_rawTexture;
-    if (!showRawOnly && (!haveFsr || !m_nativeTexture)) return oldNode;
+    const bool showRawOnly = m_rawOnly;
+    if (showRawOnly && !m_rawTexture) return nullptr;
+    if (!showRawOnly && (!haveFsr || !m_nativeTexture)) return nullptr;
     // Compare panes must preserve the source image aspect ratio.  The raw
     // compare surface is intentionally rawOnly, so it used to return the
     // full item bounds here and stretch the left half to the window aspect.
@@ -158,20 +177,15 @@ QSGNode* VideoSurfaceItem::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData
     const QRectF imageRect(cx - drawnW * 0.5, cy - drawnH * 0.5, drawnW, drawnH);
 
     if (showRawOnly) {
-        if (!node) node = new QSGSimpleTextureNode;
+        auto* node = new QSGSimpleTextureNode;
         node->setTexture(m_rawTexture);
         node->setRect(imageRect);
         return node;
     }
     if (m_compareActive && m_rawTexture) {
-        auto* root = oldNode;
-        if (!root || !root->firstChild()) {
-            delete oldNode;
-            root = new QSGNode;
-            auto* left = new QSGSimpleTextureNode;
-            auto* right = new QSGSimpleTextureNode;
-            root->appendChildNode(left); root->appendChildNode(right);
-        }
+        auto* root = new QSGNode;
+        root->appendChildNode(new QSGSimpleTextureNode);
+        root->appendChildNode(new QSGSimpleTextureNode);
         auto* left = static_cast<QSGSimpleTextureNode*>(root->firstChild());
         auto* right = static_cast<QSGSimpleTextureNode*>(root->lastChild());
         const qreal split = bounds.left() + bounds.width() * m_compareSplit;
@@ -181,7 +195,7 @@ QSGNode* VideoSurfaceItem::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData
         right->setRect(imageRect.intersected(QRectF(split, bounds.top(), bounds.right() - split, bounds.height())));
         return root;
     }
-    if (!node) node = new QSGSimpleTextureNode;
+    auto* node = new QSGSimpleTextureNode;
     node->setTexture(m_nativeTexture);
     node->setRect(imageRect);
     return node;

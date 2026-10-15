@@ -1786,13 +1786,15 @@ bool PlaybackEngine::fsr4NativeOutput(VkImage &image, uint32_t &width,
   // The uploader is alive (kept by easuOnlyMode_), so we can hand its EASU
   // image directly to the render thread. Same no-mutex invariant applies.
   if (easuOnlyMode_.load(std::memory_order_acquire)) {
-    if (!fsr4FrameReady_.load(std::memory_order_acquire) || !fsr4Uploader_)
+    if (!fsr4FrameReady_.load(std::memory_order_acquire))
       return false;
-    if (!fsr4Uploader_->easuReady())
+    GpuImageUploader *published =
+        fsr4PublishedUploader_.load(std::memory_order_acquire);
+    if (!published || !published->easuReady())
       return false;
-    image = fsr4Uploader_->easuColorImage();
-    width = fsr4Uploader_->easuW();
-    height = fsr4Uploader_->easuH();
+    image = published->easuColorImage();
+    width = published->easuW();
+    height = published->easuH();
     return image != VK_NULL_HANDLE && width > 0 && height > 0;
   }
   if (!fsr4Enabled_.load(std::memory_order_acquire) ||
@@ -1833,7 +1835,11 @@ bool PlaybackEngine::fsr4NativeOutput(VkImage &image, uint32_t &width,
 //            vkQueueWaitIdle, not locking).
 bool PlaybackEngine::fsr4RawOutput(VkImage &image, uint32_t &width,
                                    uint32_t &height) const {
-  if (!fsr4Ready_.load(std::memory_order_acquire) ||
+  // The spatial EASU path has no neural harness, hence fsr4Ready_ is false.
+  // Its raw image is nevertheless paired with the successfully published
+  // EASU image, owned by the same uploader. Do not expose an in-flight input.
+  if ((!easuOnlyMode_.load(std::memory_order_acquire) &&
+       !fsr4Ready_.load(std::memory_order_acquire)) ||
       !fsr4FrameReady_.load(std::memory_order_acquire))
     return false;
   GpuImageUploader *published =
@@ -2929,9 +2935,9 @@ void PlaybackEngine::videoDecodeLoop() {
       // validated future frame. This player remains causal, so timestamp
       // discontinuities reset the temporal state rather than attempting to
       // bridge an uncertain reference chain.
-      const bool reset = firstAfterSeek || renderSizeChanged ||
-                         timestampDiscontinuity ||
-                         frameIndexDiscontinuity || forceResetEnv ||
+      const bool decodedReset = firstAfterSeek || renderSizeChanged ||
+                                timestampDiscontinuity || forceResetEnv;
+      const bool reset = decodedReset || frameIndexDiscontinuity ||
                          requestedTemporalReset;
       firstAfterSeek = false;
 
@@ -2946,7 +2952,10 @@ void PlaybackEngine::videoDecodeLoop() {
       bool anvilReconstructedThisFrame = false;
       double anvilStageElapsedMs = 0.0;
       if (anvilLiveEnabled) {
-        const auto liveResult = anvilLive.process(df, reset);
+        // CPU history advances on decoded observations, independently of
+        // neural GPU dispatch. LiveFrameProcessor checks its own frame IDs;
+        // FSR-only continuity would reset it on every EASU-only frame.
+        const auto liveResult = anvilLive.process(df, decodedReset);
         anvilStageElapsedMs = liveResult.elapsedMs;
         anvilReconstructedThisFrame =
             liveResult.status == anvil::LiveFrameStatus::Reconstructed;
@@ -4828,6 +4837,10 @@ void PlaybackEngine::videoDecodeLoop() {
           vkDevice_ != VK_NULL_HANDLE) {
         std::unique_lock dispatchLock(fsrDispatchMutex_);
         if (!fsrAbortRequested_.load(std::memory_order_acquire)) {
+          // This spatial path reuses its images in place. Withdraw the pair
+          // before allocation/upload and leave it unavailable on any failure.
+          fsr4FrameReady_.store(false, std::memory_order_release);
+          fsr4PublishedUploader_.store(nullptr, std::memory_order_release);
           // Lazy-init the uploader for EASU-only mode (native source, 2x
           // target — the target is unused since EASU writes directly).
           if (!fsr4Uploader_) {
@@ -4849,12 +4862,15 @@ void PlaybackEngine::videoDecodeLoop() {
           if (fsr4Uploader_ &&
               (fsr4Uploader_->sourceW() != static_cast<uint32_t>(df.width) ||
                fsr4Uploader_->sourceH() != static_cast<uint32_t>(df.height))) {
-            fsr4Uploader_->allocate(
+            if (!fsr4Uploader_->allocate(
                 static_cast<uint32_t>(df.width),
                 static_cast<uint32_t>(df.height),
                 static_cast<uint32_t>(df.width) * 2u,
-                static_cast<uint32_t>(df.height) * 2u);
-            fsr4Uploader_->transitionOutputToGeneral();
+                static_cast<uint32_t>(df.height) * 2u) ||
+                !fsr4Uploader_->transitionOutputToGeneral()) {
+              logWarn("PlaybackEngine: EASU-only reallocation failed");
+              fsr4Uploader_.reset();
+            }
           }
           if (fsr4Uploader_) {
             // Keep the spatial conversion and EASU dispatch in explicitly
@@ -4866,17 +4882,19 @@ void PlaybackEngine::videoDecodeLoop() {
                 qualityLabPresentationScaler(
                     qualityLabConfig_,
                     presentationScaler_.load(std::memory_order_acquire)));
-            bool ok = fsr4Uploader_->uploadColor(df);
+            bool ok = batchOk && fsr4Uploader_->uploadColor(df);
             if (ok)
               ok = fsr4Uploader_->dispatchEasu();
-            fsr4Uploader_->endFrameUploads();
+            ok = fsr4Uploader_->endFrameUploads() && ok;
             if (ok) {
               fsr4Upscaled = true;
               fsr4OutW = fsr4Uploader_->easuW();
               fsr4OutH = fsr4Uploader_->easuH();
-              fsr4FrameReady_.store(true, std::memory_order_release);
+              fsr4PublishedUploader_.store(fsr4Uploader_.get(),
+                                          std::memory_order_release);
               publishAnvilLiveStage(anvilPublication.publishDirect(
                   anvilLiveStageTracker.stage()));
+              fsr4FrameReady_.store(true, std::memory_order_release);
               // Keep the benchmark capture path available for the spatial
               // control as well as the neural path.  Without this, an Off
               // or EASU-only run silently produced no image, so quality

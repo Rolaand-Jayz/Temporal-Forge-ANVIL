@@ -1,0 +1,138 @@
+{
+  "triage_version": "1.2.1",
+  "repository": "Rolaand-Jayz/Temporal-Forge-ANVIL",
+  "pr_number": 8,
+  "head_sha": "2ab4c73847a64fd72e93f3ab1ac4ae3006097636",
+  "observed_at": "2026-10-14T23:56:51.930088+00:00",
+  "source_review_status": "missing_structured_review_json",
+  "reviewer_continuity": "unverified",
+  "threads": [
+    {
+      "thread_url": "https://github.com/Rolaand-Jayz/Temporal-Forge-ANVIL/pull/8#issuecomment-6157506067",
+      "comment_id": "6157506067",
+      "reviewer_finding_id": "PR8-F0001",
+      "dod_revision": 1,
+      "raw_comment_sha256": "2192d67f77d70d757a9677c38680098164f3cbf4eb64e8738382153632e553c7",
+      "raw_comment_body": "[PR-EVAL][PR8-F0001][MAJOR][OPEN][DoD r1]\n**Classification:** Confirmed in-scope defect; full PR classification remains INCOMPLETE until mandatory coverage and three clean discovery passes are certified.\n**Defect / actual failure:** In the integrated opt-in ANVIL playback path, the native player labels its left/right compare pane **SOURCE** even though that pane displays `rawPresentationImage()` generated from the decoded frame **after** `LiveFrameProcessor::process(df,...)` has replaced its pixels. The UI also states \u201cANVIL reconstruction ... [is] not yet connected,\u201d while the same merged PR connects an opt-in causal ANVIL processing stage. This conflates the original decoded source with the causal-ANVIL control and hides an active experimental mode from a reviewer. The separate authenticated reviewer correctly labels its causal control, but it does not repair the native UI's identity.\n**Evidence at HEAD:** `19e9591723151c3dea27d5039a70f6a1e3c15daf`. `src/core/PlaybackEngine.cpp:2924-2946` mutates `df` ahead of FSR upload, `:1834-1845` exposes uploader's `rawPresentationImage` via `fsr4RawOutput`, `src/ui/VideoSurfaceItem.cpp:96-130` renders that image for `rawOnly`, and `resources/qml/Main.qml:202-229,344-392` labels it SOURCE. `resources/qml/SettingsDialog.qml` Upscaler subtitle says reconstruction is not yet connected. This is a deterministic source/data-flow inconsistency; a live visual reproduction has not yet been executed independently.\n**Violated requirement:** Unified PR #8 composition (functional ANVIL pre-FSR live stage + \u201chonest\u201d player UI), `docs/current/ANVIL_LIVE_PIPELINE.md` active opt-in processing, and `docs/current/PLAYER_UI.md` truthful descriptions and comparison state.\n**Root cause and impact:** The old player's raw-vs-output semantics were inherited into a post-ANVIL processing chain without updating source identity. The comparison can mislead an experimenter into judging the input source instead of an ANVIL-reconstructed control, and the Settings text inaccurately describes the availability of the opt-in path.\n**Definition of Done \u2014 DoD r1 (frozen):**\n- [ ] **AC-01:** When opt-in ANVIL processing is active, each native A/B comparison label must identify the actual pixel-generation stage; the label SOURCE is valid only if the pane genuinely displays original, unmodified decoded pixels. **Falsifier:** an ANVIL-modified `rawPresentationImage` is displayed under a bare SOURCE label. **Proof:** trace image-producing/upload/rendering paths and independently inspect native UI during opt-in playback of an actually reconstructed frame.\n- [ ] **AC-02:** Native settings and status text must accurately state when the causal ANVIL live stage is available/active, while distinguishing the incomplete full ANVIL roster. **Falsifier:** UI claims no ANVIL reconstruction is connected while `ANVIL_LIVE_PRE_FSR=1` has engaged a real stage. **Proof:** inspect user-visible wording and exercise both default-off and opt-in playback states.\n- [ ] **AC-03:** A regression must ensure that the native compare controls cannot silently conflate the original source and post-ANVIL control when the opt-in stage is enabled. **Falsifier:** tests cover only the separate browser reviewer, not the native comparison and status state. **Proof:** execute a focused native QML/UI integration or equivalent behavioral test with distinct unprocessed and reconstructed pixels.\n**Required re-review:** Verify all three ACs at a new exact head, inspect rendering/metadata contracts, and confirm no label regression in default-off player and standalone pair reviewer.\n**Status:** OPEN. Do not equate a green general CTest/Python suite with proof that native A/B labels are truthful under the new integrated stage.",
+      "quoted_acceptance": [
+        {
+          "ac_id": "AC-01",
+          "quoted_text": "- [ ] **AC-01:** When opt-in ANVIL processing is active, each native A/B comparison label must identify the actual pixel-generation stage; the label SOURCE is valid only if the pane genuinely displays original, unmodified decoded pixels. **Falsifier:** an ANVIL-modified `rawPresentationImage` is displayed under a bare SOURCE label. **Proof:** trace image-producing/upload/rendering paths and independently inspect native UI during opt-in playback of an actually reconstructed frame."
+        },
+        {
+          "ac_id": "AC-02",
+          "quoted_text": "- [ ] **AC-02:** Native settings and status text must accurately state when the causal ANVIL live stage is available/active, while distinguishing the incomplete full ANVIL roster. **Falsifier:** UI claims no ANVIL reconstruction is connected while `ANVIL_LIVE_PRE_FSR=1` has engaged a real stage. **Proof:** inspect user-visible wording and exercise both default-off and opt-in playback states."
+        },
+        {
+          "ac_id": "AC-03",
+          "quoted_text": "- [ ] **AC-03:** A regression must ensure that the native compare controls cannot silently conflate the original source and post-ANVIL control when the opt-in stage is enabled. **Falsifier:** tests cover only the separate browser reviewer, not the native comparison and status state. **Proof:** execute a focused native QML/UI integration or equivalent behavioral test with distinct unprocessed and reconstructed pixels."
+        }
+      ],
+      "known_gaps": [
+        "Latest full canonical review.json and exact repair-handoff projection containing both findings unavailable.",
+        "Complete native neural queued/failure and manual UI acceptance not performed."
+      ]
+    },
+    {
+      "thread_url": "https://github.com/Rolaand-Jayz/Temporal-Forge-ANVIL/pull/8#issuecomment-6171500175",
+      "comment_id": "6171500175",
+      "reviewer_finding_id": "PR8-F0001",
+      "dod_revision": 1,
+      "raw_comment_sha256": "a9c26851ea9eac337565bdd60fd7f1c701f47682f49c69b927440f467822906a",
+      "raw_comment_body": "[PR-EVAL][PR8-F0001][RE-REVIEW][HEAD 205fe7e077da4332a175b77a07219df4cc4c3986][DoD r1]\n**Status: OPEN (source-level partial repair, not fixed_verified).** The repair's published `PATCHED_PROVISIONAL` is not an independent evaluator verdict. Frozen DoD r1 and checksum `279c8849c4feb544c62ff70d8f3d9912f85807209938c7cdf28fe37ff7187d3c` remain unchanged. Original: https://github.com/Rolaand-Jayz/Temporal-Forge-ANVIL/pull/8#issuecomment-6157506067 .\n\n**AC-01 \u2014 FAILED (source-level counterexample; native reproduction still pending).** The new `rawPaneStageLabel()` reads `playback.anvilLiveStage` and switches SOURCE/POST-ANVIL, but the state is published by the **decode thread immediately after** `LiveFrameProcessor::process(df,...)` at `src/core/PlaybackEngine.cpp:2944\u20132950`, before the frame's Vulkan upload, GPU dispatch, presentation scaler and `fsr4PublishedUploader_` swap. `fsr4RawOutput()` at :1834\u20131845 and the native `VideoSurfaceItem` render path still use the *last successfully published uploader*, not the most recently processed decoded frame. A concrete falsifier: frame N publishes with reconstructed pixels (should read POST-ANVIL); frame N+1 is unsupported/discontinuous/budget-bypassed (tracker immediately changes to standby/bypassed, so QML reports SOURCE); before N+1 is published\u2014or if upload/dispatch fails and the prior output remains displayed\u2014the SOURCE label can accompany N's post-ANVIL image. The inverse mismatch is also possible when processing a new reconstructed frame before its output is published. Neither the status atomic nor `anvilLiveStageChanged` is tied to the published GPU image/frame identity. This is a deterministic ordering flaw in source; time-window duration and actual on-screen reproduction are NOT independently measured.\n**AC-02 \u2014 UNVERIFIED (text corrected).** `resources/qml/SettingsDialog.qml` now correctly describes an opt-in causal live stage vs incomplete full roster and shows `off`/`standby`/`reconstructing`/`bypassed`; `LiveHud.qml` is also wired. But displayed-frame-relative state accuracy and manual off/on inspection are not proven, and the same early-published status can misdescribe the visible image.\n**AC-03 \u2014 FAILED / proof incomplete.** `tests/anvil_live_frame_tests.cpp` now tests real distinct reconstructed pixels and isolated `LiveStageTracker` transitions, and `tests/test_player_ui_contract.py` asserts QML source strings. Neither associates status/labels with the **actually published** VkImage across delayed/failed dispatch, so the exact AC-01 falsifier passes these tests.\n**Exact-head CI:** https://github.com/Rolaand-Jayz/Temporal-Forge-ANVIL/actions/runs/38584217028 \u2014 Release Arch CTest 35 run/0 fail (2 skip; 4 disabled), including active negative-control and paired capture CTests; Python 143 passed. These checks validate existing assertions but not publication-order ownership.\n**Required re-review (unchanged AC-01/02/03):** Pair producer stage identity with the frame whose image is actually published; independently exercise interleaved `Reconstructed \u2192 Unsupported/Discontinuity/OverBudget`, delayed GPU dispatch and forced upload/presentation failure with a prior reconstructed frame still displayed; assert both native pane label and HUD/settings track displayed-frame ownership. Validate default-off, fallback and opt-in on real Qt/AMD hardware. Existing original acceptance requirements remain the sole finish line.\n**No new finding ID**: same native comparison misattribution/root-cause class as `PR8-F0001`. No source edits, approve, merge or thread disposition by evaluator.",
+      "quoted_acceptance": [],
+      "known_gaps": [
+        "Latest full canonical review.json and exact repair-handoff projection containing both findings unavailable.",
+        "Complete native neural queued/failure and manual UI acceptance not performed."
+      ]
+    },
+    {
+      "thread_url": "https://github.com/Rolaand-Jayz/Temporal-Forge-ANVIL/pull/8#issuecomment-6180882788",
+      "comment_id": "6180882788",
+      "reviewer_finding_id": "PR8-F0001",
+      "dod_revision": 1,
+      "raw_comment_sha256": "ae90fe9853689bef6f8b831f9e95e7224eb3fb13baaa157d62773023f0dc3435",
+      "raw_comment_body": "[PR-EVAL][PR8-F0001][RE-REVIEW][HEAD 1882627c3a7e0fe9a8ce3782210db135084afef9][DoD r1]\n**Status: FIXED_UNVERIFIED (not fixed_verified).** Original frozen DoD r1 / fingerprint `279c8849c4feb544c62ff70d8f3d9912f85807209938c7cdf28fe37ff7187d3c` remains unchanged: https://github.com/Rolaand-Jayz/Temporal-Forge-ANVIL/pull/8#issuecomment-6157506067 .\n\n**AC-01 \u2014 UNVERIFIED (source-level sequencing repaired).** `LivePublicationTracker` now associates a candidate stage with async uploader slot and commits status only after a successful FSR frame + presentation scaler; failed retire does not change stage. Native and EASU direct branches likewise commit on success. This removes the old deterministic decode-before-publish counterexample in the inspected FSR branch. However no independent Qt/Vulkan display test was run to demonstrate exactly corresponding frame/pane identity under real queued, failed, switched modes; no unconditional closure.\n**AC-02 \u2014 UNVERIFIED (source wording corrected).** `SettingsDialog.qml`, `LiveHud.qml` and `Main.qml` distinguish off, standby, reconstructing, bypassed and pending vs published state. Off/opt-in rendered native UI was not independently exercised.\n**AC-03 \u2014 UNVERIFIED (regressions improved but not end-to-end).** `tests/anvil_live_frame_tests.cpp` tests slot submit/retire and delayed/failed stage transitions; `tests/test_player_ui_contract.py` checks QML binding and producer publish locations. Both are useful guards, but neither uses actual distinct GPU-published textures in a native QML A/B comparison. Exact-head CI CTest was still in progress during this review.\n\n**Required independent proof:** real AMD Qt/Vulkan playback with default-off and `ANVIL_LIVE_PRE_FSR=1`, reconstructed->unsupported/discontinuity/budget miss, queued/reordered/failed FSR dispatch, failed presentation scaling, frame-stage labels in both compare orientations and status surfaces, including an actual regression that falsifies incorrect SOURCE attribution. Preserve AC-01/02/03 exactly. Separate EASU-only raw-pane fault now tracked as PR8-F0002. No code change, approval or merge.",
+      "quoted_acceptance": [],
+      "known_gaps": [
+        "Latest full canonical review.json and exact repair-handoff projection containing both findings unavailable.",
+        "Complete native neural queued/failure and manual UI acceptance not performed."
+      ]
+    },
+    {
+      "thread_url": "https://github.com/Rolaand-Jayz/Temporal-Forge-ANVIL/pull/8#issuecomment-6180883157",
+      "comment_id": "6180883157",
+      "reviewer_finding_id": "PR8-F0002",
+      "dod_revision": 1,
+      "raw_comment_sha256": "ffd437463579e50e39f773c7b73324ed7177f1511e7c855264b835d0428a9258",
+      "raw_comment_body": "[PR-EVAL][PR8-F0002][MAJOR][OPEN][DoD r1]\n**Classification:** INCOMPLETE review; confirmed in-scope source-level defect. Independent native reproduction remains outstanding.\n**Defect / actual failure:** With FSR4 disabled, Vulkan playback defaults to **EASU-only**. The A/B control remains enabled, but `fsr4RawOutput()` returns false because `fsr4Ready_` is false for this path. The raw-only `VideoSurfaceItem` falls back to its **enhanced EASU native texture** when `m_rawTexture` is null. The left/right raw pane therefore depicts the same processed output instead of decoded SOURCE, despite the `SOURCE` label. If a cached raw texture exists from another mode, the renderer can instead use stale input. This undermines the native comparison baseline even with ANVIL opt-in disabled.\n**Evidence at HEAD:** `1882627c3a7e0fe9a8ce3782210db135084afef9`; `src/core/PlaybackEngine.cpp:1225-1276` defaults FSR-off/Vulkan to EASU-only, `:1783-1816` exports EASU image as native output, `:1834-1847` rejects raw image when FSR4 is not ready; `resources/qml/Main.qml:218-247,317-348,728-736` instantiates a `rawOnly` pane, labels it SOURCE and permits compare whenever media exists; `src/ui/VideoSurfaceItem.cpp:94-147,178-195` selects native output when `rawOnly` has no raw texture. **Observed by static source tracing; no live Qt render reproduced.**\n**Violated requirement:** `docs/current/PLAYER_UI.md` Design rules: truthful comparison source/stage, functional A/B control; PR #8 SCOPE-03 and unified user-facing integration.\n**Root cause and impact:** EASU-only output and raw image access use inconsistent readiness/ownership gates; raw-only rendering silently displays the processed output or retained texture instead of failing closed. Distinct from PR8-F0001, which governs decoder-vs-post-ANVIL stage identity during successful native/FSR publication.\n**Definition of Done \u2014 DoD r1 (frozen):**\n- [ ] **AC-01:** When compare is available in EASU-only mode, the pane labeled SOURCE displays decoder-owned pixels of the corresponding published frame, or a truthful post-ANVIL control if reconstruction modified those pixels. **Falsifier:** an EASU-upscaled output or a previous frame appears under SOURCE. **Proof:** trace EASU image and raw-source publication/accessor/Qt consumer; run a native EASU-only A/B session with intentionally distinct source/output frames.\n- [ ] **AC-02:** Raw-only rendering must not silently substitute processed output or stale cached input whenever a valid paired raw texture is unavailable. **Falsifier:** `rawOnly: true` renders native output or an unrelated prior raw frame after raw accessor failure. **Proof:** exercise missing/failed raw image, switching FSR4/EASU, and cache invalidation/recovery.\n- [ ] **AC-03:** Native automated/behavioral regression covers EASU-only comparison authenticity, both swap orientations, and default-off plus opt-in stage labeling without replacing runtime proof with QML string assertions. **Falsifier:** tests pass while both compare panes use processed EASU output. **Proof:** targeted source-to-present behavior verification using distinct raw/EASU pixels plus manual Qt/Vulkan inspection.\n**Required re-review:** Re-evaluate the actual EASU-only/raw-only output path and exact-head CI + GPU/UI evidence, including transitions from FSR4 neural mode. **Status: OPEN.** Do not merge on a green general CI result.",
+      "quoted_acceptance": [
+        {
+          "ac_id": "AC-01",
+          "quoted_text": "- [ ] **AC-01:** When compare is available in EASU-only mode, the pane labeled SOURCE displays decoder-owned pixels of the corresponding published frame, or a truthful post-ANVIL control if reconstruction modified those pixels. **Falsifier:** an EASU-upscaled output or a previous frame appears under SOURCE. **Proof:** trace EASU image and raw-source publication/accessor/Qt consumer; run a native EASU-only A/B session with intentionally distinct source/output frames."
+        },
+        {
+          "ac_id": "AC-02",
+          "quoted_text": "- [ ] **AC-02:** Raw-only rendering must not silently substitute processed output or stale cached input whenever a valid paired raw texture is unavailable. **Falsifier:** `rawOnly: true` renders native output or an unrelated prior raw frame after raw accessor failure. **Proof:** exercise missing/failed raw image, switching FSR4/EASU, and cache invalidation/recovery."
+        },
+        {
+          "ac_id": "AC-03",
+          "quoted_text": "- [ ] **AC-03:** Native automated/behavioral regression covers EASU-only comparison authenticity, both swap orientations, and default-off plus opt-in stage labeling without replacing runtime proof with QML string assertions. **Falsifier:** tests pass while both compare panes use processed EASU output. **Proof:** targeted source-to-present behavior verification using distinct raw/EASU pixels plus manual Qt/Vulkan inspection."
+        }
+      ],
+      "known_gaps": [
+        "Latest full canonical review.json and exact repair-handoff projection containing both findings unavailable.",
+        "Complete native neural queued/failure and manual UI acceptance not performed."
+      ]
+    }
+  ],
+  "provisional_repairs": [
+    {
+      "comment_id": "6157506067",
+      "changed_paths": [
+        "docs/current/PLAYER_UI.md",
+        "src/core/PlaybackEngine.cpp",
+        "src/ui/VideoSurfaceItem.cpp",
+        "tests/CMakeLists.txt",
+        "tests/test_player_ui_contract.py",
+        "tests/native_compare_gpu_tests.cpp"
+      ],
+      "status": "implemented_unverified",
+      "evidence": [
+        "Real RX 7900 GRE Vulkan + Qt scene-graph tests execute default-off and opt-in; source/control and spatial pixels differ for a frozen frame.",
+        "Both compare orientations, unavailable raw publication, mode-switch cache invalidation, close and fresh recovery tested.",
+        "Original readiness-gate negative control exits 1; original renderer negative control exits -11; fixed code restored and tests pass.",
+        "Frozen full criteria include further runtime/manual proof; do not classify all ACs satisfied."
+      ],
+      "patch_ref": "patch:sha256:d4cf17b68db35ce0307644b826a09c06e432f2d0623a1ac8a5840749b728033c"
+    },
+    {
+      "comment_id": "6180883157",
+      "changed_paths": [
+        "docs/current/PLAYER_UI.md",
+        "src/core/PlaybackEngine.cpp",
+        "src/ui/VideoSurfaceItem.cpp",
+        "tests/CMakeLists.txt",
+        "tests/test_player_ui_contract.py",
+        "tests/native_compare_gpu_tests.cpp"
+      ],
+      "status": "implemented_unverified",
+      "evidence": [
+        "Real RX 7900 GRE Vulkan + Qt scene-graph tests execute default-off and opt-in; source/control and spatial pixels differ for a frozen frame.",
+        "Both compare orientations, unavailable raw publication, mode-switch cache invalidation, close and fresh recovery tested.",
+        "Original readiness-gate negative control exits 1; original renderer negative control exits -11; fixed code restored and tests pass.",
+        "Frozen full criteria include further runtime/manual proof; do not classify all ACs satisfied."
+      ],
+      "patch_ref": "patch:sha256:d4cf17b68db35ce0307644b826a09c06e432f2d0623a1ac8a5840749b728033c"
+    }
+  ],
+  "missing_authority": [
+    "STRUCTURED SOURCE MISSING: remote archived handoff is historical at 205fe7e, includes only PR8-F0001, and no full review.json; latest PR8-F0002 exists in published comments."
+  ],
+  "required_evaluator_actions": [
+    "Supply/reconcile latest canonical review.json and matching repair-handoff.json, preserving both frozen finding contracts and original SCOPE-01..06.",
+    "Independently re-review exact resulting published repair head, including every AC of PR8-F0001 and PR8-F0002.",
+    "Triage RISK-001: CPU ANVIL history was reset by FSR-only continuity and restored GPU reset requests in EASU mode; narrowly repaired and covered by actual opt-in GPU regression."
+  ],
+  "handoff_status": "UNVERIFIED"
+}

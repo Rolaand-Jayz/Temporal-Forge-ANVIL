@@ -1,0 +1,477 @@
+diff --git a/docs/current/PLAYER_UI.md b/docs/current/PLAYER_UI.md
+index 74d5a88b..3b0d233b 100644
+--- a/docs/current/PLAYER_UI.md
++++ b/docs/current/PLAYER_UI.md
+@@ -73,3 +73,21 @@ unmodified decoded pixels. The settings Published Frame Stage and HUD use
+ this same identity. Manually test default-off, opted-in reconstructed,
+ unsupported/discontinuous, budget miss, failed upload/dispatch, both compare
+ orientations and both window widths on Qt/Vulkan before reviewer acceptance.
++
++### EASU-only comparison (PR8-F0002)
++
++With neural FSR disabled, the spatial output and native-resolution control
++come from the same successfully published uploader. Neural harness readiness
++is not required for this control. Upload/reallocation withdraws the spatial
++pair until conversion, scaling and GPU submission succeed. A raw-only or
++split comparison with unavailable input renders no video; it never substitutes
++processed output or a cached input from a previous publication.
++
++`native_compare_gpu_tests` runs the real decoder, spatial uploader and Qt
++Vulkan scene graph, checking distinct native/control and spatial image handles,
++both split orientations, missing publication, mode switching and recovery.
++It returns 77 when no display/device is available; such a skip is not runtime
++proof. Run it with the generated `build/tests/compare.mp4` fixture both normally
++and with `ANVIL_LIVE_PRE_FSR=1`. The small fixture permits real CPU reconstruction;
++CPU history uses decoded-frame continuity rather than FSR dispatch completion.
++This behavioral test supplements the manual acceptance checklist above.
+diff --git a/src/core/PlaybackEngine.cpp b/src/core/PlaybackEngine.cpp
+index 78c4d50b..1828ad75 100644
+--- a/src/core/PlaybackEngine.cpp
++++ b/src/core/PlaybackEngine.cpp
+@@ -1786,13 +1786,15 @@ bool PlaybackEngine::fsr4NativeOutput(VkImage &image, uint32_t &width,
+   // The uploader is alive (kept by easuOnlyMode_), so we can hand its EASU
+   // image directly to the render thread. Same no-mutex invariant applies.
+   if (easuOnlyMode_.load(std::memory_order_acquire)) {
+-    if (!fsr4FrameReady_.load(std::memory_order_acquire) || !fsr4Uploader_)
++    if (!fsr4FrameReady_.load(std::memory_order_acquire))
+       return false;
+-    if (!fsr4Uploader_->easuReady())
++    GpuImageUploader *published =
++        fsr4PublishedUploader_.load(std::memory_order_acquire);
++    if (!published || !published->easuReady())
+       return false;
+-    image = fsr4Uploader_->easuColorImage();
+-    width = fsr4Uploader_->easuW();
+-    height = fsr4Uploader_->easuH();
++    image = published->easuColorImage();
++    width = published->easuW();
++    height = published->easuH();
+     return image != VK_NULL_HANDLE && width > 0 && height > 0;
+   }
+   if (!fsr4Enabled_.load(std::memory_order_acquire) ||
+@@ -1833,7 +1835,11 @@ bool PlaybackEngine::fsr4NativeOutput(VkImage &image, uint32_t &width,
+ //            vkQueueWaitIdle, not locking).
+ bool PlaybackEngine::fsr4RawOutput(VkImage &image, uint32_t &width,
+                                    uint32_t &height) const {
+-  if (!fsr4Ready_.load(std::memory_order_acquire) ||
++  // The spatial EASU path has no neural harness, hence fsr4Ready_ is false.
++  // Its raw image is nevertheless paired with the successfully published
++  // EASU image, owned by the same uploader. Do not expose an in-flight input.
++  if ((!easuOnlyMode_.load(std::memory_order_acquire) &&
++       !fsr4Ready_.load(std::memory_order_acquire)) ||
+       !fsr4FrameReady_.load(std::memory_order_acquire))
+     return false;
+   GpuImageUploader *published =
+@@ -2929,9 +2935,9 @@ void PlaybackEngine::videoDecodeLoop() {
+       // validated future frame. This player remains causal, so timestamp
+       // discontinuities reset the temporal state rather than attempting to
+       // bridge an uncertain reference chain.
+-      const bool reset = firstAfterSeek || renderSizeChanged ||
+-                         timestampDiscontinuity ||
+-                         frameIndexDiscontinuity || forceResetEnv ||
++      const bool decodedReset = firstAfterSeek || renderSizeChanged ||
++                                timestampDiscontinuity || forceResetEnv;
++      const bool reset = decodedReset || frameIndexDiscontinuity ||
+                          requestedTemporalReset;
+       firstAfterSeek = false;
+ 
+@@ -2946,7 +2952,10 @@ void PlaybackEngine::videoDecodeLoop() {
+       bool anvilReconstructedThisFrame = false;
+       double anvilStageElapsedMs = 0.0;
+       if (anvilLiveEnabled) {
+-        const auto liveResult = anvilLive.process(df, reset);
++        // CPU history advances on decoded observations, independently of
++        // neural GPU dispatch. LiveFrameProcessor checks its own frame IDs;
++        // FSR-only continuity would reset it on every EASU-only frame.
++        const auto liveResult = anvilLive.process(df, decodedReset);
+         anvilStageElapsedMs = liveResult.elapsedMs;
+         anvilReconstructedThisFrame =
+             liveResult.status == anvil::LiveFrameStatus::Reconstructed;
+@@ -4828,6 +4837,10 @@ void PlaybackEngine::videoDecodeLoop() {
+           vkDevice_ != VK_NULL_HANDLE) {
+         std::unique_lock dispatchLock(fsrDispatchMutex_);
+         if (!fsrAbortRequested_.load(std::memory_order_acquire)) {
++          // This spatial path reuses its images in place. Withdraw the pair
++          // before allocation/upload and leave it unavailable on any failure.
++          fsr4FrameReady_.store(false, std::memory_order_release);
++          fsr4PublishedUploader_.store(nullptr, std::memory_order_release);
+           // Lazy-init the uploader for EASU-only mode (native source, 2x
+           // target — the target is unused since EASU writes directly).
+           if (!fsr4Uploader_) {
+@@ -4849,12 +4862,15 @@ void PlaybackEngine::videoDecodeLoop() {
+           if (fsr4Uploader_ &&
+               (fsr4Uploader_->sourceW() != static_cast<uint32_t>(df.width) ||
+                fsr4Uploader_->sourceH() != static_cast<uint32_t>(df.height))) {
+-            fsr4Uploader_->allocate(
++            if (!fsr4Uploader_->allocate(
+                 static_cast<uint32_t>(df.width),
+                 static_cast<uint32_t>(df.height),
+                 static_cast<uint32_t>(df.width) * 2u,
+-                static_cast<uint32_t>(df.height) * 2u);
+-            fsr4Uploader_->transitionOutputToGeneral();
++                static_cast<uint32_t>(df.height) * 2u) ||
++                !fsr4Uploader_->transitionOutputToGeneral()) {
++              logWarn("PlaybackEngine: EASU-only reallocation failed");
++              fsr4Uploader_.reset();
++            }
+           }
+           if (fsr4Uploader_) {
+             // Keep the spatial conversion and EASU dispatch in explicitly
+@@ -4866,17 +4882,19 @@ void PlaybackEngine::videoDecodeLoop() {
+                 qualityLabPresentationScaler(
+                     qualityLabConfig_,
+                     presentationScaler_.load(std::memory_order_acquire)));
+-            bool ok = fsr4Uploader_->uploadColor(df);
++            bool ok = batchOk && fsr4Uploader_->uploadColor(df);
+             if (ok)
+               ok = fsr4Uploader_->dispatchEasu();
+-            fsr4Uploader_->endFrameUploads();
++            ok = fsr4Uploader_->endFrameUploads() && ok;
+             if (ok) {
+               fsr4Upscaled = true;
+               fsr4OutW = fsr4Uploader_->easuW();
+               fsr4OutH = fsr4Uploader_->easuH();
+-              fsr4FrameReady_.store(true, std::memory_order_release);
++              fsr4PublishedUploader_.store(fsr4Uploader_.get(),
++                                          std::memory_order_release);
+               publishAnvilLiveStage(anvilPublication.publishDirect(
+                   anvilLiveStageTracker.stage()));
++              fsr4FrameReady_.store(true, std::memory_order_release);
+               // Keep the benchmark capture path available for the spatial
+               // control as well as the neural path.  Without this, an Off
+               // or EASU-only run silently produced no image, so quality
+diff --git a/src/ui/VideoSurfaceItem.cpp b/src/ui/VideoSurfaceItem.cpp
+index 5686f864..59a17fd1 100644
+--- a/src/ui/VideoSurfaceItem.cpp
++++ b/src/ui/VideoSurfaceItem.cpp
+@@ -84,27 +84,45 @@ void VideoSurfaceItem::refresh() {
+ //            split-screen compare (raw vs enhanced) and raw-only passthrough.
+ //            Caches the QSGTexture until the underlying VkImage/dims change.
+ QSGNode* VideoSurfaceItem::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData*) {
+-    auto* node = static_cast<QSGSimpleTextureNode*>(oldNode);
+     if (!m_engine) {
+         auto* ctx = qmlContext(this);
+         if (ctx)
+             m_engine = qobject_cast<PlaybackEngine*>(
+                 ctx->contextProperty("playback").value<QObject*>());
+     }
+-    if (!m_engine || !window()) return node;
++    // Nodes never own the cached wrappers. Retire them before replacing or
++    // invalidating a wrapper, including transitions between single/split mode.
++    delete oldNode;
++    oldNode = nullptr;
++    if (!m_engine || !window()) return nullptr;
+ 
+     VkImage fsrImage = VK_NULL_HANDLE, rawImage = VK_NULL_HANDLE;
+     uint32_t fsrW = 0, fsrH = 0, rawW = 0, rawH = 0;
+     const bool haveFsr = m_engine->fsr4NativeOutput(fsrImage, fsrW, fsrH);
+     const bool haveRaw = m_engine->fsr4RawOutput(rawImage, rawW, rawH);
+-    if (!haveFsr && !m_rawOnly) return oldNode;
++    if (!haveRaw) {
++        delete m_rawTexture;
++        m_rawTexture = nullptr;
++        m_rawImage = VK_NULL_HANDLE;
++        m_rawSize = {};
++    }
++    if (!haveFsr) {
++        delete m_nativeTexture;
++        m_nativeTexture = nullptr;
++        m_nativeImage = VK_NULL_HANDLE;
++        m_nativeSize = {};
++    }
++    // Raw-only and split comparisons fail closed. A missing raw image must
++    // never select enhanced output or retain input from a previous publication.
++    if ((m_rawOnly || m_compareActive) && !haveRaw) return nullptr;
++    if (!m_rawOnly && !haveFsr) return nullptr;
+ 
+     const QSize fsrSize{int(fsrW), int(fsrH)};
+-    if (haveFsr && (!m_nativeTexture || m_nativeImage != fsrImage || m_nativeSize != fsrSize)) {
++    if (!m_rawOnly && haveFsr && (!m_nativeTexture || m_nativeImage != fsrImage || m_nativeSize != fsrSize)) {
+         delete m_nativeTexture;
+         m_nativeTexture = QNativeInterface::QSGVulkanTexture::fromNative(
+             fsrImage, VK_IMAGE_LAYOUT_GENERAL, window(), fsrSize);
+-        if (!m_nativeTexture) return oldNode;
++        if (!m_nativeTexture) return nullptr;
+         // Video presentation should use reconstruction-friendly linear
+         // filtering by default. Nearest filtering exposes hard source-pixel
+         // blocks when low-resolution video is enlarged.
+@@ -118,7 +136,7 @@ QSGNode* VideoSurfaceItem::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData
+             delete m_rawTexture;
+             m_rawTexture = QNativeInterface::QSGVulkanTexture::fromNative(
+                 rawImage, VK_IMAGE_LAYOUT_GENERAL, window(), rawSize);
+-            if (!m_rawTexture) return oldNode;
++            if (!m_rawTexture) return nullptr;
+             m_rawTexture->setFiltering(QSGTexture::Linear);
+             m_rawImage = rawImage;
+             m_rawSize = rawSize;
+@@ -126,8 +144,9 @@ QSGNode* VideoSurfaceItem::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData
+     }
+ 
+     const QRectF bounds = boundingRect();
+-    const bool showRawOnly = m_rawOnly && m_rawTexture;
+-    if (!showRawOnly && (!haveFsr || !m_nativeTexture)) return oldNode;
++    const bool showRawOnly = m_rawOnly;
++    if (showRawOnly && !m_rawTexture) return nullptr;
++    if (!showRawOnly && (!haveFsr || !m_nativeTexture)) return nullptr;
+     // Compare panes must preserve the source image aspect ratio.  The raw
+     // compare surface is intentionally rawOnly, so it used to return the
+     // full item bounds here and stretch the left half to the window aspect.
+@@ -158,20 +177,15 @@ QSGNode* VideoSurfaceItem::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData
+     const QRectF imageRect(cx - drawnW * 0.5, cy - drawnH * 0.5, drawnW, drawnH);
+ 
+     if (showRawOnly) {
+-        if (!node) node = new QSGSimpleTextureNode;
++        auto* node = new QSGSimpleTextureNode;
+         node->setTexture(m_rawTexture);
+         node->setRect(imageRect);
+         return node;
+     }
+     if (m_compareActive && m_rawTexture) {
+-        auto* root = oldNode;
+-        if (!root || !root->firstChild()) {
+-            delete oldNode;
+-            root = new QSGNode;
+-            auto* left = new QSGSimpleTextureNode;
+-            auto* right = new QSGSimpleTextureNode;
+-            root->appendChildNode(left); root->appendChildNode(right);
+-        }
++        auto* root = new QSGNode;
++        root->appendChildNode(new QSGSimpleTextureNode);
++        root->appendChildNode(new QSGSimpleTextureNode);
+         auto* left = static_cast<QSGSimpleTextureNode*>(root->firstChild());
+         auto* right = static_cast<QSGSimpleTextureNode*>(root->lastChild());
+         const qreal split = bounds.left() + bounds.width() * m_compareSplit;
+@@ -181,7 +195,7 @@ QSGNode* VideoSurfaceItem::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData
+         right->setRect(imageRect.intersected(QRectF(split, bounds.top(), bounds.right() - split, bounds.height())));
+         return root;
+     }
+-    if (!node) node = new QSGSimpleTextureNode;
++    auto* node = new QSGSimpleTextureNode;
+     node->setTexture(m_nativeTexture);
+     node->setRect(imageRect);
+     return node;
+diff --git a/tests/CMakeLists.txt b/tests/CMakeLists.txt
+index 9827eaac..47ed015b 100644
+--- a/tests/CMakeLists.txt
++++ b/tests/CMakeLists.txt
+@@ -261,6 +261,26 @@ endif()
+ # against temporal_forge_lib so it reuses the real engine code without
+ # pulling in main.cpp or the QML module.
+ if(TARGET temporal_forge_lib AND TARGET tforge_sample_mp4)
++    set(COMPARE_MP4 "${CMAKE_CURRENT_BINARY_DIR}/compare.mp4")
++    add_custom_command(OUTPUT ${COMPARE_MP4}
++        COMMAND ${FFMPEG_BIN} -y -loglevel error -f lavfi
++            -i "testsrc2=size=64x48:rate=30:duration=8"
++            -c:v libx264 -pix_fmt yuv420p -color_range tv -colorspace bt709
++            ${COMPARE_MP4}
++        VERBATIM)
++    add_custom_target(tforge_compare_mp4 DEPENDS ${COMPARE_MP4})
++    add_executable(native_compare_gpu_tests native_compare_gpu_tests.cpp)
++    target_link_libraries(native_compare_gpu_tests PRIVATE temporal_forge_lib)
++    target_compile_features(native_compare_gpu_tests PRIVATE cxx_std_23)
++    add_dependencies(native_compare_gpu_tests temporal_forge_player tforge_compare_mp4)
++    add_test(NAME native_compare_gpu_tests COMMAND native_compare_gpu_tests
++        "${COMPARE_MP4}")
++    set_tests_properties(native_compare_gpu_tests PROPERTIES SKIP_RETURN_CODE 77)
++    add_test(NAME native_compare_gpu_optin_tests COMMAND native_compare_gpu_tests
++        "${COMPARE_MP4}")
++    set_tests_properties(native_compare_gpu_optin_tests PROPERTIES
++        SKIP_RETURN_CODE 77 ENVIRONMENT "ANVIL_LIVE_PRE_FSR=1")
++
+     add_executable(file_switch_tests file_switch_tests.cpp)
+     target_link_libraries(file_switch_tests PRIVATE temporal_forge_lib)
+     target_compile_features(file_switch_tests PRIVATE cxx_std_23)
+diff --git a/tests/test_player_ui_contract.py b/tests/test_player_ui_contract.py
+index 220fba91..60120bb6 100644
+--- a/tests/test_player_ui_contract.py
++++ b/tests/test_player_ui_contract.py
+@@ -115,7 +115,7 @@ def test_settings_status_text_is_truthful_about_the_live_stage():
+ def test_anvil_status_is_published_only_after_completed_gpu_frame():
+     engine = (ROOT / "src/core/PlaybackEngine.cpp").read_text(encoding="utf-8")
+     header = (ROOT / "src/anvil/LiveFrameProcessor.hpp").read_text(encoding="utf-8")
+-    decode = engine[engine.index("const auto liveResult = anvilLive.process(df, reset);"):
++    decode = engine[engine.index("const auto liveResult = anvilLive.process(df, decodedReset);"):
+                     engine.index("promoteStableFsrViewport();")]
+     assert "publishAnvilLiveStage" not in decode
+     assert "class LivePublicationTracker" in header
+diff --git a/tests/native_compare_gpu_tests.cpp b/tests/native_compare_gpu_tests.cpp
+new file mode 100644
+index 00000000..0d166394
+--- /dev/null
++++ b/tests/native_compare_gpu_tests.cpp
+@@ -0,0 +1,175 @@
++// PR8-F0002: exercise the real decoder -> EASU -> native Qt scene graph.
++// No fake engine or texture: record the VkImages selected by the production
++// VideoSurfaceItem on Qt's render thread. Missing display/device returns 77;
++// missing paired input on a functioning device is a failure, never a skip.
++#include "core/PlaybackEngine.hpp"
++#include "render/VulkanContext.hpp"
++#include "ui/VideoSurfaceItem.hpp"
++
++#include <QGuiApplication>
++#include <QDir>
++#include <QImage>
++#include <QQmlEngine>
++#include <QQmlContext>
++#include <QQuickGraphicsDevice>
++#include <QQuickWindow>
++#include <QSGSimpleTextureNode>
++#include <QVulkanInstance>
++#include <QtQuick/qsgtexture_platform.h>
++
++#include <atomic>
++#include <chrono>
++#include <cstdio>
++#include <cstdlib>
++#include <thread>
++
++using namespace temporal_forge;
++
++class ObservedSurface : public VideoSurfaceItem {
++public:
++    using VideoSurfaceItem::VideoSurfaceItem;
++    std::atomic<VkImage> left{VK_NULL_HANDLE}, right{VK_NULL_HANDLE};
++    std::atomic<unsigned> updates{0};
++    QSGNode* updatePaintNode(QSGNode* old, UpdatePaintNodeData* data) override {
++        auto* result = VideoSurfaceItem::updatePaintNode(old, data);
++        auto image = [](QSGNode* n) {
++            if (!n) return VkImage(VK_NULL_HANDLE);
++            auto* texture = static_cast<QSGSimpleTextureNode*>(n)->texture();
++            auto* native = texture ? texture->nativeInterface<
++                QNativeInterface::QSGVulkanTexture>() : nullptr;
++            return native ? native->nativeImage() : VkImage(VK_NULL_HANDLE);
++        };
++        left.store(image(result && result->firstChild() ? result->firstChild() : result));
++        right.store(image(result && result->firstChild() ? result->lastChild() : nullptr));
++        ++updates;
++        return result;
++    }
++};
++
++template<class Predicate> bool waitFor(Predicate predicate, int timeout = 10000) {
++    for (int elapsed = 0; elapsed < timeout; elapsed += 10) {
++        QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
++        if (predicate()) return true;
++        std::this_thread::sleep_for(std::chrono::milliseconds(10));
++    }
++    return predicate();
++}
++
++int main(int argc, char** argv) {
++    if (!std::getenv("DISPLAY") && !std::getenv("WAYLAND_DISPLAY")) {
++        std::puts("SKIP: native Qt comparison requires a display and Vulkan device");
++        return 77;
++    }
++    if (argc < 2) return 1;
++    // Software decode makes the opt-in CPU reconstruction reachable, while
++    // upload, spatial scaling and Qt presentation still execute on Vulkan.
++    qputenv("TFORGE_DISABLE_HW_DECODE", "1");
++    QGuiApplication app(argc, argv);
++    QQuickWindow::setGraphicsApi(QSGRendererInterface::Vulkan);
++    QVulkanInstance instance;
++    instance.setApiVersion(QVersionNumber(1, 3, 0));
++    if (!instance.create()) return 77;
++    VulkanContext vk;
++    if (!vk.init(false, instance.vkInstance())) return 77;
++    PlaybackEngine engine;
++    engine.setVulkanHandles(vk.physical(), vk.device(), vk.queue(),
++                           vk.queueFamily(), vk.queueFamily(), vk.instance());
++    engine.setFsr4Enabled(false);
++    QQmlEngine qml;
++    qml.rootContext()->setContextProperty("playback", &engine);
++    QQuickWindow window;
++    window.setVulkanInstance(&instance);
++    window.setGraphicsDevice(QQuickGraphicsDevice::fromDeviceObjects(
++        vk.physical(), vk.device(), int(vk.queueFamily())));
++    window.resize(320, 240);
++    auto* surface = new ObservedSurface(window.contentItem());
++    QQmlEngine::setContextForObject(surface, qml.rootContext());
++    surface->setSize(QSizeF(320, 240));
++    surface->setRawOnly(true);
++    window.show();
++    int failures = 0;
++    auto check = [&](bool success, const char* description) {
++        std::printf("%s: %s\n", success ? "OK" : "FAIL", description);
++        if (!success) ++failures;
++    };
++    VkImage raw = VK_NULL_HANDLE, enhanced = VK_NULL_HANDLE;
++    uint32_t rawW = 0, rawH = 0, outW = 0, outH = 0;
++    auto pairReady = [&] {
++        return engine.fsr4NativeOutput(enhanced, outW, outH) &&
++               engine.fsr4RawOutput(raw, rawW, rawH);
++    };
++    auto repaint = [&](VkImage wantedLeft, VkImage wantedRight) {
++        const unsigned before = surface->updates.load();
++        surface->requestUpdate();
++        window.update();
++        return waitFor([&] {
++            return surface->updates.load() > before &&
++                   surface->left.load() == wantedLeft &&
++                   surface->right.load() == wantedRight;
++        });
++    };
++    engine.openUrl(QUrl::fromLocalFile(QString::fromUtf8(argv[1])));
++    const bool optIn = std::getenv("ANVIL_LIVE_PRE_FSR") != nullptr;
++    const bool ready = waitFor([&] {
++        (void)engine.advanceRenderFrame();
++        return pairReady() && (!optIn || engine.anvilLiveStage() == "reconstructing");
++    });
++    check(ready, "EASU-only publishes a valid paired source/output");
++    engine.pause();
++    // Drain any decode already in progress before observing the frozen pair.
++    waitFor([] { return false; }, 100);
++    if (pairReady()) {
++        check(raw != enhanced && outW == rawW * 2 && outH == rawH * 2,
++              "source is a distinct native-resolution VkImage, not EASU output");
++        check(repaint(raw, VK_NULL_HANDLE), "rawOnly selects the decoder/control image");
++        const QImage rawPixels = window.grabWindow();
++        surface->setRawOnly(false);
++        check(repaint(enhanced, VK_NULL_HANDLE), "enhanced-only selects spatial output");
++        const QImage enhancedPixels = window.grabWindow();
++        check(!rawPixels.isNull() && !enhancedPixels.isNull() && rawPixels != enhancedPixels,
++              "actual Qt-presented raw and EASU pixels differ for the frozen frame");
++        if (const char* directory = std::getenv("TFORGE_TEST_CAPTURE_DIR")) {
++            const QDir output(QString::fromUtf8(directory));
++            check(QDir().mkpath(output.path()) &&
++                  rawPixels.save(output.filePath("native-raw.png")) &&
++                  enhancedPixels.save(output.filePath("native-easu.png")),
++                  "save actual Qt GPU readback evidence");
++        }
++        surface->setCompareActive(true);
++        surface->setCompareRawOnLeft(true);
++        check(repaint(raw, enhanced), "comparison orientation: source/output");
++        surface->setCompareRawOnLeft(false);
++        check(repaint(enhanced, raw), "comparison orientation: output/source");
++        const auto stage = engine.anvilLiveStage();
++        check(optIn ? stage == "reconstructing" : stage == "off",
++              "published pixel stage matches default-off or reconstructed opt-in frame");
++        // Invalidate a previously populated raw cache while enhanced output
++        // still exists. The mode setter withdraws publication synchronously.
++        surface->setCompareActive(false);
++        surface->setRawOnly(true);
++        check(repaint(raw, VK_NULL_HANDLE), "raw cache populated before mode switch");
++        engine.setFsr4Enabled(true);
++        check(!engine.fsr4RawOutput(raw, rawW, rawH), "mode switch withdraws raw publication");
++        check(repaint(VK_NULL_HANDLE, VK_NULL_HANDLE),
++              "missing raw publication clears the node and stale cache");
++        engine.setFsr4Enabled(false);
++        // The decoder may have reached EOF while the Qt checks ran. Seek
++        // through the public API to require a fresh publication on recovery.
++        engine.seekUs(0);
++        engine.play();
++        check(waitFor([&] {
++            (void)engine.advanceRenderFrame();
++            return pairReady();
++        }), "EASU pair recovers after FSR/EASU switch");
++        engine.pause();
++        waitFor([] { return false; }, 100);
++        check(pairReady() && repaint(raw, VK_NULL_HANDLE), "raw pane recovers with the new pair");
++    }
++    engine.close();
++    check(repaint(VK_NULL_HANDLE, VK_NULL_HANDLE), "close invalidates prior raw texture");
++    window.hide();
++    window.releaseResources();
++    std::printf("native_compare_gpu_tests: %d failures; device=%s\n",
++                failures, vk.info().name.c_str());
++    return failures ? 1 : 0;
++}
