@@ -20,6 +20,8 @@ function(tforge_add_test name)
     add_test(NAME ${name} COMMAND ${name})
 endfunction()
 
+tforge_add_test(vulkan_submission_failure_tests SOURCES vulkan_submission_failure_tests.cpp)
+
 tforge_add_test(preset_math_tests
     SOURCES preset_math_tests.cpp
             ../src/backend/UpscaleTypes.cpp)
@@ -269,6 +271,19 @@ if(TARGET temporal_forge_lib AND TARGET tforge_sample_mp4)
             ${COMPARE_MP4}
         VERBATIM)
     add_custom_target(tforge_compare_mp4 DEPENDS ${COMPARE_MP4})
+    find_package(Qt6 REQUIRED COMPONENTS Test)
+    add_executable(native_player_ui_tests native_player_ui_tests.cpp)
+    target_link_libraries(native_player_ui_tests PRIVATE temporal_forge_lib Qt6::Test)
+    target_link_options(native_player_ui_tests PRIVATE "-Wl,--wrap=vkQueueSubmit" "-Wl,--wrap=vkCmdWriteTimestamp")
+    target_compile_definitions(native_player_ui_tests PRIVATE TFORGE_SOURCE_ROOT="${CMAKE_SOURCE_DIR}")
+    add_dependencies(native_player_ui_tests temporal_forge_player tforge_compare_mp4)
+    add_test(NAME native_player_ui_tests COMMAND native_player_ui_tests "${COMPARE_MP4}")
+    add_test(NAME native_player_ui_optin_tests COMMAND native_player_ui_tests "${COMPARE_MP4}")
+    set_tests_properties(native_player_ui_tests native_player_ui_optin_tests PROPERTIES SKIP_RETURN_CODE 77)
+    set_tests_properties(native_player_ui_optin_tests PROPERTIES ENVIRONMENT "ANVIL_LIVE_PRE_FSR=1")
+    add_test(NAME native_player_ui_budget_tests COMMAND native_player_ui_tests "${COMPARE_MP4}")
+    set_tests_properties(native_player_ui_budget_tests PROPERTIES SKIP_RETURN_CODE 77
+        ENVIRONMENT "ANVIL_LIVE_PRE_FSR=1;ANVIL_LIVE_BUDGET_MS=0.1;TFORGE_TEST_EXPECT_STAGE=bypassed")
     add_executable(native_compare_gpu_tests native_compare_gpu_tests.cpp)
     target_link_libraries(native_compare_gpu_tests PRIVATE temporal_forge_lib)
     target_compile_features(native_compare_gpu_tests PRIVATE cxx_std_23)
@@ -300,6 +315,12 @@ tforge_add_test(vulkan_capability_plan_tests
             ../src/render/VulkanContext.cpp
             ../src/util/Log.cpp)
 target_link_libraries(vulkan_capability_plan_tests PRIVATE Vulkan::Vulkan)
+
+# Exercise provenance through the same static-library interface as the player,
+# without a display, GPU or provisioned FSR assets.
+tforge_add_test(player_build_provenance_tests SOURCES player_build_provenance_tests.cpp)
+target_link_libraries(player_build_provenance_tests PRIVATE temporal_forge_lib)
+target_compile_definitions(player_build_provenance_tests PRIVATE TFORGE_SOURCE_ROOT="${CMAKE_SOURCE_DIR}")
 
 # --- ANVIL successor tests (Qt-free, FFmpeg-only) ---
 pkg_check_modules(FFMPEG_ANVIL IMPORTED_TARGET libavformat libavcodec libavutil libswscale)

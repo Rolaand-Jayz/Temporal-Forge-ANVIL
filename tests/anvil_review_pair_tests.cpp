@@ -24,6 +24,9 @@ int main(int argc, char** argv) {
     m.tbNum=1; m.tbDen=30; m.sourceW=16; m.sourceH=16;
     m.anvilStageMs=2.3; m.fsrDispatchMs=4.1;
     m.sourceId="fixture.mov"; m.gitSha=std::string(40,'a');
+    m.gitDirty="true"; m.gitDirtyHash=std::string(64,'b');
+    m.provenanceSource="synthetic-test-fixture";
+    m.binarySha256=std::string(64,'c'); m.inputSha256=std::string(64,'d');
     std::vector<uint8_t> raw(16*16*4, 255), fsr(32*32*4, 255);
     for(size_t i=0;i<raw.size();i+=4) {
         raw[i]=static_cast<uint8_t>((i/4)%127);
@@ -45,6 +48,10 @@ int main(int argc, char** argv) {
     REQUIRE(file.open(QIODevice::ReadOnly));
     const QJsonObject json = QJsonDocument::fromJson(file.readAll()).object();
     REQUIRE(json.value("schema").toString()=="anvil-visual-pair-v2");
+    REQUIRE(json.value("git_dirty").isBool() && json.value("git_dirty").toBool());
+    REQUIRE(json.value("git_dirty_hash").toString()==QString::fromStdString(m.gitDirtyHash));
+    REQUIRE(json.value("binary_sha256").toString()==QString::fromStdString(m.binarySha256));
+    REQUIRE(json.value("input_sha256").toString()==QString::fromStdString(m.inputSha256));
     REQUIRE(json.value("capture_attestation").toString()=="producer-hmac-sha256-v1");
     REQUIRE(QFile::exists(QDir(path).filePath("capture.hmac")));
     REQUIRE(json.value("verified_same_frame").toBool());

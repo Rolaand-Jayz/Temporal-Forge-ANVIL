@@ -40,6 +40,7 @@ Rectangle {
 
         Text {
             id: hudText
+            objectName: "publishedFrameHud"
             text: {
                 if (!playback.hasMedia) return ""
                 const source = fsr.sourceWidth + "x" + fsr.sourceHeight

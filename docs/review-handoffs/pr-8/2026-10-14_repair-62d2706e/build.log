@@ -1,0 +1,42 @@
+[0/2] Re-checking globbed directories...
+[1/69] ANVIL: capturing build-time Git provenance
+[2/69] Automatic MOC and UIC for target anvil_core_tests
+[3/68] Automatic MOC and UIC for target anvil_lib
+[4/67] Building CXX object tests/CMakeFiles/anvil_core_tests.dir/__/anvil_provenance/AnvilBuildProvenance.cpp.o
+[5/67] Building CXX object CMakeFiles/anvil_lib.dir/anvil_provenance/AnvilBuildProvenance.cpp.o
+[6/67] Linking CXX executable tests/anvil_core_tests
+[7/67] Linking CXX static library libanvil_lib.a
+[8/67] Linking CXX executable tests/anvil_live_frame_tests
+[9/67] Linking CXX executable anvil_runner
+[10/67] Automatic MOC and UIC for target temporal_forge_lib
+[11/66] Linking CXX executable tests/anvil_runner_tests
+[12/66] Building CXX object CMakeFiles/temporal_forge_lib.dir/src/core/PlaybackEngine.cpp.o
+In file included from /mnt/workdrive/anvil-verification/anvil-unified/src/render/SideBufferSynth.hpp:17,
+                 from /mnt/workdrive/anvil-verification/anvil-unified/src/motion/MotionEstimator.hpp:14,
+                 from /mnt/workdrive/anvil-verification/anvil-unified/src/config/QualityLabConfig.hpp:9,
+                 from /mnt/workdrive/anvil-verification/anvil-unified/src/core/PlaybackEngine.hpp:15,
+                 from /mnt/workdrive/anvil-verification/anvil-unified/src/core/PlaybackEngine.cpp:2:
+/mnt/workdrive/anvil-verification/anvil-unified/src/util/Jitter.hpp: In function ‘constexpr uint32_t temporal_forge::fsrJitterPhaseCount(uint32_t, uint32_t)’:
+/mnt/workdrive/anvil-verification/anvil-unified/src/util/Jitter.hpp:70:27: warning: ISO C++ does not support ‘__int128’ for ‘type name’ [-Wpedantic]
+   70 |     using Wide = unsigned __int128;
+      |                           ^~~~~~~~
+[13/66] Linking CXX static library libtemporal_forge_lib.a
+[14/66] Automatic MOC and UIC for target player_build_provenance_tests
+[15/65] Automatic MOC and UIC for target temporal_forge_player
+[16/64] Running AUTOMOC file extraction for target temporal_forge_player
+[17/37] Building CXX object tests/CMakeFiles/player_build_provenance_tests.dir/__/anvil_provenance/AnvilBuildProvenance.cpp.o
+[18/37] Building CXX object CMakeFiles/temporal_forge_player.dir/anvil_provenance/AnvilBuildProvenance.cpp.o
+[19/37] Linking CXX executable tests/player_build_provenance_tests
+[20/37] Linking CXX executable temporal_forge_player
+[21/37] Automatic MOC and UIC for target jitter_gpu_contract_tests
+[22/36] Automatic MOC and UIC for target native_player_ui_tests
+[23/35] Automatic MOC and UIC for target native_compare_gpu_tests
+[24/34] Automatic MOC and UIC for target file_switch_tests
+[25/33] Building CXX object tests/CMakeFiles/native_player_ui_tests.dir/__/anvil_provenance/AnvilBuildProvenance.cpp.o
+[26/33] Building CXX object tests/CMakeFiles/native_compare_gpu_tests.dir/__/anvil_provenance/AnvilBuildProvenance.cpp.o
+[27/33] Building CXX object tests/CMakeFiles/file_switch_tests.dir/__/anvil_provenance/AnvilBuildProvenance.cpp.o
+[28/33] Building CXX object tests/CMakeFiles/jitter_gpu_contract_tests.dir/__/anvil_provenance/AnvilBuildProvenance.cpp.o
+[29/33] Linking CXX executable tests/native_compare_gpu_tests
+[30/33] Linking CXX executable tests/file_switch_tests
+[31/33] Linking CXX executable tests/native_player_ui_tests
+[32/33] Linking CXX executable tests/jitter_gpu_contract_tests

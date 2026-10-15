@@ -1,0 +1,19 @@
+Test project /mnt/workdrive/anvil-verification/anvil-unified/build
+    Start  1: vulkan_submission_failure_tests
+1/7 Test  #1: vulkan_submission_failure_tests ...   Passed    0.01 sec
+    Start 27: native_player_ui_tests
+2/7 Test #27: native_player_ui_tests ............   Passed    1.31 sec
+    Start 28: native_player_ui_optin_tests
+3/7 Test #28: native_player_ui_optin_tests ......   Passed    1.35 sec
+    Start 29: native_player_ui_budget_tests
+4/7 Test #29: native_player_ui_budget_tests .....   Passed    1.36 sec
+    Start 30: native_compare_gpu_tests
+5/7 Test #30: native_compare_gpu_tests ..........   Passed    0.39 sec
+    Start 31: native_compare_gpu_optin_tests
+6/7 Test #31: native_compare_gpu_optin_tests ....   Passed    0.40 sec
+    Start 34: player_build_provenance_tests
+7/7 Test #34: player_build_provenance_tests .....   Passed    0.03 sec
+
+100% tests passed out of 7
+
+Total Test time (real) =   4.85 sec

@@ -18,6 +18,7 @@ import TemporalForge
 
 ApplicationWindow {
     id: window
+    objectName: "anvilPlayerWindow"
     visible: false
     width: 1280; height: 720
     minimumWidth: 760; minimumHeight: 480
@@ -179,7 +180,18 @@ ApplicationWindow {
     // Refresh FSR source dims when media changes.
     Connections {
         target: playback
-        function onMediaChanged() { fsr.setWindowSize(surfaceArea.width, surfaceArea.height) }
+        function onMediaChanged() {
+            fsr.setWindowSize(surfaceArea.width, surfaceArea.height)
+            videoSurface.requestUpdate()
+            compareRawSurface.requestUpdate()
+        }
+        // Mode changes can withdraw a published image while paused, when
+        // the frame timer is stopped. Clear both panes through their actual
+        // readiness accessors instead of retaining the previous raw cache.
+        function onFsr4StatusChanged() {
+            videoSurface.requestUpdate()
+            compareRawSurface.requestUpdate()
+        }
     }
     Connections {
         target: compare
@@ -203,6 +215,7 @@ ApplicationWindow {
         // pacing and schedules a scene-graph update.
         VideoSurface {
             id: videoSurface
+            objectName: "enhancedVideoSurface"
             anchors.fill: parent
             visible: playback.hasMedia
             brightness: videoSettings.brightness
@@ -230,6 +243,7 @@ ApplicationWindow {
 
             VideoSurface {
                 id: compareRawSurface
+                objectName: "rawVideoSurface"
                 x: -compareRawPane.x
                 width: surfaceArea.width
                 height: surfaceArea.height
@@ -328,6 +342,7 @@ ApplicationWindow {
             Text {
                 anchors.centerIn: parent
                 color: theme.foreground
+                objectName: "compareLeftLabel"
                 text: compare.rawOnLeft ? rawPaneStageLabel() : "PLAYER OUTPUT"
                 font.pixelSize: 10; font.weight: Font.DemiBold
             }
@@ -344,6 +359,7 @@ ApplicationWindow {
             Text {
                 anchors.centerIn: parent
                 color: theme.foreground
+                objectName: "compareRightLabel"
                 text: compare.rawOnLeft ? "PLAYER OUTPUT" : rawPaneStageLabel()
                 font.pixelSize: 10; font.weight: Font.DemiBold
             }
@@ -782,11 +798,11 @@ ApplicationWindow {
     Shortcut { sequence: "Up";   onActivated: playback.volume = Math.min(100, playback.volume + 5) }
     Shortcut { sequence: "Down"; onActivated: playback.volume = Math.max(0, playback.volume - 5) }
     // spec 05 FSR preset shortcuts
-    Shortcut { sequence: "Ctrl+1"; onActivated: fsr.preset = 1 } // Off
-    Shortcut { sequence: "Ctrl+2"; onActivated: fsr.preset = 3 } // Quality
-    Shortcut { sequence: "Ctrl+3"; onActivated: fsr.preset = 4 } // Balanced
-    Shortcut { sequence: "Ctrl+4"; onActivated: fsr.preset = 5 } // Performance
-    Shortcut { sequence: "Ctrl+5"; onActivated: fsr.preset = 6 } // Ultra Performance
+    Shortcut { sequence: "Ctrl+1"; onActivated: fsr.preset = 0 } // Off
+    Shortcut { sequence: "Ctrl+2"; onActivated: fsr.preset = 2 } // Quality
+    Shortcut { sequence: "Ctrl+3"; onActivated: fsr.preset = 3 } // Balanced
+    Shortcut { sequence: "Ctrl+4"; onActivated: fsr.preset = 4 } // Performance
+    Shortcut { sequence: "Ctrl+5"; onActivated: fsr.preset = 5 } // Ultra Performance
 
     // --- debug overlay (spec 05) ---
     Rectangle {
@@ -883,6 +899,7 @@ ApplicationWindow {
     // --- Settings dialog (Ctrl+, or gear button) ---
     SettingsDialog {
         id: settingsDialog
+        objectName: "playerSettings"
         visible: false
         function show() {
             visible = true

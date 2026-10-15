@@ -272,6 +272,7 @@ private:
     std::unique_ptr<GpuImageUploader> fsr4InFlightUploader_;
     std::unique_ptr<Fsr4DispatchHarness> fsr4InFlightHarness_;
     std::atomic<GpuImageUploader *> fsr4PublishedUploader_{nullptr};
+    std::atomic<GpuImageUploader *> fsr4PublishedRawUploader_{nullptr};
     GpuImageUploader *fsr4LastSubmittedUploader_ = nullptr;
     uint32_t fsr4NextDispatchSlot_ = 0;
     // Optional progressive chain. The final pass remains in the legacy

@@ -1,0 +1,97 @@
+(lsfg-vk) [ERROR]: Failed to initialize global info:
+(lsfg-vk) [ERROR]: - Unknown key in configuration: game
+[2026-10-14 19:58:02] INFO  ?:0: Vulkan: using Qt shared instance
+[2026-10-14 19:58:02] INFO  ?:0: Vulkan: enumerated 246 device extensions on 'AMD Radeon RX 7900 GRE (RADV NAVI31)'
+[2026-10-14 19:58:02] INFO  ?:0: Vulkan: enabled device extensions (5):
+[2026-10-14 19:58:02] INFO  ?:0: Vulkan:   ext VK_KHR_swapchain
+[2026-10-14 19:58:02] INFO  ?:0: Vulkan:   ext VK_KHR_external_memory_fd
+[2026-10-14 19:58:02] INFO  ?:0: Vulkan:   ext VK_EXT_image_drm_format_modifier
+[2026-10-14 19:58:02] INFO  ?:0: Vulkan:   ext VK_KHR_cooperative_matrix
+[2026-10-14 19:58:02] INFO  ?:0: Vulkan:   ext VK_EXT_subgroup_size_control
+[2026-10-14 19:58:02] INFO  ?:0: Vulkan: enabled device features (14): baseline[samplerAnisotropy=true textureCompressionBC=true shaderStorageImageWriteWithoutFormat=true imageCubeArray=true shaderStorageImageExtendedFormats=true timelineSemaphore=true shaderSubgroupExtendedTypes=true] fsr4[shaderFloat16=true shaderInt8=true shaderIntegerDotProduct=true storageBuffer8BitAccess=true subgroupSizeControl=true computeFullSubgroups=true cooperativeMatrix=true]
+[2026-10-14 19:58:02] INFO  ?:0: Vulkan: fsr4ClassExtensions=true fsr4ClassFeatures=true requireSubgroupSize64=true (bounds 32..64)
+[2026-10-14 19:58:02] INFO  ?:0: Vulkan: graphics queue family 0, FSR compute queue family 1
+[2026-10-14 19:58:02] INFO  ?:0: Vulkan: device 'AMD Radeon RX 7900 GRE (RADV NAVI31)' selected, queue family 0
+[2026-10-14 19:58:02] INFO  ?:0: GpuCapabilityProbe: AMD Radeon RX 7900 GRE (RADV NAVI31) (radv) -> INT8 DOT4 (RDNA3 cooperative matrix, SINT8->SINT32) [tile 16x16, SINT8->SINT32 accum] + FP16 fallback available
+[2026-10-14 19:58:02] INFO  ?:0: PlaybackEngine: Vulkan handles set; FSR4 will be initialized on first frame
+[2026-10-14 19:58:02] INFO  ?:0: PlaybackEngine: FSR4 upscaling enabled
+OK: actual full-player consumer links generated build provenance
+OK: real Main.qml compare/HUD/settings objects instantiated
+[2026-10-14 19:58:02] INFO  ?:0: PlaybackEngine: openUrl('file:///mnt/workdrive/anvil-verification/anvil-unified/build/tests/compare.mp4')
+[2026-10-14 19:58:02] INFO  ?:0: PlaybackEngine: close() stopThreads
+[2026-10-14 19:58:02] INFO  ?:0: PlaybackEngine: close() audio.stop
+[2026-10-14 19:58:02] INFO  ?:0: PlaybackEngine: FSR4 path torn down
+[2026-10-14 19:58:02] INFO  ?:0: PlaybackEngine: close() fully done
+[2026-10-14 19:58:02] INFO  ?:0: PlaybackEngine: close() done, opening demuxer
+[2026-10-14 19:58:02] INFO  ?:0: PlaybackEngine: demux->open('/mnt/workdrive/anvil-verification/anvil-unified/build/tests/compare.mp4')
+[2026-10-14 19:58:02] INFO  ?:0: Demuxer: opened '/mnt/workdrive/anvil-verification/anvil-unified/build/tests/compare.mp4' [mov,mp4,m4a,3gp,3g2,mj2] duration=8.000s streams=1 video=0 audio=-1381258232 sub=-1381258232
+[2026-10-14 19:58:02] INFO  ?:0: PlaybackEngine: demux opened ok
+[2026-10-14 19:58:02] INFO  ?:0: VideoDecoder: hardware decode disabled because codec motion metadata was requested
+[2026-10-14 19:58:02] INFO  ?:0: VideoDecoder: opened codec 'h264' 64x48 pix_fmt=yuv420p
+[2026-10-14 19:58:02] INFO  ?:0: PlaybackEngine: starting decode threads
+[2026-10-14 19:58:02] INFO  ?:0: ANVIL live causal CPU stage enabled before FSR: budget=6ms (experimental; not performance qualified)
+[2026-10-14 19:58:02] INFO  ?:0: PlaybackEngine: opened '/mnt/workdrive/anvil-verification/anvil-unified/build/tests/compare.mp4', playing=true
+[h264 @ 0x55c873e30300] A hardware frames or device context is required for hardware accelerated decoding.
+[h264 @ 0x55c873e30300] Failed setup for format vaapi: hwaccel initialisation returned error.
+[2026-10-14 19:58:02] INFO  ?:0: PlaybackEngine: FSR4 pass decoded 64x48 -> model 960x720 -> 1440x1080
+[2026-10-14 19:58:02] INFO  ?:0: Fsr4Harness: generic pipeline cache loaded (248460 bytes)
+[2026-10-14 19:58:02] INFO  ?:0: Fsr4Harness: prepass pipeline created (7256 words SPIR-V)
+[2026-10-14 19:58:02] INFO  ?:0: Fsr4Harness: conv pipelines created (dw 6305 words, pw scalar 3451 words, pw coop 5907 words, fp16 coop 3866 words, pw direct 2976 words, spatial direct 3354 words, upscale coop 3281 words, downscale coop 2622 words)
+[2026-10-14 19:58:02] INFO  ?:0: Fsr4Harness: scatter pipeline created (799 words)
+[2026-10-14 19:58:02] INFO  ?:0: Fsr4Harness: postpass pipeline created (21697 words)
+[2026-10-14 19:58:02] INFO  ?:0: Fsr4Harness: SPD pipeline created (954 words)
+[2026-10-14 19:58:02] INFO  ?:0: Fsr4Harness: native INT8 pipeline cache loaded (2777892 bytes)
+[2026-10-14 19:58:02] INFO  ?:0: Fsr4Harness: initialized on AMD Radeon RX 7900 GRE (RADV NAVI31) (all 6 pipelines: prepass+conv+scatter+postpass+spd)
+[2026-10-14 19:58:02] WARN  ?:0: Fsr4Harness: native INT8 pack 'quality_4x3_1440' present but incomplete: pass0.spv missing (provisioning required — see resources/fsr4/native_i8/README.md); looked at ./resources/fsr4/native_i8/quality_4x3_1440/pass0.spv
+[2026-10-14 19:58:02] INFO  ?:0: Fsr4Harness: resources allocated src=960x720 out=1440x1080 (scratch=49624KB accum=48600KB feat=72900KB)
+[2026-10-14 19:58:02] INFO  ?:0: WeightBlob: loaded Quality (131072 B, 255 unique uint8, drs=false)
+[2026-10-14 19:58:02] INFO  ?:0: PlaybackEngine: FSR4 multiplier Quality uses standard blob Quality (quality.bin, 131072 bytes)
+[2026-10-14 19:58:02] INFO  ?:0: Fsr4Harness: uploaded 131072 B raw model + prepacked INT8/scales and FP16 cooperative weights
+[2026-10-14 19:58:02] INFO  ?:0: GpuImageUploader: EASU RGBA8 format features optimal=0x1dd83
+[2026-10-14 19:58:02] INFO  ?:0: GpuImageUploader: allocated source 64x48 -> model 960x720 -> output 1440x1080
+[2026-10-14 19:58:02] INFO  ?:0: PlaybackEngine: FSR4 path ready decoded 64x48 -> model 960x720 -> 1440x1080
+[2026-10-14 19:58:02] INFO  ?:0: PlaybackEngine: FSR4 progressive chain passes=1
+[2026-10-14 19:58:02] INFO  GpuImageUploader.cpp:1855: GpuImageUploader: source_model_resampler=gpu_scale_aware_bicubic 64x48->960x720
+[2026-10-14 19:58:02] INFO  GpuImageUploader.cpp:1159: GpuImageUploader: source_model_resampler=gpu_scale_aware_bicubic 64x48->960x720
+[2026-10-14 19:58:02] INFO  ?:0: ANVIL causal live stage: frames=1 last_ms=0.272078 valid_samples=3072
+OK: actual requested EASU/neural GPU frame published
+OK: controller reports the actual loaded source dimensions
+OK: production C shortcut enables A/B compare
+OK: actual comparison labels match source/control stage
+OK: actual HUD reflects published stage
+OK: actual Settings text reflects published stage
+OK: actual QML pane labels follow swapped orientation
+OK: capture real full-player comparison window
+(lsfg-vk) [ERROR]: Failed to initialize global info:
+(lsfg-vk) [ERROR]: - Unknown key in configuration: game
+OK: capture actual Settings upscaler status
+OK: actual comparison labels match source/control stage
+OK: actual HUD reflects published stage
+OK: actual Settings text reflects published stage
+OK: actual QML pane labels follow swapped orientation
+OK: capture real full-player comparison window
+OK: capture actual Settings upscaler status
+OK: hold actual post-neural presentation submission
+OK: pending neural work retains the displayed image stage and QML label
+OK: pending neural work does not replace the displayed raw/control pixels
+[2026-10-14 19:58:03] WARN  ?:0: PlaybackEngine: GPU presentation scaler failed
+[2026-10-14 19:58:03] WARN  ?:0: PlaybackEngine: FSR4 dispatch failed: 
+OK: real neural submission rejects injected Vulkan error and reaches retry
+OK: failed neural submission cannot mislabel old pixels SOURCE
+OK: failed neural submission retains the paired previous control pixels
+OK: real driver accepts the neural retry after rejected submission
+[2026-10-14 19:58:03] INFO  ?:0: PlaybackEngine: FSR4 off — entering EASU-only GPU upscale mode
+[2026-10-14 19:58:03] INFO  ?:0: PlaybackEngine: FSR4 upscaling disabled
+OK: actual neural-to-EASU switch publishes a fresh paired spatial frame
+[2026-10-14 19:58:03] INFO  ?:0: PlaybackEngine: FSR4 upscaling enabled
+OK: actual EASU-to-neural switch resumes successful dispatch
+[2026-10-14 19:58:04] INFO  ?:0: PlaybackEngine: close() stopThreads
+[2026-10-14 19:58:04] INFO  ?:0: PlaybackEngine: close() audio.stop
+[2026-10-14 19:58:04] INFO  ?:0: PlaybackEngine: FSR4 path torn down
+[2026-10-14 19:58:04] INFO  ?:0: PlaybackEngine: close() fully done
+injected failure target: post-neural presentation
+native_player_ui_tests: 0 failures; mode=neural device=AMD Radeon RX 7900 GRE (RADV NAVI31)
+[2026-10-14 19:58:04] INFO  ?:0: PlaybackEngine: close() stopThreads
+[2026-10-14 19:58:04] INFO  ?:0: PlaybackEngine: close() audio.stop
+[2026-10-14 19:58:04] INFO  ?:0: PlaybackEngine: FSR4 path torn down
+[2026-10-14 19:58:04] INFO  ?:0: PlaybackEngine: close() fully done
