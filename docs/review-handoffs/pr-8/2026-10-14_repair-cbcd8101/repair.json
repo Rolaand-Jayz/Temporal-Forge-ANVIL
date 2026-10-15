@@ -1,0 +1,107 @@
+{
+ "protocol": "pr-eval-repair/1.3",
+ "repository": "Rolaand-Jayz/Temporal-Forge-ANVIL",
+ "pr_number": 8,
+ "source": {
+  "last_independent_review_head": "cbcd8101a4953421af512f87503dd176768795a9",
+  "structured_handoff": "docs/review-handoffs/pr-8/2026-10-14_18eb5e3/repair-handoff.json",
+  "canonical_ledger_status": "unavailable_in_repository",
+  "f0003_frozen_dod_url": "https://github.com/Rolaand-Jayz/Temporal-Forge-ANVIL/pull/8#issuecomment-6182430653",
+  "continuity": "F0003 DoD r1 ingested verbatim from the reviewer comment issued at cbcd8101; F0001/F0002 immutable DoD unchanged; comments-only fallback (no canonical review.json exists)"
+ },
+ "result": {
+  "target": "patch:sha256:ef6ab9a41eafd54a3dc98c3b12401303d01d9367bec9847492034592f40f9e14 on cbcd8101 (uncommitted at test time; published commit follows)",
+  "changed_files": [
+   "resources/qml/SettingsDialog.qml",
+   "tests/native_player_ui_tests.cpp",
+   "docs/current/PLAYER_UI.md"
+  ],
+  "published_code_commit": "9605cb9fb2d75e7032dc8d2d36b3982a2f929b2e"
+ },
+ "findings": [
+  {
+   "id": "PR8-F0001",
+   "source_status": "fixed_unverified",
+   "repair_status": "unchanged",
+   "dod_revision": 1,
+   "dod_fingerprint": "279c8849c4feb544c62ff70d8f3d9912f85807209938c7cdf28fe37ff7187d3c",
+   "acs": {
+    "AC-01": "unverified (independent)",
+    "AC-02": "unverified (independent)",
+    "AC-03": "unverified (independent)"
+   },
+   "note": "No code path touched; full local suites pass at repair state; independent exact-head verification outstanding"
+  },
+  {
+   "id": "PR8-F0002",
+   "source_status": "fixed_unverified",
+   "repair_status": "unchanged",
+   "dod_revision": 1,
+   "dod_fingerprint": null,
+   "acs": {
+    "AC-01": "unverified (independent)",
+    "AC-02": "unverified (independent)",
+    "AC-03": "unverified (independent)"
+   },
+   "note": "No code path touched; full local suites pass at repair state; independent exact-head verification outstanding"
+  },
+  {
+   "id": "PR8-F0003",
+   "source_status": "open",
+   "repair_status": "patched_provisional",
+   "dod_revision": 1,
+   "dod_fingerprint": null,
+   "dod_verbatim": [
+    {
+     "ac_id": "AC-01",
+     "expected": "Experimental backend warning title and explanation remain fully readable within the Settings content viewport at supported minimum and standard window sizes",
+     "falsifier": "initial characters or the explanatory lead-in are cut off as in saved screenshots",
+     "verification": "inspect corrected actual Qt window captures and bounds at 760px and 1280px",
+     "repair_status": "satisfied_locally",
+     "evidence": "native-off.log OK banner/bounds/untruncated at realized settings widths 760 and 1280; capture-verification.json pixel audit (warn pixels x=205..>divider 181); vision inspection settings-760-banner: both lines fully readable"
+    },
+    {
+     "ac_id": "AC-02",
+     "expected": "Responsive-layout tests must assert actual realized player window/content dimensions before claiming the 760px and 1280px cases and inspect distinct layout states",
+     "falsifier": "identical captures can pass as two different widths without verifying `window->width()`/geometry",
+     "verification": "focused negative/control test or explicit geometry assert plus captured effective dimensions",
+     "repair_status": "satisfied_locally",
+     "evidence": "resizeConfirmed() geometry assertions + realized-size logging in all native logs; distinct-capture check OK; negative control observed on intermediate candidate (FAIL: compositor realizes the requested player window geometry); resize-rootcause-probe/ reproduces dropped resize while inactive"
+    },
+    {
+     "ac_id": "AC-03",
+     "expected": "The production Main.qml and Settings layout must pass a behavioral/visual acceptance run without horizontal clipping, hidden essential controls or unreadable labels at both target sizes",
+     "falsifier": "a warning/essential control is clipped despite the automated test passing",
+     "verification": "independent Qt/Vulkan run with visual inspection and accurate per-size screenshots",
+     "repair_status": "satisfied_locally",
+     "evidence": "0 failures in off/optin/neural/presentation variants on RX 7900 GRE; accurate per-size screenshots in ui-presentation-complete/ (distinct 760/1280 sizes); vision inspection of player and settings captures: labels readable, controls unclipped; full manual human acceptance remains evaluator work"
+    }
+   ],
+   "note": "Root causes: (1) banner Rectangle used width:parent.width inside ColumnLayout -> zero-width/misplaced banner, centered text overflowed left over sidebar; (2) KDE Wayland silently drops a client resize issued while the window is inactive (state right after modal Settings hide), so the prior 1280 case snapshotted the stale 760x480 layout twice"
+  }
+ ],
+ "checks": {
+  "native_off": "0 failures",
+  "native_optin": "0 failures",
+  "neural": "0 failures (TFORGE_FSR4_RE_ROOT provisioned)",
+  "presentation": "0 failures",
+  "ctest": "100% of 42 passed (1 skip asset-dependent, 4 disabled, same set as prior packet)",
+  "python_ci_selected": "144 passed, 39 subtests passed",
+  "python_full_local": "3 pre-existing failures (m6 annotations, review harness contract) verified identical at parent head via git-stash control",
+  "hardware": "AMD Radeon RX 7900 GRE (RADV NAVI31), KDE Wayland, Release"
+ },
+ "verification_loops": {
+  "count": 3,
+  "all_clean": true,
+  "lenses": [
+   "runtime geometry and visual UI acceptance",
+   "regression and contract suites",
+   "source adversarial review and root-cause falsification"
+  ],
+  "target": "patch:sha256:ef6ab9a41eafd54a3dc98c3b12401303d01d9367bec9847492034592f40f9e14",
+  "pr_level_exhaustive_loops_certified": 0
+ },
+ "new_risks": [],
+ "disposition": "READY_FOR_REVIEW",
+ "disposition_limits": "READY_FOR_REVIEW is a request for independent re-review, not PASS/merge authorization. Canonical ledger still unavailable; exact-head hosted CI on the pushed commit must be confirmed before any promotion."
+}

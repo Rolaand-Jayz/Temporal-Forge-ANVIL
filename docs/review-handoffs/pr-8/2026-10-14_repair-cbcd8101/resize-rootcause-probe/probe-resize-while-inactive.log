@@ -1,0 +1,4 @@
+initial: 1280x720 active=1
+after760: 760x480 active=1
+modal shown; main active=0. hiding modal
+after1280: 760x480 active=1

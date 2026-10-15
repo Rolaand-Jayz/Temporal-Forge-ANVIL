@@ -1,0 +1,86 @@
+{
+ "captures": {
+  "main-760-swapped.png": {
+   "bytes": 38732,
+   "sha256": "cdb22d08eead8c1cb404f88a29d8cba949710c3a3487a27478ca36879ba0f11b",
+   "size_px": [
+    760,
+    480
+   ]
+  },
+  "main-1280-swapped.png": {
+   "bytes": 45940,
+   "sha256": "26d79944ef2f3e88eef6b0fb6303af3d0169a1824158435cfd36cbc83b37b9b5",
+   "size_px": [
+    1280,
+    720
+   ]
+  },
+  "settings-760.png": {
+   "bytes": 100407,
+   "sha256": "7a9532f2fa70a3a42e99052ba252a2b75dfa6a6ff840b3ed097a21eaff9c98c6",
+   "size_px": [
+    760,
+    560
+   ]
+  },
+  "settings-1280.png": {
+   "bytes": 99612,
+   "sha256": "41a7b78962488aea0b0854e59f2c8cad78b5dc779fb6b4c91402d021fb51838c",
+   "size_px": [
+    1280,
+    680
+   ]
+  }
+ },
+ "main_captures_distinct": true,
+ "realized_sizes": {
+  "main-760": [
+   760,
+   480
+  ],
+  "main-1280": [
+   1280,
+   720
+  ],
+  "settings-760": [
+   760,
+   560
+  ],
+  "settings-1280": [
+   1280,
+   680
+  ]
+ },
+ "control_evidence_prior_defect": {
+  "prior_main_760_and_1280_byte_identical_sha": "85b10d936ad46957 (950x600, both files)",
+  "prior_note": "prior captures at docs/review-handoffs/pr-8/2026-10-14_repair-62d2706e/ui-presentation-complete were 950x600 for BOTH width cases (1280 resize silently dropped by the platform while the window was inactive); settings captures were the fixed 900x680 default with warning text starting left of the sidebar divider"
+ },
+ "warning_banner_pixel_audit": {
+  "settings-760": {
+   "banner_rows": [
+    225,
+    271
+   ],
+   "warn_pixels_x": [
+    205,
+    714
+   ],
+   "logical_width": 760,
+   "text_starts_right_of_sidebar_divider_181": true
+  },
+  "settings-1280": {
+   "banner_rows": [
+    195,
+    241
+   ],
+   "warn_pixels_x": [
+    205,
+    1234
+   ],
+   "logical_width": 1280,
+   "text_starts_right_of_sidebar_divider_181": true
+  }
+ },
+ "in_test_bounds_checks_passed": true
+}
