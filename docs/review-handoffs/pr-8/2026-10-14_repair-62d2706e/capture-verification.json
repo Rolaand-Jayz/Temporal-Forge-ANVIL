@@ -1,0 +1,51 @@
+{
+  "authenticated_pairs": 1,
+  "rejected": 0,
+  "binary_and_input_hash_match": true,
+  "manifest": {
+    "a": {
+      "id": "live-control",
+      "image": "anvil_causal_live_control.png",
+      "label": "ANVIL causal live subset v1 \u2014 control",
+      "sha256": "cc0d929045a1c67a47df1e8243b66163799316b5199ac0cb4ba8cc08b12d6571",
+      "stage": "causal_cpu_previous_frame_v1 + Lanczos display alignment",
+      "status": "control",
+      "url": "/api/image/frame_000001/anvil_causal_live_control.png"
+    },
+    "anvil_live_profile": "causal_cpu_previous_frame_v1",
+    "anvil_stage_ms": 0.275174,
+    "b": {
+      "id": "live-fsr41",
+      "image": "anvil_causal_live_fsr41.png",
+      "label": "ANVIL causal live subset v1 + FSR 4.1 \u2014 tryout",
+      "sha256": "258cf8ad4514bfab09174972c4fa0ab4c75b3d454627497e669325173d1910b3",
+      "stage": "causal_cpu_previous_frame_v1 \u2192 FSR4.1 RE \u2192 presentation",
+      "status": "tryout",
+      "url": "/api/image/frame_000001/anvil_causal_live_fsr41.png"
+    },
+    "binary_sha256": "dfde0a5c8f6c8cc9677b149cf241a028b689d53cfd5069063bf44e5ce25649bc",
+    "capture_attestation": "producer-hmac-sha256-v1",
+    "frame_index": 1,
+    "fsr_dispatch_ms": 8.624955,
+    "git_dirty": true,
+    "git_dirty_hash": "4f174be27b6f28d03852f9f65f0a1e15bdddeeb65aca634b4d754dc08d1454ba",
+    "git_sha": "62d2706ed8937c2d07f851506b2291588388e885",
+    "input_sha256": "c1e2e058aa1e234de866ca13afb79efe229fd7f5fdd34e70092a360afa54fec6",
+    "live_control_presentation": "GPU YUV-to-RGBA then Lanczos display-grid alignment",
+    "output_height": 720,
+    "output_width": 960,
+    "provenance_source": "build_generated",
+    "pts_ticks": 512,
+    "pts_us": 33333,
+    "schema": "anvil-visual-pair-v2",
+    "source_height": 48,
+    "source_id": "/mnt/workdrive/anvil-verification/anvil-unified/build/tests/compare.mp4",
+    "source_width": 64,
+    "tb_den": 15360,
+    "tb_num": 1,
+    "verified_same_frame": true,
+    "key": "frame_000001",
+    "evidence_status": "producer-key-authenticated-not-independent-gpu-proof"
+  },
+  "independent_gpu_attestation": false
+}

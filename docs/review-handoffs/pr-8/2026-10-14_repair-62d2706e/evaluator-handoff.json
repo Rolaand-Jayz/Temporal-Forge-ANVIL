@@ -1,0 +1,55 @@
+{
+  "format": "pr-repair-comments-only-handoff",
+  "status": "UNVERIFIED",
+  "repository": "Rolaand-Jayz/Temporal-Forge-ANVIL",
+  "pr_number": 8,
+  "parent_head": "62d2706ed8937c2d07f851506b2291588388e885",
+  "target_ref": "patch:sha256:6738f1d2a0205b29ea57e18990fd36c3e9376f200c07c3dbb0c5a92742acbc90",
+  "patch_path": "repair.patch",
+  "comment_triage": "comment-triage.json",
+  "review_snapshot_sha256": null,
+  "review_handoff_sha256": "945fa09cae843d477baf2d7db7b9f7415b3bbe072f303a0b0adab8787634dee3",
+  "source_contract_status": "CANONICAL FULL LEDGER UNAVAILABLE",
+  "historical_repository_handoff": "../2026-10-14_18eb5e3/repair-handoff.json",
+  "finding_ids": [
+    "PR8-F0001",
+    "PR8-F0002"
+  ],
+  "acceptance_ids": [
+    "PR8-F0001:AC-01",
+    "PR8-F0001:AC-02",
+    "PR8-F0001:AC-03",
+    "PR8-F0002:AC-01",
+    "PR8-F0002:AC-02",
+    "PR8-F0002:AC-03"
+  ],
+  "original_pr_scope_ids": [
+    "SCOPE-01",
+    "SCOPE-02",
+    "SCOPE-03",
+    "SCOPE-04",
+    "SCOPE-05",
+    "SCOPE-06"
+  ],
+  "new_risk_ids": [
+    "RISK-002",
+    "RISK-003",
+    "RISK-004",
+    "RISK-005",
+    "RISK-006"
+  ],
+  "remaining_blockers": [
+    "Canonical full review.json absent; latest remote concise handoff explicitly records unavailable ledger and null snapshot checksum.",
+    "Independent evaluator acceptance and complete original PR scope/coverage remain unverified.",
+    "Three exhaustive full contractual clean passes not certified; targeted lenses do not substitute.",
+    "Async reorder and all neural chain/device combinations not exhaustively exercised.",
+    "No Khronos validation layer installed; no validation-clean claim.",
+    "Fresh exact-result hosted CI must be checked after push."
+  ],
+  "evaluator_recheck_requested": true,
+  "ready_for_evaluator": false,
+  "remote_mutations": [
+    "commit/push authorized; verify resulting commit in Git history and live PR"
+  ],
+  "three_full_clean_passes": 0
+}

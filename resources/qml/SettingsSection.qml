@@ -28,12 +28,12 @@ Item {
             Rectangle {
                 Layout.preferredWidth: 3
                 Layout.preferredHeight: 14
-                color: "#e44d3a"
+                color: "#41d995"
                 radius: 1
             }
             Text {
                 text: root.title
-                color: "#e8e8ee"
+                color: "#f1f6f5"
                 font.pixelSize: 13
                 font.bold: true
             }
@@ -43,7 +43,7 @@ Item {
             Layout.fillWidth: true
             text: root.description
             visible: root.description.length > 0
-            color: "#6a6a75"
+            color: "#81949e"
             font.pixelSize: 10
             wrapMode: Text.WordWrap
         }

@@ -35,7 +35,7 @@ Item {
                 Layout.leftMargin: 24
                 text: root.title
                 visible: root.title.length > 0
-                color: "#e8e8ee"
+                color: "#f1f6f5"
                 font.pixelSize: 22
                 font.bold: true
             }
@@ -44,7 +44,7 @@ Item {
                 Layout.rightMargin: 24
                 text: root.subtitle
                 visible: root.subtitle.length > 0
-                color: "#6a6a75"
+                color: "#81949e"
                 font.pixelSize: 11
                 wrapMode: Text.WordWrap
                 Layout.fillWidth: true

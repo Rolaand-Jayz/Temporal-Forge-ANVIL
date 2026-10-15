@@ -1,0 +1,78 @@
+{
+  "protocol": "pr-eval-repair/1.3",
+  "repository": "Rolaand-Jayz/Temporal-Forge-ANVIL",
+  "pr_number": 8,
+  "base_sha": "f2f8b9929c1cc3845dab90bbe80d889b44c99390",
+  "head_sha": "18eb5e3777497c77f2659a915bce6c8fcf61f6c0",
+  "classification": "INCOMPLETE",
+  "canonical_ledger_status": "unavailable_in_repository",
+  "review_snapshot_sha256": null,
+  "review_snapshot_sha256_status": "unverified__not_fabricated",
+  "pr_scope_ids": [
+    "SCOPE-01",
+    "SCOPE-02",
+    "SCOPE-03",
+    "SCOPE-04",
+    "SCOPE-05",
+    "SCOPE-06"
+  ],
+  "finding_ids": [
+    "PR8-F0001",
+    "PR8-F0002"
+  ],
+  "findings": [
+    {
+      "id": "PR8-F0001",
+      "severity": "major",
+      "status": "fixed_unverified",
+      "dod_revision": 1,
+      "dod_fingerprint": "279c8849c4feb544c62ff70d8f3d9912f85807209938c7cdf28fe37ff7187d3c",
+      "ac_status": {
+        "AC-01": "unverified",
+        "AC-02": "unverified",
+        "AC-03": "unverified"
+      },
+      "frozen_dod_url": "https://github.com/Rolaand-Jayz/Temporal-Forge-ANVIL/pull/8#issuecomment-6157506067",
+      "rereview_url": "https://github.com/Rolaand-Jayz/Temporal-Forge-ANVIL/pull/8#issuecomment-6181293524"
+    },
+    {
+      "id": "PR8-F0002",
+      "severity": "major",
+      "status": "fixed_unverified",
+      "dod_revision": 1,
+      "dod_fingerprint": null,
+      "ac_status": {
+        "AC-01": "unverified",
+        "AC-02": "unverified",
+        "AC-03": "unverified"
+      },
+      "frozen_dod_url": "https://github.com/Rolaand-Jayz/Temporal-Forge-ANVIL/pull/8#issuecomment-6180883157",
+      "rereview_url": "https://github.com/Rolaand-Jayz/Temporal-Forge-ANVIL/pull/8#issuecomment-6181293950"
+    }
+  ],
+  "checked_evidence": [
+    "src/core/PlaybackEngine.cpp source-to-publish path",
+    "src/ui/VideoSurfaceItem.cpp fail-closed raw rendering",
+    "src/anvil/LiveFrameProcessor.hpp tracking",
+    "tests/native_compare_gpu_tests.cpp",
+    "tests/CMakeLists.txt",
+    "archived native-off.log and native-optin.log",
+    "archived raw/easu PNGs",
+    "GitHub run 38658016460 (144 Python passed, Arch CTest in_progress at check)"
+  ],
+  "coverage": "partial; GitHub 69 paths enumerated, not exhaustive hunk/impact proof",
+  "three_clean_loops": 0,
+  "comment_urls": [
+    "https://github.com/Rolaand-Jayz/Temporal-Forge-ANVIL/pull/8#pullrequestreview-5526342577",
+    "https://github.com/Rolaand-Jayz/Temporal-Forge-ANVIL/pull/8#issuecomment-6181293524",
+    "https://github.com/Rolaand-Jayz/Temporal-Forge-ANVIL/pull/8#issuecomment-6181293950"
+  ],
+  "open_blockers": [
+    "exact-head Arch Release CI still in progress",
+    "Main.qml+HUD+Settings native manual checks 760px and 1280px missing",
+    "Neural FSR delayed/failed dispatch/presentation and frame identity injection missing",
+    "Independent authenticated real AMD same-frame FSR capture/browser review missing",
+    "Complete 69-path semantic impact, policy governance, three clean discovery passes missing"
+  ],
+  "repair_instructions": "Preserve F0001/F0002 frozen DoD; do not duplicate IDs. Do not infer complete acceptance from repaired source and ObservedSurface GPU fixture; provide independent Main.qml native and neural GPU failure evidence, exact-head CI, full coverage and three clean loops. No merge."
+}

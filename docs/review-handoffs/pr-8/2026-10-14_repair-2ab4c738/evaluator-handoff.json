@@ -1,0 +1,38 @@
+{
+  "format": "pr-repair-comments-only-handoff",
+  "status": "UNVERIFIED",
+  "repository": "Rolaand-Jayz/Temporal-Forge-ANVIL",
+  "pr_number": 8,
+  "parent_head": "2ab4c73847a64fd72e93f3ab1ac4ae3006097636",
+  "target_ref": "patch:sha256:d4cf17b68db35ce0307644b826a09c06e432f2d0623a1ac8a5840749b728033c",
+  "patch_path": "repair.patch",
+  "comment_triage": "comment-triage.json",
+  "source_contract_status": "STRUCTURED SOURCE MISSING",
+  "historical_repository_handoff": "../2026-10-14_205fe7e/repair-handoff.json",
+  "finding_ids": [
+    "PR8-F0001",
+    "PR8-F0002"
+  ],
+  "acceptance_ids": [
+    "PR8-F0001:AC-01",
+    "PR8-F0001:AC-02",
+    "PR8-F0001:AC-03",
+    "PR8-F0002:AC-01",
+    "PR8-F0002:AC-02",
+    "PR8-F0002:AC-03"
+  ],
+  "new_risk_ids": [
+    "RISK-001"
+  ],
+  "remaining_blockers": [
+    "STRUCTURED SOURCE MISSING: remote archived handoff is historical at 205fe7e, includes only PR8-F0001, and no full review.json; latest PR8-F0002 exists in published comments.",
+    "Full independent native Qt UI/manual acceptance and neural-mode pending/failed GPU publication tests remain unverified.",
+    "Authenticated AMD same-frame capture/browser acceptance and complete original PR-scoped DoD remain unverified.",
+    "Vulkan validation-layer proof unavailable on this host (no installed Khronos validation layer).",
+    "Three complete clean contractual verification passes are not certified; targeted passes are not substituted.",
+    "No resulting commit/push or exact-result hosted CI; repair is an uncommitted local patch."
+  ],
+  "evaluator_recheck_requested": true,
+  "ready_for_evaluator": false,
+  "remote_mutations": []
+}

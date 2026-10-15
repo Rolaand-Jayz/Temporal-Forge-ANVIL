@@ -24,31 +24,32 @@ ApplicationWindow {
     title: "Settings"
     width: 900; height: 680
     minimumWidth: 760; minimumHeight: 560
-    color: "#0a0a0c"
+    color: "#0b1015"
     modality: Qt.ApplicationModal
 
     property int currentTab: 0
+    PlayerTheme { id: theme }
 
     // Reusable styling tokens — keep the whole dialog visually consistent.
-    readonly property color cBg: "#0a0a0c"
-    readonly property color cSurface: "#15151a"
-    readonly property color cSurface2: "#1e1e24"
-    readonly property color cAccent: "#e44d3a"
-    readonly property color cAccentDim: "#3a1f1c"
-    readonly property color cText: "#f4f7f2"
-    readonly property color cTextDim: "#c5cec8"
-    readonly property color cTextMuted: "#93a39b"
-    readonly property color cWarn: "#d29922"
+    readonly property color cBg: theme.background
+    readonly property color cSurface: theme.surface
+    readonly property color cSurface2: theme.surfaceRaised
+    readonly property color cAccent: theme.accent
+    readonly property color cAccentDim: theme.accentTint
+    readonly property color cText: theme.foreground
+    readonly property color cTextDim: theme.secondary
+    readonly property color cTextMuted: theme.muted
+    readonly property color cWarn: theme.warning
 
     // Tab definitions.
     ListModel {
         id: tabModel
-        ListElement { name: "Filters";     icon: "✨" }
-        ListElement { name: "Color";       icon: "🎨" }
-        ListElement { name: "Upscaler";    icon: "⚡" }
-        ListElement { name: "Audio";       icon: "🔊" }
-        ListElement { name: "Interface";   icon: "🖥" }
-        ListElement { name: "Hotkeys";     icon: "⌨" }
+        ListElement { name: "Filters";     iconName: "sliders" }
+        ListElement { name: "Color";       iconName: "color" }
+        ListElement { name: "Upscaler";    iconName: "cpu" }
+        ListElement { name: "Audio";       iconName: "headphones" }
+        ListElement { name: "Interface";   iconName: "monitor" }
+        ListElement { name: "Hotkeys";     iconName: "keyboard" }
     }
 
     RowLayout {
@@ -71,12 +72,11 @@ ApplicationWindow {
                 Item {
                     width: parent.width
                     height: 56
-                    Text {
+                    VectorIcon {
                         anchors.left: parent.left; anchors.leftMargin: 12
-                        anchors.top: parent.top; anchors.topMargin: 10
-                        text: "⚙"
-                        color: cAccent
-                        font.pixelSize: 22
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 22; height: 22
+                        name: "settings"; color: cAccent
                     }
                     Text {
                         anchors.left: parent.left; anchors.leftMargin: 44
@@ -97,12 +97,12 @@ ApplicationWindow {
                         color: settingsWindow.currentTab === index ? cSurface2 : "transparent"
                         Behavior on color { ColorAnimation { duration: 100 } }
 
-                        Text {
+                        VectorIcon {
                             anchors.left: parent.left
                             anchors.leftMargin: 14
                             anchors.verticalCenter: parent.verticalCenter
-                            text: model.icon
-                            font.pixelSize: 16
+                            width: 19; height: 19
+                            name: model.iconName
                             color: settingsWindow.currentTab === index ? cAccent : cTextDim
                         }
                         Text {
@@ -129,6 +129,7 @@ ApplicationWindow {
                     width: parent.width
                     flat: true
                     text: "Reset tab to defaults"
+                    enabled: settingsWindow.currentTab === 0 || settingsWindow.currentTab === 1 || settingsWindow.currentTab === 3
                     onClicked: {
                         switch (settingsWindow.currentTab) {
                             case 0: postProcess.resetAll(); break
@@ -166,11 +167,17 @@ ApplicationWindow {
                 border.color: cSurface2
                 border.width: 0
 
-                Text {
+                VectorIcon {
                     anchors.left: parent.left; anchors.leftMargin: 24
                     anchors.verticalCenter: parent.verticalCenter
-                    text: tabModel.get(settingsWindow.currentTab).icon + "  " +
-                          tabModel.get(settingsWindow.currentTab).name
+                    width: 20; height: 20
+                    name: tabModel.get(settingsWindow.currentTab).iconName
+                    color: cAccent
+                }
+                Text {
+                    anchors.left: parent.left; anchors.leftMargin: 54
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: tabModel.get(settingsWindow.currentTab).name
                     color: cText
                     font.pixelSize: 18
                     font.bold: true
@@ -186,11 +193,11 @@ ApplicationWindow {
                         radius: 6
                         color: closeMa.containsMouse ? cSurface2 : "transparent"
                     }
-                    Text {
+                    VectorIcon {
                         anchors.centerIn: parent
-                        text: "✕"
+                        width: 18; height: 18
+                        name: "close"
                         color: closeMa.containsMouse ? cText : cTextMuted
-                        font.pixelSize: 14
                     }
                     MouseArea {
                         id: closeMa
@@ -371,31 +378,55 @@ ApplicationWindow {
 
                     // ============ Upscaler ============
                     SettingsPane {
-                        title: "Upscaler"
-                        subtitle: "FSR4 RE-derived INT8 backend. Pick the quality preset; the live status is shown below."
+                        title: "Playback Backend"
+                        subtitle: "Legacy FSR controls for the existing player. Only experimental FSR 4.1 is connected to the live Vulkan dispatch; other selections disable it. The causal ANVIL live stage is connected as an experimental opt-in pre-FSR reconstruction (launch with ANVIL_LIVE_PRE_FSR=1); the full ANVIL roster is not connected."
 
                         SettingsSection {
                             title: "Backend"
-                            // Experimental backend warning.
+                            // Experimental backend warning. Layout-managed
+                            // sizing (Layout.fillWidth) — a plain width
+                            // binding on a ColumnLayout child leaves the
+                            // banner zero-width/misplaced, so its centered
+                            // text overflows left over the sidebar and reads
+                            // as clipped at the line start.
                             Rectangle {
+                                id: experimentalWarning
                                 visible: fsr.backend === 3 // Fsr4ReExperimental
-                                width: parent.width; height: 56
+                                Layout.fillWidth: true
+                                Layout.preferredHeight:
+                                    visible ? warningColumn.implicitHeight + 16 : 0
                                 color: "#2a1a0a"; radius: 6
                                 border.color: settingsWindow.cWarn; border.width: 1
+                                objectName: "experimentalBackendWarning"
                                 Column {
+                                    id: warningColumn
                                     anchors.centerIn: parent
                                     spacing: 2
+                                    // Cap each line at the banner's content
+                                    // width and wrap instead of clipping, so
+                                    // the warning stays readable at every
+                                    // supported dialog width.
                                     Text {
+                                        id: warningTitle
+                                        objectName: "experimentalBackendWarningTitle"
                                         anchors.horizontalCenter: parent.horizontalCenter
-                                        text: "⚠ FSR 4.1 INT8 — Experimental"
+                                        width: Math.min(implicitWidth, experimentalWarning.width - 16)
+                                        text: "FSR 4.1 INT8 — Experimental"
                                         color: settingsWindow.cWarn
                                         font.pixelSize: 12; font.bold: true
+                                        wrapMode: Text.WordWrap
+                                        horizontalAlignment: Text.AlignHCenter
                                     }
                                     Text {
+                                        id: warningBody
+                                        objectName: "experimentalBackendWarningBody"
                                         anchors.horizontalCenter: parent.horizontalCenter
+                                        width: Math.min(implicitWidth, experimentalWarning.width - 16)
                                         text: "RE-derived. Local validation only — no official video-FSR reference."
                                         color: settingsWindow.cWarn
                                         font.pixelSize: 10
+                                        wrapMode: Text.WordWrap
+                                        horizontalAlignment: Text.AlignHCenter
                                     }
                                 }
                             }
@@ -480,7 +511,7 @@ ApplicationWindow {
                         }
 
                         SettingsSection {
-                            title: "Live Status"
+                            title: "Published Frame Stage"
                             Rectangle {
                                 width: parent.width
                                 height: 56
@@ -490,14 +521,40 @@ ApplicationWindow {
                                     anchors.left: parent.left; anchors.leftMargin: 12
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: {
-                                        if (fsr.backend !== 3) return "FSR4: not selected (passthrough)"
+                                        if (fsr.backend !== 3) return "FSR4: inactive (decoded playback)"
                                         if (playback.fsr4Active && playback.lastFsr4DispatchMs > 0)
                                             return "FSR4: active • dispatch " + playback.lastFsr4DispatchMs.toFixed(1) + " ms"
                                         if (playback.fsr4Active) return "FSR4: active • waiting for dispatch"
-                                        if (playback.fsr4Enabled) return "FSR4: enabled • initializing"
+                                        if (playback.fsr4Enabled) return "FSR4: enabled • not yet dispatching"
                                         return "FSR4: selected • enabling on playback"
                                     }
                                     color: fsr.backend === 3 ? "#39d353" : settingsWindow.cTextMuted
+                                    font.pixelSize: 12; font.family: "monospace"
+                                }
+                            }
+                            Rectangle {
+                                width: parent.width
+                                height: 56
+                                color: settingsWindow.cSurface
+                                radius: 6
+                                Text {
+                                    anchors.left: parent.left; anchors.leftMargin: 12
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    objectName: "publishedFrameSettings"
+                                    // This describes the last published image
+                                    // rather than pending CPU/GPU work. Failed
+                                    // dispatch leaves the earlier label intact.
+                                    text: {
+                                        if (playback.anvilLiveStage === "reconstructing")
+                                            return "ANVIL live: reconstructing (causal pre-FSR, experimental)"
+                                        if (playback.anvilLiveStage === "standby")
+                                            return "ANVIL live: opted in • waiting to reconstruct"
+                                        if (playback.anvilLiveStage === "bypassed")
+                                            return "ANVIL live: bypassed after budget miss (decoded pixels)"
+                                        return "ANVIL live: off (opt in with ANVIL_LIVE_PRE_FSR=1)"
+                                    }
+                                    color: playback.anvilLiveStage === "reconstructing"
+                                        ? "#39d353" : settingsWindow.cTextMuted
                                     font.pixelSize: 12; font.family: "monospace"
                                 }
                             }
@@ -527,7 +584,7 @@ ApplicationWindow {
                         }
                         SettingsSection {
                             title: "Track"
-                            description: "Audio track selection is wired to the engine — use the hotkey (Alt+A) to cycle tracks in the player."
+                            description: "Audio track switching is not exposed by the current player. This panel controls the active output volume."
                         }
                     }
 
@@ -547,8 +604,8 @@ ApplicationWindow {
                         SettingsSection {
                             title: "Window"
                             LabeledToggle {
-                                text: "Start in fullscreen"
-                                checked: false
+                                text: "Fullscreen now"
+                                checked: window.visibility === Window.FullScreen
                                 onToggled: {
                                     // The flag is persisted by main.cpp on quit; here we
                                     // just toggle the current window as a preview.
@@ -558,7 +615,7 @@ ApplicationWindow {
                             }
                             LabeledToggle {
                                 text: "Always on top (this session)"
-                                checked: false
+                                checked: (window.flags & Qt.WindowStaysOnTopHint) !== 0
                                 onToggled: {
                                     // Real — uses the platform window flag.
                                     if (newChecked) window.flags = window.flags | Qt.WindowStaysOnTopHint
@@ -571,7 +628,7 @@ ApplicationWindow {
                     // ============ Hotkeys ============
                     SettingsPane {
                         title: "Keyboard Shortcuts"
-                        subtitle: "Read-only reference. Custom rebinding is planned."
+                        subtitle: "Current implemented shortcuts. This panel does not change bindings."
 
                         // Read-only shortcut reference table, populated in two
                         // columns so it doesn't run too long.
@@ -590,12 +647,10 @@ ApplicationWindow {
                                     { key: "M",          action: "Mute" },
                                     { key: "↑ / ↓",      action: "Volume up / down" },
                                     { key: "← / →",      action: "Seek −10s / +10s" },
-                                    { key: ", / .",      action: "Frame step back / forward" },
-                                    { key: "[ / ]",      action: "Playback speed − / +" },
                                     { key: "C",          action: "Toggle A/B compare" },
                                     { key: "H",          action: "Toggle enhancement HUD" },
                                     { key: "Ctrl+S",     action: "Save screenshot" },
-                                    { key: "Ctrl+C",     action: "Copy frame to clipboard" },
+                                    { key: "Ctrl+Shift+C", action: "Copy frame to clipboard" },
                                     { key: "Ctrl+F",     action: "Debug overlay" },
                                     { key: "Ctrl+I",     action: "Media info" },
                                     { key: "Ctrl+,",     action: "Settings" },

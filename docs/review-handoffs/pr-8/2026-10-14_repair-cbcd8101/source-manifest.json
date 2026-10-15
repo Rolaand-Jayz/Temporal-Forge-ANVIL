@@ -1,0 +1,11 @@
+{
+ "parent_head": "cbcd8101a4953421af512f87503dd176768795a9",
+ "last_independently_reviewed_head": "cbcd8101a4953421af512f87503dd176768795a9",
+ "patch_sha256": "ef6ab9a41eafd54a3dc98c3b12401303d01d9367bec9847492034592f40f9e14",
+ "changed_source_files": {
+  "resources/qml/SettingsDialog.qml": "533316c922cb5a9698b463d1e87c7d61a268be493636c8603e8e9b2ca72eb1c2",
+  "tests/native_player_ui_tests.cpp": "737482aaf2496bc94ee7ac1b02ea90bcf5e02b281bb6d3312b67acd9de1a9b21",
+  "docs/current/PLAYER_UI.md": "3a212238a1361d7d6fdc8b660b737011ea7c7ef76cff15b601fc4ae27d9ba0ea"
+ },
+ "note": "Repair for PR8-F0003 only: SettingsDialog warning banner layout, native_player_ui_tests realized-geometry/warning-bounds/distinct-capture assertions (including the preset-key focus stabilization), and the PLAYER_UI.md verification paragraph. No PlaybackEngine/GpuImageUploader or capture/provenance code touched; PR8-F0001/F0002 code paths unchanged by this repair."
+}
