@@ -97,7 +97,13 @@ This behavioral test supplements the manual acceptance checklist above.
 
 `native_player_ui_tests` loads the production `Main.qml`, its HUD/Settings,
 and the real playback/controllers on Qt Vulkan. It checks the C comparison
-shortcut, both pane orientations, source dimensions, and 760/1280 layouts;
+shortcut, both pane orientations, source dimensions, and 760/1280 layouts.
+Each width case first waits for the compositor to deliver the requested
+window geometry and fails if it never arrives (a resize request issued while
+the window is inactive can be silently dropped on Wayland), then snapshots
+only the realized layout, asserts the two width captures are distinct, and
+verifies the experimental-backend warning text stays inside the Settings
+content viewport at the dialog's minimum and wider widths;
 the opt-in and budget variants check reconstructed and bypassed state text.
 Paused mode changes invalidate both surfaces through playback status signals,
 independently of the frame-pacing timer. Source dimensions refresh on media

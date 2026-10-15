@@ -13,6 +13,7 @@
 #include <QDir>
 #include <QGuiApplication>
 #include <QImage>
+#include <QQuickItem>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickGraphicsDevice>
@@ -205,8 +206,33 @@ int main(int argc, char** argv) {
                               ? QStringLiteral("POST-ANVIL")
                               : QStringLiteral("SOURCE");
     const auto stage = engine.anvilLiveStage();
+    // A resize request is not a realized size: on KDE Wayland a resize
+    // issued while the window is still inactive — for example right after a
+    // modal dialog hides — is silently dropped by the platform, which is how
+    // both width cases previously produced byte-identical captures. Activate
+    // the window first, keep re-issuing the request across transient
+    // compositor states, and fail loudly when the delivered geometry never
+    // arrives instead of snapshotting an unverified width claim.
+    auto resizeConfirmed = [](QQuickWindow* w, int width, int height) {
+        w->requestActivate();
+        QTest::qWaitForWindowActive(w, 2000);
+        for (int waited = 0; waited < 5000; waited += 50) {
+            if (w->width() == width && w->height() == height)
+                return true;
+            if (waited % 500 == 0)
+                w->resize(width, height);
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
+        }
+        return w->width() == width && w->height() == height;
+    };
+    QImage mainCaptures[2];
+    int mainCaptureCount = 0;
     for (int width : {760, 1280}) {
-        window->resize(width, width == 760 ? 480 : 720);
+        check(resizeConfirmed(window, width, width == 760 ? 480 : 720),
+              "compositor realizes the requested player window geometry");
+        std::printf("realized player window: %dx%d logical (DPR %.2f)\n",
+                    window->width(), window->height(),
+                    window->devicePixelRatio());
         window->setProperty("chromeVisible", true);
         until([] { return false; }, 150);
         check(text("compareLeftLabel") == expected &&
@@ -237,13 +263,53 @@ int main(int argc, char** argv) {
                       pixels.save(output.filePath(
                           QString("main-%1-swapped.png").arg(width))),
                   "capture real full-player comparison window");
+            if (mainCaptureCount < 2)
+                mainCaptures[mainCaptureCount++] = pixels;
         }
         compare.swapSides();
         auto* dialog = qobject_cast<QQuickWindow*>(named("playerSettings"));
         if (dialog) {
             dialog->setProperty("currentTab", 2);
             QMetaObject::invokeMethod(dialog, "show");
-            until([] { return false; }, 100);
+            until([&] { return dialog->isVisible(); }, 2000);
+            // Exercise the Settings window itself at the same supported
+            // widths (760 is its minimumWidth) instead of snapshotting the
+            // fixed default-size dialog twice.
+            check(resizeConfirmed(dialog, width, width == 760 ? 560 : 680),
+                  "compositor realizes the requested settings window geometry");
+            std::printf("realized settings window: %dx%d logical\n",
+                        dialog->width(), dialog->height());
+            until([] { return false; }, 150);
+            auto* banner =
+                qobject_cast<QQuickItem*>(named("experimentalBackendWarning"));
+            auto* warningTitle = qobject_cast<QQuickItem*>(
+                named("experimentalBackendWarningTitle"));
+            auto* warningBody = qobject_cast<QQuickItem*>(
+                named("experimentalBackendWarningBody"));
+            check(banner && warningTitle && warningBody &&
+                      banner->isVisible() && banner->width() > 0,
+                  "experimental backend warning banner is laid out and visible");
+            if (banner && warningTitle && warningBody) {
+                const qreal contentLeft = 181; // 180px sidebar + 1px divider
+                const auto titlePos = warningTitle->mapToItem(
+                    dialog->contentItem(), QPointF(0, 0));
+                const auto bodyPos = warningBody->mapToItem(
+                    dialog->contentItem(), QPointF(0, 0));
+                check(titlePos.x() >= contentLeft &&
+                          titlePos.x() + warningTitle->width() <=
+                              dialog->width() - 4 &&
+                          bodyPos.x() >= contentLeft &&
+                          bodyPos.x() + warningBody->width() <=
+                              dialog->width() - 4,
+                      "warning text bounds stay inside the settings content "
+                      "viewport");
+                check(warningTitle->width() >=
+                              warningTitle->implicitWidth() - 0.5 &&
+                          warningBody->width() >=
+                              warningBody->implicitWidth() - 0.5,
+                      "warning title and explanation fit untruncated on "
+                      "their lines at this width");
+            }
             if (const char* dir = std::getenv("TFORGE_TEST_CAPTURE_DIR")) {
                 auto image = dialog->grabWindow();
                 check(!image.isNull() &&
@@ -256,6 +322,9 @@ int main(int argc, char** argv) {
             dialog->hide();
         }
     }
+    if (mainCaptureCount == 2)
+        check(mainCaptures[0] != mainCaptures[1],
+              "the 760px and 1280px player captures are distinct layouts");
     if (neural && published) {
         window->setProperty("chromeVisible", true);
         const auto before = window->grabWindow();
@@ -357,12 +426,17 @@ int main(int argc, char** argv) {
         // Verify the actual keyboard-to-preset binding without requiring a
         // neural asset provision for this selection-only regression.
         fsr.setBackend(BackendKind::SpatialFallback);
-        window->requestActivate();
-        until([&] { return window->isActive(); }, 2000);
+        fsr.setPreset(UpscalePreset::Quality);
         const UpscalePreset presets[] = {
             UpscalePreset::Off, UpscalePreset::Quality, UpscalePreset::Balanced,
             UpscalePreset::Performance, UpscalePreset::UltraPerformance};
         for (int i = 0; i < 5; ++i) {
+            // Closing Settings can deliver a delayed focus transition. Each
+            // window-scoped shortcut requires the real main window active.
+            QCoreApplication::processEvents();
+            window->requestActivate();
+            check(QTest::qWaitForWindowActive(window, 2000),
+                  "main window is active for the window-scoped preset key");
             QTest::keyClick(window, static_cast<Qt::Key>(Qt::Key_1 + i),
                             Qt::ControlModifier);
             check(

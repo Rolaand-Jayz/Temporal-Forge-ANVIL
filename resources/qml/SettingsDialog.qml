@@ -383,26 +383,50 @@ ApplicationWindow {
 
                         SettingsSection {
                             title: "Backend"
-                            // Experimental backend warning.
+                            // Experimental backend warning. Layout-managed
+                            // sizing (Layout.fillWidth) — a plain width
+                            // binding on a ColumnLayout child leaves the
+                            // banner zero-width/misplaced, so its centered
+                            // text overflows left over the sidebar and reads
+                            // as clipped at the line start.
                             Rectangle {
+                                id: experimentalWarning
                                 visible: fsr.backend === 3 // Fsr4ReExperimental
-                                width: parent.width; height: 56
+                                Layout.fillWidth: true
+                                Layout.preferredHeight:
+                                    visible ? warningColumn.implicitHeight + 16 : 0
                                 color: "#2a1a0a"; radius: 6
                                 border.color: settingsWindow.cWarn; border.width: 1
+                                objectName: "experimentalBackendWarning"
                                 Column {
+                                    id: warningColumn
                                     anchors.centerIn: parent
                                     spacing: 2
+                                    // Cap each line at the banner's content
+                                    // width and wrap instead of clipping, so
+                                    // the warning stays readable at every
+                                    // supported dialog width.
                                     Text {
+                                        id: warningTitle
+                                        objectName: "experimentalBackendWarningTitle"
                                         anchors.horizontalCenter: parent.horizontalCenter
+                                        width: Math.min(implicitWidth, experimentalWarning.width - 16)
                                         text: "FSR 4.1 INT8 — Experimental"
                                         color: settingsWindow.cWarn
                                         font.pixelSize: 12; font.bold: true
+                                        wrapMode: Text.WordWrap
+                                        horizontalAlignment: Text.AlignHCenter
                                     }
                                     Text {
+                                        id: warningBody
+                                        objectName: "experimentalBackendWarningBody"
                                         anchors.horizontalCenter: parent.horizontalCenter
+                                        width: Math.min(implicitWidth, experimentalWarning.width - 16)
                                         text: "RE-derived. Local validation only — no official video-FSR reference."
                                         color: settingsWindow.cWarn
                                         font.pixelSize: 10
+                                        wrapMode: Text.WordWrap
+                                        horizontalAlignment: Text.AlignHCenter
                                     }
                                 }
                             }
