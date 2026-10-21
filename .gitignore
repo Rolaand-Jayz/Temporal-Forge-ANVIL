@@ -72,3 +72,7 @@ __pycache__/
 # Local ZCode agent state (workflow drafts, run journals) — session-local tool
 # state in the same category as .vscode/ and .remember/, not for version control.
 .zcode/
+
+# Legacy harness is historical; do not add new generated LFS PNGs.
+# Existing catalog-referenced assets remain tracked for reproducibility.
+review_harness/images/*.png
