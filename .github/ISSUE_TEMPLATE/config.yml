@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Current state
+    url: https://github.com/Rolaand-Jayz/Temporal-Forge-ANVIL/blob/main/docs/current/STATE.md
+    about: Where the FSR-era record and the ANVIL successor program stand.

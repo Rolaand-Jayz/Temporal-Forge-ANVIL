@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+message: "If you reference this research record, please cite it as below."
+title: "Temporal Forge / ANVIL: FSR-era research record and ANVIL successor research rig"
+type: software
+authors:
+  - alias: Rolaand-Jayz
+repository-code: "https://github.com/Rolaand-Jayz/Temporal-Forge-ANVIL"
+license: Apache-2.0
+date-released: "2026-11-19"
+keywords:
+  - temporal reconstruction
+  - multi-frame video reconstruction
+  - video upscaling
+  - evaluation methodology
+  - reproducibility
